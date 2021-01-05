@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+set -e # exit if something fails
+
+IS_DEBUG=0
+readonly _DEPOT_TOOLS_COMMIT=master
+readonly _WEBRTC_VERSION=88
+readonly _BRANCH_NUMBER=4324
+readonly ARGS_RELEASE='use_rtti=true is_debug=false libcxx_abi_unstable=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_include_tests=false rtc_build_tools=false rtc_build_examples=false libyuv_include_tests=false build_libsrtp_tests=false rtc_exclude_transient_suppressor=true rtc_include_ilbc=false rtc_include_pulse_audio=false rtc_libvpx_build_vp9=false mac_deployment_target="10.11.0" mac_min_system_version="10.11.0" mac_sdk_min="10.11"'
+readonly ARGS_DEBUG='use_rtti=true is_debug=true libcxx_abi_unstable=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_include_tests=false rtc_build_tools=false rtc_build_examples=false'
+
+checkout_depot_tools_commit() {
+  if [ "${DEPOT_TOOLS_COMMIT}" != "master" ]; then
+    export DEPOT_TOOLS_UPDATE=0
+    cd "${DEV_DIR}/depot_tools"
+    git reset --hard
+    git checkout -b m"${WEBRTC_VERSION}" "${DEPOT_TOOLS_COMMIT}"
+    echo "depot_tools update disabled" > "${DEV_DIR}/depot_tools/.disable_auto_update"
+    local file="${DEV_DIR}/depot_tools/update_depot_tools"
+    # sed -i '' '1s;^;exit 0  # disabling auto update\$'\n';' "${file}"
+    local tmp=$(mktemp)
+    {
+      echo -e "exit 0  # disabling auto update\n"
+      cat "${file}"
+    } > "${tmp}"
+    mv "${tmp}" "${file}"
+    # echo -e "exit 0  # disabling auto update\n$(cat "${file}")" > "${file}"
+    git add .
+    git commit -m "disable auto update"
+  fi
+}
+
+install_depot_tools() {
+  echo
+  echo "Installing depot_tools"
+  cd "${DEV_DIR}"
+  export DEPOT_TOOLS="${DEV_DIR}/depot_tools"
+  if [ -d "${DEPOT_TOOLS}" ]; then rm -rf "${DEPOT_TOOLS}"; fi
+  git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+  export PATH="${PATH}:${DEPOT_TOOLS}"
+  echo
+  echo "DEPOT_TOOLS: ${DEPOT_TOOLS}"
+  gclient > /dev/null
+  checkout_depot_tools_commit
+}
+
+find_depot_tools() {
+  unset gclient_path && unset DEPOT_TOOLS
+  local gclient_path="${DEV_DIR}/depot_tools/gclient"
+  cd "${DEV_DIR}"
+  if [ -f "${gclient_path}" ]; then
+    _DEPOT_TOOLS=$(dirname "${gclient_path}")
+    export DEPOT_TOOLS=${_DEPOT_TOOLS}
+    if [[ ":${PATH}:" != *":${DEPOT_TOOLS}:"* ]]; then
+      export PATH="${PATH}:${DEPOT_TOOLS}"
+    fi
+    echo
+    echo "DEPOT_TOOLS: ${DEPOT_TOOLS}"
+  else
+    install_depot_tools
+  fi
+}
+
+write_webrtc_version() {
+  local file="${WEBRTC_ROOT_DIR}/webrtc_version.h"
+  if [ -f "${file}" ]; then rm -f "${file}"; fi
+  {
+    echo "#ifndef WEBRTC_VERSION_H_"
+    echo "#define WEBRTC_VERSION_H_"
+    echo
+    echo "#ifdef WEBRTC_VERSION"
+    echo "#undef WEBRTC_VERSION"
+    echo "#endif"
+    echo
+    echo "#define WEBRTC_VERSION ${WEBRTC_VERSION}"
+    echo
+    echo "#endif  // WEBRTC_VERSION_H_"
+  } >> "${file}"
+}
+
+main() {
+  export OBSAGENTS_ROOT="${OBSAGENTS_ROOT:-$(pwd)}"
+  cd ../../..
+  export OBS_ROOT="${OBS_ROOT:-$(pwd)}"
+  cd ..
+  export DEV_DIR="${DEV_DIR:-$(pwd)}"
+
+  if [ -z ${DEPOT_TOOLS_COMMIT+x} ]; then DEPOT_TOOLS_COMMIT=${_DEPOT_TOOLS_COMMIT}; fi
+  if [ -z ${WEBRTC_VERSION+x} ]; then WEBRTC_VERSION=${_WEBRTC_VERSION}; fi
+  if [ -z ${BRANCH_NUMBER+x} ]; then BRANCH_NUMBER=${_BRANCH_NUMBER}; fi
+  if [ "${BUILD_TYPE}" = "Debug" ]; then IS_DEBUG=1; fi
+  if [ -z ${WEBRTC_ARGS+x} ]; then
+    if [ ${IS_DEBUG} -eq 1 ]; then WEBRTC_ARGS="${ARGS_DEBUG}"; else WEBRTC_ARGS="${ARGS_RELEASE}"; fi
+  fi
+  if [ ${WEBRTC_VERSION} -lt 73 ]; then WEBRTC_BRANCH=${WEBRTC_VERSION}; else WEBRTC_BRANCH=m${WEBRTC_VERSION}; fi
+  if [ ${WEBRTC_VERSION} -gt 79 ]; then WEBRTC_BRANCH=${BRANCH_NUMBER}; fi
+  if [ "$1" = "clean" ]; then install_depot_tools; else find_depot_tools; fi
+  if [ -z ${WEBRTC_ROOT_DIR+x} ]; then
+    if [ -n "${WEBRTC}" ]; then export WEBRTC_ROOT_DIR="${WEBRTC}"; else export WEBRTC_ROOT_DIR="${DEV_DIR}/webrtc"; fi
+  fi
+
+  start=$(date '+%Y-%m-%d %H:%M:%S')
+  start_ts=$(date +%s)
+  echo "${start}"
+  echo
+  echo "WebRTC: building m${WEBRTC_VERSION}"
+  echo "WebRTC: root: ${WEBRTC_ROOT_DIR}"
+  echo "WebRTC: args: ${WEBRTC_ARGS}"
+
+  rm -rf "${WEBRTC_ROOT_DIR}"
+  mkdir -p "${WEBRTC_ROOT_DIR}/lib"
+  mkdir -p "${WEBRTC_ROOT_DIR}/src"
+  cd "${WEBRTC_ROOT_DIR}"
+
+  echo "WebRTC: fetching..."
+  fetch --nohooks --force webrtc
+  cd "${WEBRTC_ROOT_DIR}/src"
+
+  git checkout -f refs/remotes/branch-heads/${WEBRTC_BRANCH}
+  gclient sync -f -D -R --with_branch_heads --with_tags
+  gn gen out/m${WEBRTC_VERSION} --args="${WEBRTC_ARGS}"
+  ninja -C out/m${WEBRTC_VERSION}
+
+  cp "${WEBRTC_ROOT_DIR}/src/out/m${WEBRTC_VERSION}/obj/libwebrtc.a" "${WEBRTC_ROOT_DIR}/lib/"
+  cp "${WEBRTC_ROOT_DIR}/src/out/m${WEBRTC_VERSION}/args.gn" "${WEBRTC_ROOT_DIR}/lib/"
+  # rsync -avh --prune-empty-dirs --exclude="out" --include="*/" --include="*.h" --exclude="*" ./* "${WEBRTC_ROOT_DIR}/include/"
+
+  write_webrtc_version
+
+  end=$(date '+%Y-%m-%d %H:%M:%S')
+  end_ts=$(date +%s)
+  runtime=$((end_ts-start_ts))
+  hours=$((runtime / 3600))
+  minutes=$(( (runtime % 3600) / 60 ))
+  seconds=$(( (runtime % 3600) % 60 ))
+
+  echo
+  echo "WebRTC: Finished building"
+  echo
+  echo   "Start:    ${start}"
+  echo   "End:      ${end}"
+  printf "Elapsed:  (hh:mm:ss) %02d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+}
+
+main "$@"

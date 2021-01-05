@@ -1,0 +1,21 @@
+diff --git a/UI/obs-app.cpp b/UI/obs-app.cpp
+index b6f0b7d5..196afd66 100644
+--- a/UI/obs-app.cpp
++++ b/UI/obs-app.cpp
+@@ -342,6 +342,16 @@ static void do_log(int log_level, const char *msg, va_list args, void *param)
+ 
+ #ifdef _WIN32
+ 	if (IsDebuggerPresent()) {
++		// OBSHACK - remove new lines at end of all the webrtc log msgs
++		size_t nSz = strlen(str);
++		if (nSz > 2 && (str[0] == '(' || str[0] == '['))
++		{
++			while (nSz > 0 && (str[nSz - 1] == '\n' || str[nSz - 1] == '\r'))
++			{
++				str[nSz-1] = '\0';
++				nSz--;
++			}
++		}
+ 		int wNum = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+ 		if (wNum > 1) {
+ 			static wstring wide_buf;

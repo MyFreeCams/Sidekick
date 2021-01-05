@@ -1,0 +1,24 @@
+{
+    "app": 
+    {
+        "name": "Sidekick MFC Login",
+        "fullscreen": false,
+        "start_url": "@MFC_CEF_LOGIN_URL@",
+        "window":
+        {
+            "x": 250,
+            "y": 300,
+            "width": 640,
+            "height": 580,
+            // upper and lower bounds on how large or small window can be resized.
+            // 0 means no limit.
+            "resize_window":
+            {
+                "min_width": 640,
+                "min_height": 580,
+                "max_width": 800,
+                "max_height": 800
+            }
+        }
+    }
+}

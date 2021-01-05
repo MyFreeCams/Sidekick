@@ -1,0 +1,376 @@
+#!/usr/bin/env bash
+set -e
+
+find_codesign_ident() {
+  readonly DEFAULT_CODESIGN_IDENT="Developer ID Application"
+  readonly CODESIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Application')
+  readonly _CODESIGN_IDENT_=$(security find-identity -p codesigning -v | grep 'Developer ID Application' | grep -Eoe '\s\w+\s' | grep -Eoe '\w+')
+  readonly _CODESIGN_IDENT=${_CODESIGN_IDENT_:-${DEFAULT_CODESIGN_IDENT}}
+  export CODESIGN_IDENT=${CODESIGN_IDENT:-${_CODESIGN_IDENT}}
+  if [ -z "${CODESIGN_IDENT_FULL}" ]; then NO_CODESIGN=1; fi
+  readonly DEFAULT_PRODUCTSIGN_IDENT="Developer ID Installer"
+  readonly PRODUCTSIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Installer')
+  readonly _PRODUCTSIGN_IDENT_=$(security find-identity -p codesigning -v | grep 'Developer ID Installer' | grep -Eoe '\s\w+\s' | grep -Eoe '\w+')
+  readonly _PRODUCTSIGN_IDENT=${_PRODUCTSIGN_IDENT_:-${DEFAULT_PRODUCTSIGN_IDENT}}
+  export PRODUCTSIGN_IDENT=${PRODUCTSIGN_IDENT:-${_PRODUCTSIGN_IDENT}}
+}
+
+fetch_git_tags() {
+  git fetch --tags
+  readonly _GIT_TAG=$(git describe --abbrev=0 --always)
+  export GIT_TAG=${_GIT_TAG}
+  readonly _GIT_COMMIT=$(git log -1 --format=%h)
+  export GIT_COMMIT=${_GIT_COMMIT}
+  readonly _GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  export GIT_BRANCH=${_GIT_BRANCH}
+  readonly _FILE_DATE=$(date +%Y-%m-%d.%H-%M-%S)
+  export FILE_DATE=${_FILE_DATE}
+  readonly _YYYYMMDD=$(date +%Y%m%d)
+  export YYYYMMDD=${_YYYYMMDD}
+}
+
+create_env() {
+  readonly _BUILD_DIR=xAuto
+  readonly _BUILD_TYPE=Release
+  readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+
+  fetch_git_tags
+  find_codesign_ident
+
+  readonly _OBSAGENTS_ROOT=$(pwd)
+  export OBSAGENTS_ROOT=${_OBSAGENTS_ROOT}
+  export DYLIBBUNDLER="${OBSAGENTS_ROOT}/scripts/macdylibbundler/build/dylibbundler"
+  cd ../../.. || exit
+  readonly _OBS_ROOT=$(pwd)
+  export OBS_ROOT=${_OBS_ROOT}
+  cd .. || exit
+  readonly _DEV_DIR=$(pwd)
+  export DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
+  export OBSDEPS="${DEV_DIR}/obsdeps"
+
+  export BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
+  export BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
+  cd "${BUILD_ROOT}"
+
+  if [ -f "${BUILD_ROOT}/CMakeCache.txt" ]; then
+    PREV_BUILD_TYPE=$(grep -E 'CMAKE_BUILD_TYPE:[^=]+=' "${BUILD_ROOT}/CMakeCache.txt" | sed -E 's/CMAKE_BUILD_TYPE:[^=]+=//')
+  fi
+  readonly __BUILD_TYPE=${PREV_BUILD_TYPE:-${_BUILD_TYPE}}
+  readonly _BUILD_TYPE_=${1:-${__BUILD_TYPE}}
+  export CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE_}}
+  export BUILD_TYPE=${CMAKE_BUILD_TYPE}
+  _CEF_BUILD_TYPE=Release
+  if [ "${BUILD_TYPE}" = "Debug" ]; then _CEF_BUILD_TYPE=Debug; fi
+  export CEF_BUILD_TYPE=${CEF_BUILD_TYPE:-${_CEF_BUILD_TYPE}}
+
+  if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
+    PREV_GIT_BRANCH=$(grep -E -o 'SIDEKICK_VERSION_GITBRANCH "[^"]+' "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" | sed -E 's/SIDEKICK_VERSION_GITBRANCH "//')
+    PREV_GIT_COMMIT=$(grep -E -o 'SIDEKICK_VERSION_GITCOMMIT "[^"]+' "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" | sed -E 's/SIDEKICK_VERSION_GITCOMMIT "//')
+  fi
+
+  export CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
+  export CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
+
+  readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64}"
+  export CEF_ROOT_DIR="${CEF_ROOT_DIR:-${_CEF_DIR}}"
+  export CEF_ROOT="${CEF_ROOT:-${CEF_ROOT_DIR}}"
+
+  export BOOST_ROOT="${BOOST_ROOT:-/usr/local/opt/boost}"
+  readonly _OPENSSL_DIR="${OPENSSL:-/usr/local/opt/openssl@1.1}"
+  export OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
+
+  # Store current xcode path
+  readonly XCODE_SELECT=$(xcode-select -p)
+
+  readonly red=$'\e[1;31m'
+  readonly grn=$'\e[1;32m'
+  readonly blu=$'\e[1;34m'
+  readonly mag=$'\e[1;35m'
+  readonly cyn=$'\e[1;36m'
+  readonly bold=$'\e[1m'
+  readonly reset=$'\e[0m'
+
+  readonly start_ts=$(date +%s)
+  readonly start=$(date '+%Y-%m-%d %H:%M:%S')
+}
+
+hr() {
+  echo "───────────────────────────────────────────────────"
+  echo "$1"
+  [ -n "$2" ] && echo "$2"
+  [ -n "$3" ] && echo "$3"
+  [ -n "$4" ] && echo "$4"
+  [ -n "$5" ] && echo "$5"
+  [ -n "$6" ] && echo "$6"
+  [ -n "$7" ] && echo "$7"
+  echo "───────────────────────────────────────────────────"
+}
+
+print_env() {
+  echo
+  echo "${cyn}Packaging              Sidekick${reset}"
+  echo "${red}BUILD_TYPE:            ${BUILD_TYPE}${reset}"
+  if [ -f "${BUILD_ROOT}/CMakeCache.txt" ]; then
+    echo "${red}PREVIOUS BUILD_TYPE:   ${PREV_BUILD_TYPE}${reset}"
+  fi
+  echo "GIT_BRANCH:            ${GIT_BRANCH}"
+  if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
+    if [ "${GIT_BRANCH}" = "${PREV_GIT_BRANCH}" ]; then
+      echo "${bold}PREV_GIT_BRANCH:       ${PREV_GIT_BRANCH}${reset}"
+    else
+      echo "${mag}PREV_GIT_BRANCH:       ${PREV_GIT_BRANCH}${reset}"
+    fi
+  fi
+  echo "GIT_COMMIT:            ${GIT_COMMIT}"
+  if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
+    if [ "${GIT_COMMIT}" = "${PREV_GIT_COMMIT}" ]; then
+      echo "${bold}PREV_GIT_COMMIT:       ${PREV_GIT_COMMIT}${reset}"
+    else
+      echo "${mag}PREV_GIT_COMMIT:       ${PREV_GIT_COMMIT}${reset}"
+    fi
+  fi
+  echo "BUILD_ROOT:            ${BUILD_ROOT}"
+  echo "OBS_ROOT:              ${OBS_ROOT}"
+  echo "DEV_DIR:               ${DEV_DIR}"
+  echo "CODESIGN_IDENT:        ${CODESIGN_IDENT_FULL}"
+  echo "PRODUCTSIGN_IDENT:     ${PRODUCTSIGN_IDENT_FULL}"
+}
+
+build_obs_bundle() {
+  cd "${BUILD_ROOT}"
+  rm -rf ./OBS.app 2> /dev/null
+  mkdir -p OBS.app/Contents/MacOS
+  mkdir -p OBS.app/Contents/Plugins
+  mkdir -p OBS.app/Contents/Resources
+  mkdir -p OBS.app/Contents/Frameworks
+
+  cp -R ./rundir/"${BUILD_TYPE}"/bin/ ./OBS.app/Contents/MacOS/
+  cp -R ./rundir/"${BUILD_TYPE}"/data ./OBS.app/Contents/Resources/
+  cp -R ./rundir/"${BUILD_TYPE}"/obs-plugins/ ./OBS.app/Contents/Plugins/
+
+  cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
+  cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/AppIcon.icns" ./OBS.app/Contents/Resources/
+
+  # Scripting plugins (obslua & obspython) are required to be placed in same directory as binary
+  if [ -d ./OBS.app/Contents/Resources/data/obs-scripting ]; then
+    for f in ./OBS.app/Contents/Resources/data/obs-scripting/*; do
+      mv "${f}" ./OBS.app/Contents/MacOS/
+    done
+    rm -rf ./OBS.app/Contents/Resources/data/obs-scripting/
+  fi
+
+  for f in ./OBS.app/Contents/Plugins/*.*; do
+    PLUGINS+="-x ./OBS.app/Contents/Plugins/${f##*/} "
+  done
+
+  if [ -f ./OBS.app/Contents/MacOS/obs-ffmpeg-mux ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/obs-ffmpeg-mux "; fi
+  if [ -f ./OBS.app/Contents/MacOS/libobs-opengl.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/libobs-opengl.so "; fi
+  if [ -f ./OBS.app/Contents/MacOS/obslua.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/obslua.so "; fi
+  if [ -f ./OBS.app/Contents/MacOS/_obspython.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/_obspython.so "; fi
+
+  # Fix install names & rpaths on dependencies and bundle dylibs
+  ${DYLIBBUNDLER} -f -q -cd -of -a ./OBS.app ${PLUGINS}
+
+  set +e
+  rm -f ./OBS.app/Contents/MacOS/libobs.0.dylib 2> /dev/null
+  rm -f ./OBS.app/Contents/MacOS/libobs-frontend-api.dylib 2> /dev/null
+  rm -f ./OBS.app/Contents/MacOS/libobsglad.0.dylib 2> /dev/null
+  rm -f ./OBS.app/Contents/MacOS/libobs-scripting.dylib 2> /dev/null
+  mv -f ./OBS.app/Contents/MacOS/libobs-opengl.so ./OBS.app/Contents/Frameworks
+
+  # Copy QtNetwork for plugin support
+  cp -pfR "${OBSDEPS}/lib/QtNetwork.framework" ./OBS.app/Contents/Frameworks/
+  chmod -R +w ./OBS.app/Contents/Frameworks/QtNetwork.framework
+  chmod 644 ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Resources/Info.plist
+  rm -rf ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Headers
+  rm -rf ./OBS.app/Contents/Frameworks/QtNetwork.framework/Headers
+  install_name_tool -id \
+    @rpath/QtNetwork \
+    ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
+  install_name_tool -change \
+    "${OBSDEPS}/lib/QtCore.framework/Versions/5/QtCore" \
+    @executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore \
+    ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
+
+  # Copy Chromium Embedded Framework (CEF) to app bundle
+  if [ -f ./rundir/${BUILD_TYPE}/obs-plugins/obs-browser.so ]; then
+    hr "Copying Chromium Embedded Framework (CEF)"
+    cp -pfR "${CEF_ROOT}/${CEF_BUILD_TYPE}/Chromium Embedded Framework.framework" ./OBS.app/Contents/Frameworks/
+  fi
+
+  cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" ./OBS.app/Contents/Resources/
+  plutil -insert CFBundleVersion -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
+  plutil -insert CFBundleShortVersionString -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
+  plutil -insert SUPublicDSAKeyFile -string OBSPublicDSAKey.pem ./OBS.app/Contents/Info.plist
+}
+
+fix_dependencies_mfcbroadcast() {
+  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" ]; then
+    install_name_tool -change \
+      @executable_path/../Frameworks/websocketclient.dylib \
+      @loader_path/websocketclient.dylib \
+      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
+    install_name_tool -change \
+      @executable_path/../Frameworks/libobs.0.dylib \
+      @rpath/libobs.0.dylib \
+      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
+    install_name_tool -change \
+      @executable_path/../Frameworks/libobs-frontend-api.dylib \
+      @rpath/libobs-frontend-api.dylib \
+      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
+  fi
+  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib" ]; then
+    install_name_tool -id \
+      @rpath/websocketclient.dylib \
+      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
+    install_name_tool -change \
+      @executable_path/../Frameworks/libobs.0.dylib \
+      @rpath/libobs.0.dylib \
+      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
+  fi
+}
+
+# Example: codesign_app appNameNoExtension /full/path/to/containing/directory
+codesign_app() {
+    hr "Code-signing $1.app"
+    cd "$2"
+    if [ -d "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework" ]; then
+      local cef_path="./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework"
+      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$cef_path/Libraries/libEGL.dylib"
+      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$cef_path/Libraries/libswiftshader_libEGL.dylib"
+      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$cef_path/Libraries/libGLESv2.dylib"
+      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$cef_path/Libraries/libswiftshader_libGLESv2.dylib"
+      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "$cef_path"
+    fi
+    codesign --force --options runtime --entitlements "${OBSAGENTS_ROOT}/scripts/install/osx/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
+    codesign -dvv "./$1.app"
+}
+
+codesign_apps() {
+  if [ -z "${NO_CODESIGN}" ]; then
+    codesign_app MFCCefLogin "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin"
+    codesign_app OBS "${BUILD_ROOT}"
+    codesign_app OBS-Sidekick "${BUILD_ROOT}"
+
+    for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
+      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
+    done
+  fi
+}
+
+prepare_files_for_package() {
+  cd "${BUILD_ROOT}"
+  mkdir -p "${BUILD_ROOT}/MFCBroadcast/bin"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libx264"* "${BUILD_ROOT}/MFCBroadcast/bin/"
+
+  for f in "${BUILD_ROOT}/MFCBroadcast/bin/libx264"*; do
+    install_name_tool -change \
+    "@executable_path/../Frameworks/${f##*/}" \
+    "@loader_path/${f##*/}" \
+    "${BUILD_ROOT}/MFCBroadcast/bin/MFCBroadcast.so"
+  done
+
+  if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg" ]; then
+    rm -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
+  fi
+  if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg" ]; then
+    rm -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg"
+  fi
+}
+
+notarize_package() {
+  if [ -n "${NOTARIZATION_USERNAME}" ]; then
+    xcrun altool --store-password-in-keychain-item "AC_PASSWORD" -u "${NOTARIZATION_USERNAME}" -p "${NOTARIZATION_PASSWORD}"
+    echo "Notarization precheck - started"
+    if xcnotary precheck "./OBS-Sidekick.app"; then
+      echo "Notarization precheck - success"
+      hr "Notarizing package"
+      xcnotary notarize "${BUILD_ROOT}/Sidekick.pkg" --developer-account "${NOTARIZATION_USERNAME}" --developer-password-keychain-item "AC_PASSWORD" --provider "${ASC_PROVIDER_SHORTNAME}"
+    else
+      echo "Notarization precheck - failed"
+      return 1
+    fi
+  fi
+}
+
+codesign_package() {
+  if [ -z "${NO_CODESIGN}" ]; then
+    hr "Code-signing package"
+    mv "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/Sidekick-unsigned.pkg"
+    productsign --sign "${PRODUCTSIGN_IDENT:--}" "${BUILD_ROOT}/Sidekick-unsigned.pkg" "${BUILD_ROOT}/Sidekick.pkg"
+    # Validate signature
+    spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"
+    notarize_package
+  fi
+}
+
+cleanup_print_summary() {
+  set +e
+  # rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"
+  rm -f "${BUILD_ROOT}/OBS.app/Contents/Plugins/MFCBroadcast.so" 2> /dev/null
+  rm -f "${BUILD_ROOT}/OBS.app/Contents/Plugins/websocketclient.dylib" 2> /dev/null
+  rm -f "${BUILD_ROOT}/OBS.app/Contents/Frameworks/websocketclient.dylib" 2> /dev/null
+
+  hr "Finished building Sidekick"
+  if [ "${BUILD_TYPE}" = "RelWithDebInfo" ]; then
+    cp -pf "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg"
+    mv -f "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
+    hr "BUILD_TYPE:            ${BUILD_TYPE}" "GIT_BRANCH:            ${GIT_BRANCH}" \
+      "GIT_COMMIT:            ${GIT_COMMIT}" " " "Package location:" " " "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
+  else
+    cp -pf "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/Sidekick-${GIT_BRANCH}-${GIT_COMMIT}-${BUILD_TYPE}-${YYYYMMDD}.pkg"
+    mv -f "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
+    hr "BUILD_TYPE:            ${BUILD_TYPE}" "GIT_BRANCH:            ${GIT_BRANCH}" \
+      "GIT_COMMIT:            ${GIT_COMMIT}" " " "Package location:" " " "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
+  fi
+
+  end=$(date '+%Y-%m-%d %H:%M:%S')
+  end_ts=$(date +%s)
+  runtime=$((end_ts-start_ts))
+  hours=$((runtime / 3600))
+  minutes=$(( (runtime % 3600) / 60 ))
+  seconds=$(( (runtime % 3600) % 60 ))
+
+  echo
+  echo   "Start:           ${start}"
+  echo   "End:             ${end}"
+  printf "Elapsed:         (hh:mm:ss) %02d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+}
+
+main() {
+  create_env "$@"
+  print_env
+  sudo xcode-select --reset
+
+  hr "Compiling macdylibbundler"
+  (cd "${OBSAGENTS_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
+
+  hr "Building MFC CEF Login app bundle"
+  ${DYLIBBUNDLER} -b -f -cd -of -q -a "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin/MFCCefLogin.app"
+
+  hr "Building OBS app bundle"
+  (build_obs_bundle)
+
+  cd "${BUILD_ROOT}"
+
+  # Create copy to use for Sidekick Installer packaging
+  rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"
+  cp -pfR "${BUILD_ROOT}/OBS.app" "${BUILD_ROOT}/OBS-Sidekick.app"
+
+  fix_dependencies_mfcbroadcast
+  prepare_files_for_package
+  codesign_apps
+
+  hr "Generating installation package"
+  packagesbuild "${BUILD_ROOT}/sidekick.pkgproj"
+
+  codesign_package
+  cleanup_print_summary
+
+  # Restore previously selected Xcode
+  sudo xcode-select --switch "${XCODE_SELECT}"
+}
+
+main "$@"

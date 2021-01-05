@@ -1,0 +1,10 @@
+#pragma once
+
+#ifndef WEBRTC_VERSION_H
+#define WEBRTC_VERSION_H
+
+#ifndef WEBRTC_VERSION
+#define WEBRTC_VERSION @WEBRTC_VERSION@
+#endif
+
+#endif // WEBRTC_VERSION_H

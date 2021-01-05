@@ -1,0 +1,42 @@
+# Override the default 8-space tabs in OBS' .editorconfig
+root = true
+
+[*]
+# end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8
+indent_style = space
+indent_size = 4
+
+[{CMakeLists.txt,*.cmake}]
+indent_style = tab
+indent_size = 4
+
+[*.{plist,pkgproj}]
+indent_style = tab
+indent_size = 4
+
+[*.{cmd,ps1,sh,bat,rb,js,manifest}]
+indent_style = space
+indent_size = 2
+
+[*.{cmd,ps1,bat,rc,iss,manifest}]
+end_of_line = crlf
+
+[*.md]
+max_line_length = 0
+trim_trailing_whitespace = false
+
+# Makefiles
+[{Makefile,*.mk}]
+indent_style = tab
+trim_trailing_whitespace = false
+
+# Patch files
+[*.patch.*]
+trim_trailing_whitespace = false
+
+[mfc-browser/*.{h,hpp,cpp}]
+indent_style = tab
+indent_size = 8

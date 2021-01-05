@@ -1,0 +1,13 @@
+
+
+    MyFreeCams Broadcast Sidekick - an OBS plugin for broadcasting WebRTC streams to MFC Servers.
+  
+Setup Notes:
+
+After installation is complete, the Sidekick plugin will be added to OBS, and loaded each time OBS does. The plugin only activates itself when the current profile is set to use the 'MyFreeCams WebRTC' service backend, which is added by the plugin when it first runs.  Profiles for normal RTMP MyFreeCams broadcasts, or for other services, will be ignored by Sidekick, and they will run as normal. 
+
+The first thing to do is duplicate one of your existing profiles, or create a new one, and set the streaming service to 'MyFreeCams WebRTC'.  The video server and streamkey fields you may leave empty or whatever the default values are.  When this profile is activated, the Sidekick plugin will detect that it is not yet linked to your MyFreeCams model account and open a web browser window pointing to the Sidekick Link Account login window.  Login with your model account, and accept the request to Link Sidekick to your MFC login.  This profile is now connected to your MFC account, and should stay connected until you specifically log-out, or until your password or streamkey changes.  The server URLs and your streamkey will be filled in automatically after you login.  You must link your account in this way for each different profile you setup that you would like to use with MyFreeCams' WebRTC enabled servers.
+
+Once your profile is linked, you will need to launch Modelweb in a new browser window and login to your model account.  Once logged in, open the 'Options and Settings' dialog, and from the 'Video' tab choose 'External Broadcaster' as the Video Quality setting.  IMPORTANT: Do not chjoose 'WebRTC' from this page if you want to broadcast with OBS, you *must* select 'External Broadcaster' to use WebRTC through OBS with the Sidekick plugin.
+
+When your modelweb login is setup and connected, the OBS window should detect within a moment that modelweb is logged in and ready to stream. Click 'Start Streaming' from OBS, and the Sidekick plugin will connect to the appropriate servers and publish your public room stream!
