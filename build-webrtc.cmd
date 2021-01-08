@@ -12,12 +12,12 @@ if "%~1"=="Debug" (set IS_DEBUG=1)
 if "%BUILD_TYPE%"=="Debug" (set IS_DEBUG=1)
 
 set "OBSAGENTS_ROOT=%CD%"
-call :configure_log
 cd ..\..\..
 set "OBS_ROOT=%CD%"
 set "BUILD_ROOT=%OBS_ROOT%\build64"
 cd ..
 set "DEV_DIR=%CD%"
+call :configure_log
 
 if defined GYP_MSVS_VERSION (echo -- WebRTC: GYP_MSVS_VERSION already defined: %GYP_MSVS_VERSION% 1>> %LOG%) else (call :find_visual_studio)
 if defined DEPOT_TOOLS_COMMIT (echo -- WebRTC: DEPOT_TOOLS_COMMIT already defined: %DEPOT_TOOLS_COMMIT% 1>> %LOG%) else (set DEPOT_TOOLS_COMMIT=%_DEPOT_TOOLS_COMMIT%)
@@ -153,7 +153,7 @@ exit /b
   set CUR_NN=%time:~3,2%
   set CUR_SS=%time:~6,2%
   set DATE_TIME=%CUR_YYYY%%CUR_MM%%CUR_DD%-%CUR_HH%%CUR_NN%%CUR_SS%
-  set "LOG=%BUILD_ROOT%\build-webrtc_%DATE_TIME%.log"
+  set "LOG=%DEV_DIR%\build-webrtc_%DATE_TIME%.log"
   goto :eof
 
 :elapsed_time
