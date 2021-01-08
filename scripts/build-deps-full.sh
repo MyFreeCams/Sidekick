@@ -19,12 +19,13 @@ readonly THEORA_VERSION=1.1.1
 readonly LAME_VERSION=3.100
 readonly MBEDTLS_VERSION=2.24.0
 readonly SRT_VERSION=1.4.1
-readonly LUAJIT_VERSION=2.1.0-beta3
 readonly SWIG_VERSION=4.0.2
 readonly PCRE_VERSION=8.44
 readonly SPEEXDSP_VERSION=1.2.0
-readonly RNNOISE_COMMIT=90ec41ef659fd82cfec2103e9bb7fc235e9ea66c
 readonly JANSSON_VERSION=2.13.1
+readonly LUAJIT_VERSION=2.1.0-beta3
+readonly FREETYPE_VERSION=2.10.4
+readonly RNNOISE_COMMIT=90ec41ef659fd82cfec2103e9bb7fc235e9ea66c
 # readonly SPARKLE_VERSION=1.23.0
 
 readonly _MACOSX_DEPLOYMENT_TARGET=10.13
@@ -142,7 +143,7 @@ install_build_tools() {
   install_or_upgrade automake
   install_or_upgrade pcre
   install_or_upgrade cmake
-  install_or_upgrade freetype
+  # install_or_upgrade freetype
   install_or_upgrade nasm
   install_or_upgrade pkg-config
   install_or_upgrade cmocka
@@ -161,102 +162,122 @@ install_core_obs_deps() {
   fi
   install_or_upgrade curl-openssl
   install_or_upgrade openssl@1.1
-  install_or_upgrade speexdsp
+  # install_or_upgrade speexdsp
   install_or_upgrade fdk-aac
   brew tap akeru-inc/tap
   install_or_upgrade akeru-inc/tap/xcnotary
 }
 
 build_png() {
-  hr "Building png ${PNG_VERSION} (FFmpeg dependency"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf libpng-${PNG_VERSION}
-  curl -fkRL -O "https://downloads.sourceforge.net/project/libpng/libpng16/${PNG_VERSION}/libpng-${PNG_VERSION}.tar.xz"
-  tar -xf libpng-${PNG_VERSION}.tar.xz
-  cd ./libpng-${PNG_VERSION}
-  mkdir -p build
-  cd ./build
-  ../configure --disable-shared --enable-static --prefix="${OBSDEPS}"
-  make -j ${NUM_CORES}
-  make install
-  set +e
+  if [ -f "${OBSDEPS}/lib/libpng.a" ]; then
+    hr "png already installed"
+  else
+    hr "Building png ${PNG_VERSION} (FFmpeg dependency"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf libpng-${PNG_VERSION}
+    curl -fkRL -O "https://downloads.sourceforge.net/project/libpng/libpng16/${PNG_VERSION}/libpng-${PNG_VERSION}.tar.xz"
+    tar -xf libpng-${PNG_VERSION}.tar.xz
+    cd ./libpng-${PNG_VERSION}
+    mkdir -p build
+    cd ./build
+    ../configure --disable-shared --enable-static --prefix="${OBSDEPS}"
+    make -j ${NUM_CORES}
+    make install
+    set +e
+  fi
 }
 
 build_opus() {
-  hr "Building opus ${OPUS_VERSION} (FFmpeg dependency)"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf opus-${OPUS_VERSION}
-  curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-${OPUS_VERSION}.tar.gz"
-  tar -xf opus-${OPUS_VERSION}.tar.gz
-  cd ./opus-${OPUS_VERSION}
-  mkdir -p build
-  cd ./build
-  ../configure --disable-shared --enable-static --prefix="${OBSDEPS}" --disable-doc
-  make -j ${NUM_CORES}
-  make install
-  set +e
+  if [ -f "${OBSDEPS}/lib/libopus.a" ]; then
+    hr "opus already installed"
+  else
+    hr "Building opus ${OPUS_VERSION} (FFmpeg dependency)"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf opus-${OPUS_VERSION}
+    curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-${OPUS_VERSION}.tar.gz"
+    tar -xf opus-${OPUS_VERSION}.tar.gz
+    cd ./opus-${OPUS_VERSION}
+    mkdir -p build
+    cd ./build
+    ../configure --disable-shared --enable-static --prefix="${OBSDEPS}" --disable-doc
+    make -j ${NUM_CORES}
+    make install
+    set +e
+  fi
 }
 
 build_ogg() {
-  hr "Building libogg ${OGG_VERSION} (FFmpeg dependency)"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf libogg-${OGG_VERSION}
-  curl -fkRL -O "https://gitlab.xiph.org/xiph/ogg/-/archive/${OGG_VERSION}/ogg-${OGG_VERSION}.tar.gz"
-  tar -xf ogg-${OGG_VERSION}.tar.gz
-  cd ./ogg-${OGG_VERSION}
-  mkdir -p build
-  ./autogen.sh
-  cd ./build
-  ../configure --disable-shared --enable-static --prefix="${OBSDEPS}"
-  make -j 1  # error if j > 1
-  make install
-  set +e
+  if [ -f "${OBSDEPS}/lib/libogg.a" ]; then
+    hr "ogg already installed"
+  else
+    hr "Building ogg ${OGG_VERSION} (FFmpeg dependency)"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf libogg-${OGG_VERSION}
+    curl -fkRL -O "https://gitlab.xiph.org/xiph/ogg/-/archive/${OGG_VERSION}/ogg-${OGG_VERSION}.tar.gz"
+    tar -xf ogg-${OGG_VERSION}.tar.gz
+    cd ./ogg-${OGG_VERSION}
+    mkdir -p build
+    ./autogen.sh
+    cd ./build
+    ../configure --disable-shared --enable-static --prefix="${OBSDEPS}"
+    make -j 1  # error if j > 1
+    make install
+    set +e
+  fi
 }
 
 build_vorbis() {
-  hr "Building libvorbis ${VORBIS_VERSION} (FFmpeg dependency)"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf libvorbis-${VORBIS_VERSION}
-  curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${VORBIS_VERSION}.tar.gz"
-  tar -xf libvorbis-${VORBIS_VERSION}.tar.gz
-  cd ./libvorbis-${VORBIS_VERSION}
-  mkdir -p build
-  cd ./build
-  ../configure --disable-shared --enable-static --prefix="${OBSDEPS}"
-  make -j ${NUM_CORES}
-  make install
-  set +e
+  if [ -f "${OBSDEPS}/lib/libvorbis.a" ]; then
+    hr "vorbis already installed"
+  else
+    hr "Building vorbis ${VORBIS_VERSION} (FFmpeg dependency)"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf libvorbis-${VORBIS_VERSION}
+    curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${VORBIS_VERSION}.tar.gz"
+    tar -xf libvorbis-${VORBIS_VERSION}.tar.gz
+    cd ./libvorbis-${VORBIS_VERSION}
+    mkdir -p build
+    cd ./build
+    ../configure --disable-shared --enable-static --prefix="${OBSDEPS}"
+    make -j ${NUM_CORES}
+    make install
+    set +e
+  fi
 }
 
 build_vpx() {
-  hr "Building libvpx ${VPX_VERSION} (FFmpeg dependency)"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf libvpx-v${VPX_VERSION}
-  curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
-  mkdir -p ./libvpx-v${VPX_VERSION}
-  tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
-  cd ./libvpx-v${VPX_VERSION}
-  mkdir -p build
-  cd ./build
-  if [ $(echo "${MACOSX_DEPLOYMENT_TARGET}" | cut -d "." -f 1) -lt 11 ]; then
-    VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 2)+4))"
+  if [ -f "${OBSDEPS}/lib/libvpx.a" ]; then
+    hr "vpx already installed"
   else
-    VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 1)+9))"
+    hr "Building vpx ${VPX_VERSION} (FFmpeg dependency)"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf libvpx-v${VPX_VERSION}
+    curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
+    mkdir -p ./libvpx-v${VPX_VERSION}
+    tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
+    cd ./libvpx-v${VPX_VERSION}
+    mkdir -p build
+    cd ./build
+    if [ $(echo "${MACOSX_DEPLOYMENT_TARGET}" | cut -d "." -f 1) -lt 11 ]; then
+      VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 2)+4))"
+    else
+      VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 1)+9))"
+    fi
+    ../configure --disable-shared  --target=x86_64-darwin${VPX_TARGET}-gcc --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
+      --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
+    make -j ${NUM_CORES}
+    make install
+    set +e
   fi
-  ../configure --disable-shared  --target=x86_64-darwin${VPX_TARGET}-gcc --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
-    --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
-  make -j ${NUM_CORES}
-  make install
-  set +e
 }
 
 build_x264() {
-  if [ -f "${OBSDEPS}/bin/libx264.dylib" ]; then
+  if [ -f "${OBSDEPS}/lib/libx264.dylib" ]; then
     hr "x264 already installed"
   else
     hr "Building x264"
@@ -288,36 +309,44 @@ build_x264() {
 }
 
 build_theora() {
-  hr "Building libtheora ${THEORA_VERSION} (FFmpeg dependency)"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf libtheora-${THEORA_VERSION}
-  curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.bz2"
-  tar -xf libtheora-${THEORA_VERSION}.tar.bz2
-  cd ./libtheora-${THEORA_VERSION}
-  mkdir -p build
-  cd ./build
-  ../configure --disable-shared --enable-static --prefix="${OBSDEPS}" --disable-oggtest --disable-vorbistest --disable-examples 
-  make -j ${NUM_CORES}
-  make install
-  set +e
+  if [ -f "${OBSDEPS}/lib/libtheora.a" ]; then
+    hr "libtheora already installed"
+  else
+    hr "Building libtheora ${THEORA_VERSION} (FFmpeg dependency)"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf libtheora-${THEORA_VERSION}
+    curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.bz2"
+    tar -xf libtheora-${THEORA_VERSION}.tar.bz2
+    cd ./libtheora-${THEORA_VERSION}
+    mkdir -p build
+    cd ./build
+    ../configure --disable-shared --enable-static --prefix="${OBSDEPS}" --disable-oggtest --disable-vorbistest --disable-examples
+    make -j ${NUM_CORES}
+    make install
+    set +e
+  fi
 }
 
 build_lame() {
-  hr "Building liblame ${LAME_VERSION} (FFmpeg dependency)"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf lame-${LAME_VERSION}
-  curl -fkRL -O "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz"
-  tar -xf lame-${LAME_VERSION}.tar.gz
-  cd ./lame-${LAME_VERSION}
-  sed -i '' '/lame_init_old/d' ./include/libmp3lame.sym
-  mkdir -p build
-  cd ./build
-  ../configure --disable-shared --prefix="${OBSDEPS}" --enable-nasm --disable-dependency-tracking --disable-debug
-  make -j ${NUM_CORES}
-  make install
-  set +e
+  if [ -f "${OBSDEPS}/lib/libmp3lame.a" ]; then
+    hr "liblame already installed"
+  else
+    hr "Building liblame ${LAME_VERSION} (FFmpeg dependency)"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf lame-${LAME_VERSION}
+    curl -fkRL -O "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz"
+    tar -xf lame-${LAME_VERSION}.tar.gz
+    cd ./lame-${LAME_VERSION}
+    sed -i '' '/lame_init_old/d' ./include/libmp3lame.sym
+    mkdir -p build
+    cd ./build
+    ../configure --disable-shared --prefix="${OBSDEPS}" --enable-nasm --disable-dependency-tracking --disable-debug
+    make -j ${NUM_CORES}
+    make install
+    set +e
+  fi
 }
 
 create_mbedtls_pkgconfig() {
@@ -367,48 +396,54 @@ EOF
 }
 
 build_mbedtls() {
-  hr "Building libmbedtls ${MBEDTLS_VERSION} (FFmpeg dependency)"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf mbedtls-mbedtls-${MBEDTLS_VERSION}
-  curl -fkRL -O "https://github.com/ARMmbed/mbedtls/archive/mbedtls-${MBEDTLS_VERSION}.tar.gz"
-  tar -xf mbedtls-${MBEDTLS_VERSION}.tar.gz
-  cd ./mbedtls-mbedtls-${MBEDTLS_VERSION}
-  sed -i '' 's/\/\/\#define MBEDTLS_THREADING_PTHREAD/\#define MBEDTLS_THREADING_PTHREAD/g' include/mbedtls/config.h
-  sed -i '' 's/\/\/\#define MBEDTLS_THREADING_C/\#define MBEDTLS_THREADING_C/g' include/mbedtls/config.h
-  mkdir -p build
-  cd ./build
-  cmake -DCMAKE_INSTALL_PREFIX="${OBSDEPS}" -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DENABLE_PROGRAMS=OFF ..
-  make -j ${NUM_CORES}
-  make install
-  install_name_tool -id "${OBSDEPS}/lib/libmbedtls.${MBEDTLS_VERSION}.dylib" "${OBSDEPS}/lib/libmbedtls.${MBEDTLS_VERSION}.dylib"
-  install_name_tool -id "${OBSDEPS}/lib/libmbedcrypto.${MBEDTLS_VERSION}.dylib" "${OBSDEPS}/lib/libmbedcrypto.${MBEDTLS_VERSION}.dylib"
-  install_name_tool -id "${OBSDEPS}/lib/libmbedx509.${MBEDTLS_VERSION}.dylib" "${OBSDEPS}/lib/libmbedx509.${MBEDTLS_VERSION}.dylib"
-  install_name_tool -change libmbedx509.1.dylib "${OBSDEPS}/lib/libmbedx509.1.dylib" "${OBSDEPS}/lib/libmbedtls.${MBEDTLS_VERSION}.dylib"
-  install_name_tool -change libmbedcrypto.5.dylib "${OBSDEPS}/lib/libmbedcrypto.5.dylib" "${OBSDEPS}/lib/libmbedtls.${MBEDTLS_VERSION}.dylib"
-  install_name_tool -change libmbedcrypto.5.dylib "${OBSDEPS}/lib/libmbedcrypto.5.dylib" "${OBSDEPS}/lib/libmbedx509.${MBEDTLS_VERSION}.dylib"
-  # rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./include/mbedtls/* "${OBSDEPS}/include/mbedtls/"
-  # rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../include/mbedtls/* "${OBSDEPS}/include/mbedtls/"
-  create_mbedtls_pkgconfig
-  set +e
+  if [ -f "${OBSDEPS}/lib/libmbedtls.dylib" ]; then
+    hr "medtls already installed"
+  else
+    hr "Building mbedtls ${MBEDTLS_VERSION} (FFmpeg dependency)"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf mbedtls-mbedtls-${MBEDTLS_VERSION}
+    curl -fkRL -O "https://github.com/ARMmbed/mbedtls/archive/mbedtls-${MBEDTLS_VERSION}.tar.gz"
+    tar -xf mbedtls-${MBEDTLS_VERSION}.tar.gz
+    cd ./mbedtls-mbedtls-${MBEDTLS_VERSION}
+    sed -i '' 's/\/\/\#define MBEDTLS_THREADING_PTHREAD/\#define MBEDTLS_THREADING_PTHREAD/g' include/mbedtls/config.h
+    sed -i '' 's/\/\/\#define MBEDTLS_THREADING_C/\#define MBEDTLS_THREADING_C/g' include/mbedtls/config.h
+    mkdir -p build
+    cd ./build
+    cmake -DCMAKE_INSTALL_PREFIX="${OBSDEPS}" -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DENABLE_PROGRAMS=OFF ..
+    make -j ${NUM_CORES}
+    make install
+    install_name_tool -id "${OBSDEPS}/lib/libmbedtls.${MBEDTLS_VERSION}.dylib" "${OBSDEPS}/lib/libmbedtls.${MBEDTLS_VERSION}.dylib"
+    install_name_tool -id "${OBSDEPS}/lib/libmbedcrypto.${MBEDTLS_VERSION}.dylib" "${OBSDEPS}/lib/libmbedcrypto.${MBEDTLS_VERSION}.dylib"
+    install_name_tool -id "${OBSDEPS}/lib/libmbedx509.${MBEDTLS_VERSION}.dylib" "${OBSDEPS}/lib/libmbedx509.${MBEDTLS_VERSION}.dylib"
+    install_name_tool -change libmbedx509.1.dylib "${OBSDEPS}/lib/libmbedx509.1.dylib" "${OBSDEPS}/lib/libmbedtls.${MBEDTLS_VERSION}.dylib"
+    install_name_tool -change libmbedcrypto.5.dylib "${OBSDEPS}/lib/libmbedcrypto.5.dylib" "${OBSDEPS}/lib/libmbedtls.${MBEDTLS_VERSION}.dylib"
+    install_name_tool -change libmbedcrypto.5.dylib "${OBSDEPS}/lib/libmbedcrypto.5.dylib" "${OBSDEPS}/lib/libmbedx509.${MBEDTLS_VERSION}.dylib"
+    create_mbedtls_pkgconfig
+    set +e
+  fi
 }
 
 build_srt() {
-  hr "Building libsrt ${SRT_VERSION} (FFmpeg dependency)"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf srt-${SRT_VERSION}
-  curl -fkRL -O "https://github.com/Haivision/srt/archive/v${SRT_VERSION}.tar.gz"
-  tar -xf v${SRT_VERSION}.tar.gz
-  cd ./srt-${SRT_VERSION}
-  mkdir -p build
-  cd ./build
-  cmake -DCMAKE_INSTALL_PREFIX="${OBSDEPS}" -DENABLE_STATIC=ON -DENABLE_SHARED=OFF \
-    -DSSL_INCLUDE_DIRS="${OBSDEPS}/include" -DSSL_LIBRARY_DIRS="${OBSDEPS}/lib" \
-    -DUSE_ENCLIB="mbedtls" -DENABLE_APPS=OFF -DCMAKE_FIND_FRAMEWORK=LAST ..
-  make -j ${NUM_CORES}
-  make install
-  set +e
+  if [ -f "${OBSDEPS}/lib/libsrt.a" ]; then
+    hr "srt already installed"
+  else
+    hr "Building srt ${SRT_VERSION} (FFmpeg dependency)"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf srt-${SRT_VERSION}
+    curl -fkRL -O "https://github.com/Haivision/srt/archive/v${SRT_VERSION}.tar.gz"
+    tar -xf v${SRT_VERSION}.tar.gz
+    cd ./srt-${SRT_VERSION}
+    mkdir -p build
+    cd ./build
+    cmake -DCMAKE_INSTALL_PREFIX="${OBSDEPS}" -DENABLE_STATIC=ON -DENABLE_SHARED=OFF \
+      -DSSL_INCLUDE_DIRS="${OBSDEPS}/include" -DSSL_LIBRARY_DIRS="${OBSDEPS}/lib" \
+      -DUSE_ENCLIB="mbedtls" -DENABLE_APPS=OFF -DCMAKE_FIND_FRAMEWORK=LAST ..
+    make -j ${NUM_CORES}
+    make install
+    set +e
+  fi
 }
 
 build_ffmpeg_deps() {
@@ -425,7 +460,7 @@ build_ffmpeg_deps() {
 }
 
 build_ffmpeg() {
-  if [ -f "${OBSDEPS}/bin/libavcodec.dylib" ]; then
+  if [ -f "${OBSDEPS}/lib/libavcodec.dylib" ]; then
     hr "FFmpeg already installed"
   else
     hr "Building FFmpeg ${FFMPEG_VERSION}"
@@ -500,41 +535,49 @@ build_swig() {
 }
 
 build_speexdsp() {
-  hr "Building speexdsp ${SPEEXDSP_VERSION}"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf speexdsp-SpeexDSP-${SPEEXDSP_VERSION}
-  curl -fkRL -O "https://github.com/xiph/speexdsp/archive/SpeexDSP-${SPEEXDSP_VERSION}.tar.gz"
-  tar -xf speexDSP-${SPEEXDSP_VERSION}.tar.gz
-  cd ./speexdsp-SpeexDSP-${SPEEXDSP_VERSION}
-  sed -i '' "s/CFLAGS='-O3'/CFLAGS='-O3  -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}'/" ./SpeexDSP.spec.in
-  ./autogen.sh
-  mkdir -p build
-  cd ./build
-  ../configure --prefix="${OBSDEPS}" --disable-dependency-tracking
-  make -j ${NUM_CORES}
-  find . -name \*.dylib -exec cp -a \{\} "${OBSDEPS}/lib/" \;
-  rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../include/* "${OBSDEPS}/include/"
-  rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./include/* "${OBSDEPS}/include/"
-  set +e
+  if [ -f "${OBSDEPS}/lib/libspeexdsp.dylib" ]; then
+    hr "speexdsp already installed"
+  else
+    hr "Building speexdsp ${SPEEXDSP_VERSION}"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf speexdsp-SpeexDSP-${SPEEXDSP_VERSION}
+    curl -fkRL -O "https://github.com/xiph/speexdsp/archive/SpeexDSP-${SPEEXDSP_VERSION}.tar.gz"
+    tar -xf speexDSP-${SPEEXDSP_VERSION}.tar.gz
+    cd ./speexdsp-SpeexDSP-${SPEEXDSP_VERSION}
+    sed -i '' "s/CFLAGS='-O3'/CFLAGS='-O3  -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}'/" ./SpeexDSP.spec.in
+    ./autogen.sh
+    mkdir -p build
+    cd ./build
+    ../configure --prefix="${OBSDEPS}" --disable-dependency-tracking
+    make -j ${NUM_CORES}
+    find . -name \*.dylib -exec cp -a \{\} "${OBSDEPS}/lib/" \;
+    rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../include/* "${OBSDEPS}/include/"
+    rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./include/* "${OBSDEPS}/include/"
+    set +e
+  fi
 }
 
 build_jansson() {
-  hr "Building jansson ${JANSSON_VERSION}"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf jansson-${JANSSON_VERSION}
-  curl -fkRL -O "https://digip.org/jansson/releases/jansson-${JANSSON_VERSION}.tar.gz"
-  tar -xf jansson-${JANSSON_VERSION}.tar.gz
-  cd ./jansson-${JANSSON_VERSION}
-  mkdir -p build
-  cd ./build
-  ../configure --libdir="${OBSDEPS}/lib" --enable-shared --disable-static
-  make -j ${NUM_CORES}
-  find . -name \*.dylib -exec cp -a \{\} "${OBSDEPS}/lib/" \;
-  rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../src/* "${OBSDEPS}/include/"
-  rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./src/* "${OBSDEPS}/include/"
-  set +e
+  if [ -f "${OBSDEPS}/lib/libjansson.dylib" ]; then
+    hr "jansson already installed"
+  else
+    hr "Building jansson ${JANSSON_VERSION}"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf jansson-${JANSSON_VERSION}
+    curl -fkRL -O "https://digip.org/jansson/releases/jansson-${JANSSON_VERSION}.tar.gz"
+    tar -xf jansson-${JANSSON_VERSION}.tar.gz
+    cd ./jansson-${JANSSON_VERSION}
+    mkdir -p build
+    cd ./build
+    ../configure --libdir="${OBSDEPS}/lib" --enable-shared --disable-static
+    make -j ${NUM_CORES}
+    find . -name \*.dylib -exec cp -a \{\} "${OBSDEPS}/lib/" \;
+    rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../src/* "${OBSDEPS}/include/"
+    rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./src/* "${OBSDEPS}/include/"
+    set +e
+  fi
 }
 
 build_freetype() {
@@ -542,7 +585,7 @@ build_freetype() {
   set -e
   cd "${WORK_DIR}"
   rm -rf jansson-${JANSSON_VERSION}
-  curl -fkRL -O "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE_VERSION}/freetype-${LIBFREETYPE_VERSION}.tar.xz"
+  curl -fkRL -O "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE_VERSION}/freetype-${FREETYPE_VERSION}.tar.xz"
   tar -xf freetype-${FREETYPE_VERSION}.tar.xz
   cd ./freetype-${FREETYPE_VERSION}
   mkdir -p build
