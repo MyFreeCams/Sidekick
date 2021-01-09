@@ -3,7 +3,9 @@ set -e # exit if something fails
 
 readonly _VLC_VERSION=3.0.8
 readonly _QT_VERSION=5.15.2
-readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+# readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+# readonly _CEF_VERSION=85.0.0+g93b66a0+chromium-85.0.4183.121
+readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
 readonly _BOOST_VERSION=1.69.0
 readonly _OPENSSL_VERSION=1.1.1
 
@@ -510,28 +512,32 @@ build_ffmpeg() {
 }
 
 build_swig() {
-  hr "Building swig ${SWIG_VERSION}"
-  if [ -d "$(brew --cellar)/swig" ]; then
-    brew unlink swig
+  if [ -f "${OBSDEPS}/bin/swig" ]; then
+    hr "swig already installed"
+  else
+    hr "Building swig ${SWIG_VERSION}"
+    if [ -d "$(brew --cellar)/swig" ]; then
+      brew unlink swig
+    fi
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf swig-${SWIG_VERSION}
+    curl -fkRL -O "https://downloads.sourceforge.net/project/swig/swig/swig-${SWIG_VERSION}/swig-${SWIG_VERSION}.tar.gz"
+    tar -xf swig-${SWIG_VERSION}.tar.gz
+    cd ./swig-${SWIG_VERSION}
+    mkdir -p build
+    cd ./build
+    curl -fkRL -O "https://ftp.pcre.org/pub/pcre/pcre-${PCRE_VERSION}.tar.bz2"
+    ../Tools/pcre-build.sh
+    ../configure --prefix="${OBSDEPS}" --disable-dependency-tracking
+    make -j ${NUM_CORES}
+    cp swig "${OBSDEPS}/bin/"
+    mkdir -p "${OBSDEPS}/share/swig/${SWIG_VERSION}"
+    rsync -avh --prune-empty-dirs --include="*.i" --include="*.swg" --include="python" \
+      --include="lua" --include="typemaps" --exclude="*" ../Lib/* \
+    "${OBSDEPS}/share/swig/${SWIG_VERSION}"
+    set +e
   fi
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf swig-${SWIG_VERSION}
-  curl -fkRL -O "https://downloads.sourceforge.net/project/swig/swig/swig-${SWIG_VERSION}/swig-${SWIG_VERSION}.tar.gz"
-  tar -xf swig-${SWIG_VERSION}.tar.gz
-  cd ./swig-${SWIG_VERSION}
-  mkdir -p build
-  cd ./build
-  curl -fkRL -O "https://ftp.pcre.org/pub/pcre/pcre-${PCRE_VERSION}.tar.bz2"
-  ../Tools/pcre-build.sh
-  ../configure --prefix="${OBSDEPS}" --disable-dependency-tracking
-  make -j ${NUM_CORES}
-  cp swig "${OBSDEPS}/bin/"
-  mkdir -p "${OBSDEPS}/share/swig/${SWIG_VERSION}"
-  rsync -avh --prune-empty-dirs --include="*.i" --include="*.swg" --include="python" \
-    --include="lua" --include="typemaps" --exclude="*" ../Lib/* \
-   "${OBSDEPS}/share/swig/${SWIG_VERSION}"
-  set +e
 }
 
 build_speexdsp() {
@@ -581,38 +587,46 @@ build_jansson() {
 }
 
 build_freetype() {
-  hr "Building freetype ${FREETYPE_VERSION}"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf jansson-${JANSSON_VERSION}
-  curl -fkRL -O "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE_VERSION}/freetype-${FREETYPE_VERSION}.tar.xz"
-  tar -xf freetype-${FREETYPE_VERSION}.tar.xz
-  cd ./freetype-${FREETYPE_VERSION}
-  mkdir -p build
-  cd ./build
-  ../configure --prefix="${OBSDEPS}" --enable-shared --disable-static --without-harfbuzz --without-brotli
-  make -j ${NUM_CORES}
-  make install
-  set +e
+  if [ -f "${OBSDEPS}/lib/libfreetype.dylib" ]; then
+    hr "freetype already installed"
+  else
+    hr "Building freetype ${FREETYPE_VERSION}"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf jansson-${JANSSON_VERSION}
+    curl -fkRL -O "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE_VERSION}/freetype-${FREETYPE_VERSION}.tar.xz"
+    tar -xf freetype-${FREETYPE_VERSION}.tar.xz
+    cd ./freetype-${FREETYPE_VERSION}
+    mkdir -p build
+    cd ./build
+    ../configure --prefix="${OBSDEPS}" --enable-shared --disable-static --without-harfbuzz --without-brotli
+    make -j ${NUM_CORES}
+    make install
+    set +e
+  fi
 }
 
 build_rnnoise() {
-  hr "Building rnnoise ${RNNOISE_COMMIT}"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf rnnoise-${RNNOISE_COMMIT}
-  mkdir -p rnnoise-${RNNOISE_COMMIT}
-  git clone https://github.com/xiph/rnnoise.git rnnoise-${RNNOISE_COMMIT}
-  cd ./rnnoise-${RNNOISE_COMMIT}
-  git config advice.detachedHead false
-  git checkout -f ${RNNOISE_COMMIT} --
-  ./autogen.sh
-  mkdir -p build
-  cd ./build
-  ../configure --prefix="${OBSDEPS}"
-  make -j ${NUM_CORES}
-  make install
-  set +e
+  if [ -f "${OBSDEPS}/lib/librnnoise.dylib" ]; then
+    hr "rnnoise already installed"
+  else
+    hr "Building rnnoise ${RNNOISE_COMMIT}"
+    set -e
+    cd "${WORK_DIR}"
+    rm -rf rnnoise-${RNNOISE_COMMIT}
+    mkdir -p rnnoise-${RNNOISE_COMMIT}
+    git clone https://github.com/xiph/rnnoise.git rnnoise-${RNNOISE_COMMIT}
+    cd ./rnnoise-${RNNOISE_COMMIT}
+    git config advice.detachedHead false
+    git checkout -f ${RNNOISE_COMMIT} --
+    ./autogen.sh
+    mkdir -p build
+    cd ./build
+    ../configure --prefix="${OBSDEPS}"
+    make -j ${NUM_CORES}
+    make install
+    set +e
+  fi
 }
 
 build_luajit() {
@@ -786,7 +800,7 @@ install_cef() {
     if [ "${BUILD_TYPE}" = "Debug" ]; then CEF_BUILD_TYPE=Debug; else CEF_BUILD_TYPE=Release; fi
     CEF_VERSION_ENCODED=${CEF_BUILD_VERSION//+/%2B}
     curl -fkRL -o "cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2" \
-      "http://opensource.spotify.com/cefbuilds/cef_binary_${CEF_VERSION_ENCODED}_macosx64.tar.bz2"
+      "https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION_ENCODED}_macosx64.tar.bz2"
     tar -xf "cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
     rm "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
     cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64"
