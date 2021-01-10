@@ -32,8 +32,8 @@ fetch_git_tags() {
 create_env() {
   readonly _BUILD_DIR=xAuto
   readonly _BUILD_TYPE=Release
-  # readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
-  readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
+  readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+  # readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
 
   fetch_git_tags
   find_codesign_ident
