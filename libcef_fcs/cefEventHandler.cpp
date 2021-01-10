@@ -21,7 +21,7 @@
 // cef include files
 #include "include/base/cef_bind.h"
 #include "include/cef_app.h"
-// #include "include/cef_parser.h"
+#include "include/cef_parser.h"
 #include "include/views/cef_browser_view.h"
 #include "include/views/cef_window.h"
 #include "include/wrapper/cef_closure_task.h"
@@ -42,6 +42,13 @@ cefEventHandler* g_pEvent = NULL;
 cefEventHandler* cefEventHandler::sm_pThis = NULL;
 extern MFC_Shared_Mem::CMessageManager g_LocalRenderMemManager;
 #endif
+
+// Returns a data: URI with the specified contents.
+std::string GetDataURI(const std::string& data, const std::string& mime_type)
+{
+    std::string uriEncoded = CefURIEncode(CefBase64Encode(data.data(), data.size()), false).ToString();
+    return "data:" + mime_type + ";base64," + uriEncoded;
+}
 
 // handle call backs for the browser process.
 cefEventHandler::cefEventHandler(bool use_views)
@@ -206,7 +213,8 @@ void cefEventHandler::OnLoadError(CefRefPtr<CefBrowser> browser,
         << std::string(failedUrl) << " with error " << std::string(errorText)
         << " (" << errorCode << ").</h2></body></html>";
 
-    frame->LoadString(ss.str(), failedUrl);
+    //frame->LoadString(ss.str(), failedUrl);
+    frame->LoadURL(GetDataURI(ss.str(), "text/html"));
 }
 
 void cefEventHandler::CloseAllBrowsers(bool force_close)

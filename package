@@ -32,7 +32,8 @@ fetch_git_tags() {
 create_env() {
   readonly _BUILD_DIR=xAuto
   readonly _BUILD_TYPE=Release
-  readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+  # readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+  readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
 
   fetch_git_tags
   find_codesign_ident
@@ -264,12 +265,24 @@ prepare_files_for_package() {
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libx264"* "${BUILD_ROOT}/MFCBroadcast/bin/"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libssl"* "${BUILD_ROOT}/MFCBroadcast/bin/"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libcrypto"* "${BUILD_ROOT}/MFCBroadcast/bin/"
 
-  for f in "${BUILD_ROOT}/MFCBroadcast/bin/libx264"*; do
+  for f in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
     install_name_tool -change \
-    "@executable_path/../Frameworks/${f##*/}" \
-    "@loader_path/${f##*/}" \
-    "${BUILD_ROOT}/MFCBroadcast/bin/MFCBroadcast.so"
+      "@executable_path/../Frameworks/${f##*/}" \
+      "@loader_path/${f##*/}" \
+      "${BUILD_ROOT}/MFCBroadcast/bin/MFCBroadcast.so"
+    install_name_tool -change \
+      "@executable_path/../Frameworks/${f##*/}" \
+      "@loader_path/${f##*/}" \
+      "${BUILD_ROOT}/MFCBroadcast/bin/websocketclient.dylib"
+    for g in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
+      install_name_tool -change \
+        "@executable_path/../Frameworks/${f##*/}" \
+        "@loader_path/${f##*/}" \
+        "${BUILD_ROOT}/MFCBroadcast/bin/${g##*/}"
+    done
   done
 
   if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg" ]; then
