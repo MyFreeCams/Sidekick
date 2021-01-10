@@ -84,6 +84,7 @@ public:
     QLabel* linkedLabel;
     QLabel* loginLabel;
     QLabel* modeLabel;
+    QLabel* usernameLabel;
     QSpacerItem* expVSpacer;
 
     static QPushButton* CreateButton(QWidget* parent, const std::string& name)
@@ -159,6 +160,13 @@ public:
         modeLabel->setAlignment(Qt::AlignCenter);
         buttonsVLayout->addWidget(modeLabel);
 
+        usernameLabel = new QLabel(mfcDockContents);
+        usernameLabel->setObjectName(QStringLiteral("modeLabel"));
+        sizePolicyLinkLabel.setHeightForWidth(usernameLabel->sizePolicy().hasHeightForWidth());
+        usernameLabel->setSizePolicy(sizePolicyLinkLabel);
+        usernameLabel->setAlignment(Qt::AlignCenter);
+        buttonsVLayout->addWidget(usernameLabel);
+
         expVSpacer = new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
         buttonsVLayout->addItem(expVSpacer);
 
@@ -182,6 +190,9 @@ public:
 
         MFCDock->setWindowTitle(QApplication::translate("MFCDock", "MFC", nullptr));
         linkedLabel->setText(QApplication::translate("MFCDock", "", nullptr));
+        loginLabel->setText(QApplication::translate("MFCDock", "", nullptr));
+        modeLabel->setText(QApplication::translate("MFCDock", "", nullptr));
+        usernameLabel->setText(QApplication::translate("MFCDock", "", nullptr));
         linkMfcButton->setText(QApplication::translate("MFCDock", "Link", nullptr));
         unlinkMfcButton->setText(QApplication::translate("MFCDock", "Unlink", nullptr));
     }

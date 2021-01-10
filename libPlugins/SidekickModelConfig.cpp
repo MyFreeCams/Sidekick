@@ -77,7 +77,7 @@ void SidekickModelConfig::initializeDefaults(void)
         int64_t     pnVals[]    = { 0,              0,              5,              60              };
 
         const char* ppszKeys2[] = { "username",     "codec",        "prot",         "pwd",          "streamkey",    "ctx",          "version",      "streamName",   "tok",          "region",       "videoserver",  "streamurl" };
-        const char* ppszVals[]  = { "<unknown>",    "h264",         "TCP",          "",             "",             "",             "default",      "ext_x_0.f4v",  "" ,            "",             "",             ""          };
+        const char* ppszVals[]  = { "",    "h264",         "TCP",          "",             "",             "",             "default",      "ext_x_0.f4v",  "" ,            "",             "",             ""          };
 
         const char* ppszKeys3[] = { "sendlogs",     "updupd",       "updsr",        "allowConnect"  };
         bool        pfVals[]    = { false,          false,          false,          true            };

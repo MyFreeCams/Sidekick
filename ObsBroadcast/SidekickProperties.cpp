@@ -529,14 +529,16 @@ void MFCDock::relabelPropertiesText()
         sService.clear();
     }
 
-    // set logged in label text
     ui->linkedLabel->setText(pszText);
     //ui->linkedLabel->setStyleSheet(sLinkedLabelStyle.c_str());
     ui->loginLabel->setText(sLoginLabel.c_str());
     //ui->loginLabel->setStyleSheet(sLoginLabelStyle.c_str());
     ui->modeLabel->setText(sService.c_str());
+    ui->usernameLabel->setText(sUsername.c_str());
+
     ui->linkMfcButton->setDisabled(isMfc ? isLinked : true);
     ui->unlinkMfcButton->setDisabled(isMfc ? !isLinked : true);
+
     ui->linkMfcButton->setVisible(isMfc ? !isLinked : false);
     ui->unlinkMfcButton->setVisible(isMfc ? isLinked : false);
 }
