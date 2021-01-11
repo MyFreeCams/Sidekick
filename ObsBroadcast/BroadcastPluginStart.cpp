@@ -294,10 +294,9 @@ bool obs_module_load(void)
         }
         else _MESG("DBG: ** Unable to create SidekickProp - sidekick_prop NULL **");
 #endif
-        Qt::DockWidgetArea area = Qt::BottomDockWidgetArea;
         pMFCDock = new MFCDock(main_window);
-        //QAction* addDockAction = (QAction*)obs_frontend_add_dock(pMFCDock);
-        main_window->addDockWidget(area, (QDockWidget*)pMFCDock);
+        //QAction* addDockAction = (QAction*)obs_frontend_add_dock((QDockWidget*)pMFCDock);
+        main_window->addDockWidget(Qt::BottomDockWidgetArea, (QDockWidget*)pMFCDock);
     }
     else _MESG("DBG: ** Unable to get MainWindow ptr **");
 

@@ -85,6 +85,7 @@ public:
     QLabel* loginLabel;
     QLabel* modeLabel;
     QLabel* usernameLabel;
+    QLabel* logo;
     QSpacerItem* expVSpacer;
 
     static QPushButton* CreateButton(QWidget* parent, const std::string& name)
@@ -167,6 +168,15 @@ public:
         usernameLabel->setAlignment(Qt::AlignCenter);
         buttonsVLayout->addWidget(usernameLabel);
 
+        logo = new QLabel(mfcDockContents);
+        QPixmap mfcLogo(":/mfc_logo.png");
+        QPixmap mfcLogoScaled = mfcLogo.scaledToWidth(98, Qt::SmoothTransformation);
+        logo->setPixmap(mfcLogoScaled);
+        sizePolicyLinkLabel.setHeightForWidth(logo->sizePolicy().hasHeightForWidth());
+        logo->setSizePolicy(sizePolicyLinkLabel);
+        logo->setAlignment(Qt::AlignCenter);
+        buttonsVLayout->addWidget(logo);
+
         expVSpacer = new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
         buttonsVLayout->addItem(expVSpacer);
 
@@ -182,12 +192,6 @@ public:
 
     void retranslateUi(QDockWidget* MFCDock)
     {
-        //MFCDock->setWindowTitle("MFC");
-        //toggleMfc->setText("MFC");
-        //linkMfcButton->setText("Link");
-        //unlinkMfcButton->setText("Unlink");
-        //linkedLabel->setText("");
-
         MFCDock->setWindowTitle(QApplication::translate("MFCDock", "MFC", nullptr));
         linkedLabel->setText(QApplication::translate("MFCDock", "", nullptr));
         loginLabel->setText(QApplication::translate("MFCDock", "", nullptr));
@@ -195,6 +199,7 @@ public:
         usernameLabel->setText(QApplication::translate("MFCDock", "", nullptr));
         linkMfcButton->setText(QApplication::translate("MFCDock", "Link", nullptr));
         unlinkMfcButton->setText(QApplication::translate("MFCDock", "Unlink", nullptr));
+        logo->setVisible(false);
     }
 };
 

@@ -1,11 +1,13 @@
-<!DOCTYPE RCC><RCC version="1.0">
-<qresource>
-    <file alias="dlg_bg.png">images/SidekickPropertiesDlg4_1400x900_fade.png</file>
-    <file>images/SidekickPropertiesDlg3.png</file>
-    <file>images/checkbox.png</file>
-    <file alias="down_arrow.png">images/down_arrow.png</file>
-    <file>images/handle.png</file>
-    <file>css/QtDarkOrange.stylesheet</file>
-    <file>css/QtDarkOrange-MFCDock.stylesheet</file>
-</qresource>
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource>
+        <file alias="dlg_bg.png">images/SidekickPropertiesDlg4_1400x900_fade.png</file>
+        <file>images/SidekickPropertiesDlg3.png</file>
+        <file>images/checkbox.png</file>
+        <file alias="down_arrow.png">images/down_arrow.png</file>
+        <file>images/handle.png</file>
+        <file alias="mfc_logo.png">images/mfc_logo.png</file>
+        <file>css/QtDarkOrange.stylesheet</file>
+        <file>css/QtDarkOrange-MFCDock.stylesheet</file>
+    </qresource>
 </RCC>

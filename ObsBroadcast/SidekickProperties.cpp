@@ -249,98 +249,6 @@ void Ui_SKProps::setupUi(QDialog* pDlg)
 }
 
 
-#if 0
-void Ui_MFCDock::setupUi(QDockWidget* pDlg)
-{
-    QFont font;
-
-    // Set default with to 40% of screen width,
-    // Default height to be (width * 72) / 100,
-    // or proportionate to original size of 1000x720
-    //
-    //QSize appSize = qApp->screens()[0]->size();
-
-    if (pDlg->objectName().isEmpty())
-        pDlg->setObjectName(QStringLiteral("MFC"));
-
-    //pDlg->resize(m_nWidth, m_nHeight);
-    //pDlg->setWindowOpacity(1);
-
-    font.setPointSize(12);
-    //font.setPointSize(10);
-
-#if 0
-    // Calculate X,Y and width,height offsets, to pad controls
-    // within dialog. Initial nOffsetX is calculated for the linked_label
-    // control, will be changed for the link and unlink buttons which
-    // take up closer to half the dialog size, rather than almost the
-    // whole width of the dialog the way the linked label control does.
-    //
-    int nOffsetX = (int)((double)m_nWidth * 0.03);
-    int nOffsetH = ((m_nHeight * 51) / 720);    //DLGSZ_HEIGHT);
-    int nOffsetW = (int)((double)m_nWidth * 0.94);
-    int nOffsetY = ((m_nHeight * 33) / DLGSZ_HEIGHT);   // 20;   //((m_nHeight * 60) / DLGSZ_HEIGHT);
-
-    // calculate the width for link/unlink buttons, then the Y pos
-    // for where to place link/unlink buttons
-    int nLinkOffsetW = (int)((double)m_nWidth * 0.45);
-    int nLinkBtnY   = nOffsetY + ( ( m_nHeight * OFFSET_Y_LINK_BTN   ) / DLGSZ_HEIGHT );
-    int nUnlinkBtnY = nOffsetY + ( ( m_nHeight * OFFSET_Y_UNLINK_BTN ) / DLGSZ_HEIGHT );
-
-    // old dimensions for close btn
-    // closeBtn->setGeometry(QRect(770, 660, 200, 48));
-    // if it was 1000x720, then rect of 200x48 @ 770,660 becomes
-    // QRect(770, 660, 200 [20% of 1000x width, or 1000 * .20], 48)
-    int nBtnWidth   = (int)((double)m_nWidth * .20);
-    int nBtnHeight  = ((BUTTONSZ_HEIGHT * m_nHeight) / DLGSZ_HEIGHT);
-    int nCloseBtnX  = (nOffsetX + (nLinkOffsetW * 2) + 18) - nBtnWidth;
-    int nCloseBtnY  = nOffsetY + ((OFFSET_Y_CLOSE_BTN * m_nHeight) / DLGSZ_HEIGHT);
-    int nHelpBtnX   = nOffsetX + 12;
-    int nHelpBtnY   = nCloseBtnY;
-
-    int nLabelY = nOffsetY + ((m_nHeight * OFFSET_Y_LINK_LBL) / DLGSZ_HEIGHT);
-#endif
-
-    linkedLabel = new QLabel(pDlg);
-    linkMfcButton = new QPushButton(pDlg);
-    unlinkMfcButton = new QPushButton(pDlg);
-
-    linkedLabel->setObjectName(QStringLiteral("linkedLabel"));
-    linkMfcButton->setObjectName(QStringLiteral("linkMfcButton"));
-    unlinkMfcButton->setObjectName(QStringLiteral("unlinkMfcButton"));
-
-    linkedLabel->setGeometry(QRect(0, 0, 36, 18));
-    linkMfcButton->setGeometry(QRect(0, 20, 50, 34));
-    unlinkMfcButton->setGeometry(QRect(0, 62, 50, 34));
-
-    linkedLabel->setFont(font);
-    linkMfcButton->setFont(font);
-    unlinkMfcButton->setFont(font);
-
-    unlinkMfcButton->setEnabled(false);
-
-    auto pConsole = new QDockWidget(pDlg);
-
-    //pConsole->setMaximumHeight(100);
-    //pConsole->setGeometry( QRect(nConsoleX, nNewHeader, nConsoleWidth, nConsoleHeight) );
-
-    QFont f("Arial", 12);
-    pConsole->setFont(f);
-
-    retranslateUi(pDlg);
-
-    QObject::connect(linkMfcButton,   SIGNAL(released()), pDlg, SLOT(onLink()));
-    QObject::connect(unlinkMfcButton, SIGNAL(released()), pDlg, SLOT(onUnlink()));
-
-    QMetaObject::connectSlotsByName(pDlg);
-    pConsole->setMinimumWidth(100);
-    //pConsole->setMinimumHeight(150);
-
-    m_pDock = pConsole;
-}
-#endif
-
-
 SidekickPropertiesUI::SidekickPropertiesUI(QWidget* parent)
     : QDialog(parent)
     , ui(std::make_unique<Ui_SKProps>())
@@ -457,18 +365,12 @@ MFCDock::MFCDock(QWidget* parent)
     ui->setupUi(this);
     ui->linkMfcButton->setAttribute(Qt::WA_MacShowFocusRect, true);
     ui->unlinkMfcButton->setAttribute(Qt::WA_MacShowFocusRect, true);
-
-    //QFont f("Arial", 12);
-    //setFont(f);
-
-    //setWindowFlags(Qt::Widget);
 }
 
 
 void MFCDock::onLink()
 {
     CObsUtil::ExecMFCLogin();
-
 }
 
 
@@ -503,6 +405,7 @@ void MFCDock::relabelPropertiesText()
     std::string sLoginLabel = isLoggedIn ? "Logged In" : "Not Logged In";
     std::string sLinkedLabelStyle = "QLabel { font-weight: bold; }";
     std::string sLoginLabelStyle = "QLabel { font-weight: bold; }";
+    bool mfcLogoVisible = false;
 
     // Reset logged in label text
     if (isMfc)
@@ -513,6 +416,8 @@ void MFCDock::relabelPropertiesText()
             //pszText = s_sText.c_str();
             pszText = "Linked";
             //sLinkedLabelStyle = "QLabel { background-color: #008000; color: #fff; font-weight: bold; }";
+            if (isLoggedIn)
+                mfcLogoVisible = true;
         }
         else
         {
@@ -541,4 +446,6 @@ void MFCDock::relabelPropertiesText()
 
     ui->linkMfcButton->setVisible(isMfc ? !isLinked : false);
     ui->unlinkMfcButton->setVisible(isMfc ? isLinked : false);
+
+    ui->logo->setVisible(mfcLogoVisible);
 }
