@@ -144,7 +144,6 @@ public:
 
 private:
     obs_output_t* m_pOutput;  // OBS stream output
-    obs_output_t* m_pVirtualCam;
     std::unique_ptr<WebsocketClient> m_pWsClient;
 
     int m_nWidth;

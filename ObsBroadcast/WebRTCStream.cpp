@@ -51,6 +51,9 @@
 #include <obs-frontend-api.h>
 #include <media-io/video-io.h>
 
+#include <QMainWindow>
+#include <QMetaObject>
+
 // webrtc
 #include "api/create_peerconnection_factory.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
@@ -178,22 +181,6 @@ static scoped_refptr<PCFI> CreatePCFactory(Thread* network, Thread* worker, Thre
 }
 
 
-static obs_output_t* CreateVirtualCamera()
-{
-    obs_output_t* pVirtualCam = nullptr;
-#if MFC_AGENT_EDGESOCK
-#if SIDEKICK_ENABLE_VIRTUALCAM
-    pVirtualCam = obs_output_create("virtualcam_output", "virtualcam_output", nullptr, nullptr);
-    if (!pVirtualCam)
-        return nullptr;
-    //obs_output_release(pVirtualCam);
-    obs_output_set_media(pVirtualCam, obs_get_video(), obs_get_audio());
-#endif
-#endif
-    return pVirtualCam;
-}
-
-
 void LogSink::OnLogMessage(const string& message)
 {
     obs_info("%s", message.c_str());
@@ -202,7 +189,6 @@ void LogSink::OnLogMessage(const string& message)
 
 WebRTCStream::WebRTCStream(obs_output_t* output)
     : m_pOutput(output)
-    , m_pVirtualCam(CreateVirtualCamera())
     , m_pWsClient(nullptr)
     , m_nWidth(0)
     , m_nHeight(0)
@@ -237,12 +223,6 @@ WebRTCStream::~WebRTCStream()
 {
     obs_info("~WebRTCStream dtor");
     Stop(false);
-
-    if (m_pVirtualCam)
-    {
-        obs_output_release(m_pVirtualCam);
-        m_pVirtualCam = nullptr;
-    }
 
     if (m_pOutput)
     {
@@ -325,10 +305,12 @@ bool WebRTCStream::Stop(bool normal)
     if (m_pWsClient)
         m_pWsClient->disconnect(normal);  // Close websocket connection
 
+#if SIDEKICK_ENABLE_VIRTUALCAM
+    QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
+    QMetaObject::invokeMethod(main, "StopVirtualCam");
 #if MFC_AGENT_EDGESOCK
-    if (m_pVirtualCam)
-        obs_output_stop(m_pVirtualCam);
     g_ctx.sm_edgeSock->sendVirtualCameraState(false);
+#endif
 #endif
 
     obs_output_end_data_capture(m_pOutput);  // Stop main thread
@@ -430,9 +412,6 @@ void WebRTCStream::ConfigureStreamParameters()
     obs_output_set_video_conversion(m_pOutput, &vsi);
 
     obs_output_set_media(m_pOutput, obs_get_video(), obs_get_audio());
-
-    if (m_pVirtualCam)
-        obs_output_set_media(m_pVirtualCam, obs_get_video(), obs_get_audio());
 }
 
 
@@ -517,7 +496,7 @@ bool WebRTCStream::OpenWebsocketConnection()
         // After this block scope ends, g_ctx lock is not longer
         // held, and directly requesting values from it should be
         // synchronized with a shared lock, as done in next line.
-        auto lk = g_ctx.sharedLock();
+        auto lk         = g_ctx.sharedLock();
 
         m_sVideoCodec   = g_ctx.cfg.getString("codec");
         m_sProtocol     = g_ctx.cfg.getString("prot");
@@ -531,9 +510,9 @@ bool WebRTCStream::OpenWebsocketConnection()
         nUid            = g_ctx.cfg.getInt("uid");
         nRoomId         = g_ctx.cfg.getInt("room");
         fCamScore       = g_ctx.cfg.getFloat("camscore");
-        sStreamName     = "ext_x_" + std::to_string(nUid) + ".f4v";
-        sWsUrl          = "wss://" + m_sVideoServer + ".myfreecams.com/webrtc-session.json";
     }
+    sStreamName = "ext_x_" + std::to_string(nUid) + ".f4v";
+    sWsUrl      = "wss://" + m_sVideoServer + ".myfreecams.com/webrtc-session.json";
     m_sProtocol.clear();
 
     obs_info("Video codec:         %s\n", m_sVideoCodec.c_str());
@@ -747,7 +726,8 @@ void WebRTCStream::onRemoteIceCandidate(const string& candidate, const string& m
 
     std::function<void (RTCError)> onAddCandidateError = [](RTCError error)
     {
-        if (!error.ok()) blog(200, "\nError adding ice candidate: %s\n", error.message());
+        if (!error.ok())
+            blog(200, "\nError adding ice candidate: %s\n", error.message());
     };
 
     pc_->AddIceCandidate(std::move(iceCandidate), onAddCandidateError);
@@ -792,16 +772,16 @@ void WebRTCStream::onReadyToStartBroadcast()
     if (!obs_output_begin_data_capture(m_pOutput, 0))
         obs_error("\nError initiating OBS data capture\n");
 
-    if (m_pVirtualCam)
+#if SIDEKICK_ENABLE_VIRTUALCAM
+    QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
+    if (QMetaObject::invokeMethod(main, "StartVirtualCam"))
     {
-        if (obs_output_start(m_pVirtualCam))
-        {
-            g_ctx.sm_edgeSock->sendVirtualCameraState(true);
-            obs_info("Virtual Camera active");
-        }
-        else obs_warn("Failed to activate Virtual Camera");
+        obs_info("Virtual Camera active");
+#if MFC_AGENT_EDGESOCK
+        g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+#endif
     }
-    else obs_info("Virtual Camera disabled");
+#endif
 }
 
 
