@@ -909,12 +909,12 @@ public:
         if (media_type == "audio")
         {
             for_start = aLine > 0 ? aLine : 0;
-            for_end = vLine > for_start ? vLine : sdpLines.size();
+            for_end = vLine > (int)for_start ? (size_t)vLine : sdpLines.size();
         }
         else if (media_type == "video")
         {
             for_start = vLine > 0 ? vLine : 0;
-            for_end = aLine > for_start ? aLine : sdpLines.size();
+            for_end = aLine > (int)for_start ? (size_t)aLine : sdpLines.size();
         }
         for (size_t i = for_start; i < for_end; i++)
         {
