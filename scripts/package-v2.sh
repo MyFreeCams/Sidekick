@@ -13,8 +13,8 @@ export FILE_DATE=${_FILE_DATE}
 readonly _YYYYMMDD=$(date +%Y%m%d)
 export YYYYMMDD=${_YYYYMMDD}
 
-readonly _OBSAGENTS_ROOT="$(pwd)"
-export OBSAGENTS_ROOT=${_OBSAGENTS_ROOT}
+readonly _SIDEKICK_ROOT="$(pwd)"
+export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
 cd ../../.. || exit
 readonly _OBS_ROOT="$(pwd)"
 export OBS_ROOT=${_OBS_ROOT}
@@ -22,7 +22,7 @@ cd .. || exit
 readonly _DEV_DIR="$(pwd)"
 export DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
 
-export DYLIBBUNDLER="${OBSAGENTS_ROOT}/scripts/macdylibbundler/build/dylibbundler"
+export DYLIBBUNDLER="${SIDEKICK_ROOT}/scripts/macdylibbundler/build/dylibbundler"
 export BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
 export BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
 
@@ -87,7 +87,7 @@ main() {
 
   # Build dylibbundler
   hr "Compiling macdylibbundler"
-  (cd "${OBSAGENTS_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
+  (cd "${SIDEKICK_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
 
   # Copy obslua
   if [ -f "${BUILD_ROOT}/rundir/${BUILD_TYPE}/data/obs-scripting/obslua.so" ]; then
@@ -107,7 +107,7 @@ main() {
   ${DYLIBBUNDLER} -b -f -cd -of -q -a "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin/MFCCefLogin.app"
 
   hr "Building OBS app bundle"
-  (cd "${BUILD_ROOT}" && "${OBSAGENTS_ROOT}/scripts/install/osx/packageApp.sh")
+  (cd "${BUILD_ROOT}" && "${SIDEKICK_ROOT}/scripts/install/osx/packageApp.sh")
 
   cd "${BUILD_ROOT}"
 
@@ -119,7 +119,7 @@ main() {
       "${BUILD_ROOT}/OBS.app/Contents/Frameworks/"
   fi
 
-  cp "${OBSAGENTS_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" "${BUILD_ROOT}/OBS.app/Contents/Resources/"
+  cp "${SIDEKICK_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" "${BUILD_ROOT}/OBS.app/Contents/Resources/"
 
   # Edit plist
   plutil -insert CFBundleVersion -string $GIT_TAG "${BUILD_ROOT}/OBS.app/Contents/Info.plist"
@@ -219,7 +219,7 @@ main() {
 
   # Package app
   hr "Generating package"
-  packagesbuild "${OBSAGENTS_ROOT}/scripts/install/osx/sidekick-v2.pkgproj"
+  packagesbuild "${SIDEKICK_ROOT}/scripts/install/osx/sidekick-v2.pkgproj"
 
   set +e
   rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"

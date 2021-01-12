@@ -30,8 +30,8 @@ export CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
 REFRESH_OBS=${REFRESH_OBS:=${_RESET_OBS}}
 export RESET_OBS=${RESET_OBS:=${REFRESH_OBS}}
 
-readonly _OBSAGENTS_ROOT="$(pwd)"
-export OBSAGENTS_ROOT=${_OBSAGENTS_ROOT}
+readonly _SIDEKICK_ROOT="$(pwd)"
+export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
 cd ../../.. || exit
 readonly _OBS_ROOT="$(pwd)"
 export OBS_ROOT=${_OBS_ROOT}
@@ -119,7 +119,7 @@ main() {
   echo "GENERATOR:         ${GENERATOR}"
   echo "OBS_TAG:           ${OBS_TAG}"
   echo
-  echo "OBSAGENTS_ROOT:    ${OBSAGENTS_ROOT}"
+  echo "SIDEKICK_ROOT:    ${SIDEKICK_ROOT}"
   echo "BUILD_ROOT:        ${BUILD_ROOT}"
   echo "OBS_ROOT:          ${OBS_ROOT}"
   echo "DEV_DIR:           ${DEV_DIR}"
@@ -144,8 +144,8 @@ main() {
 
   if [ "${GENERATOR}" = "Ninja" ]; then install_ninja; fi
 
-  cd "${OBSAGENTS_ROOT}"
-  "${OBSAGENTS_ROOT}/scripts/build-deps-minimal.sh" skip_build_tools
+  cd "${SIDEKICK_ROOT}"
+  "${SIDEKICK_ROOT}/scripts/build-deps-minimal.sh" skip_build_tools
 
   cd "${OBS_ROOT}"
   if [ ${RESET_OBS} -eq 1 ]; then

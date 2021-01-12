@@ -3,8 +3,8 @@ set -e
 
 export BUILD_DIR=xAuto
 
-_OBSAGENTS_ROOT="$(pwd)"
-export OBSAGENTS_ROOT=${_OBSAGENTS_ROOT}
+_SIDEKICK_ROOT="$(pwd)"
+export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
 cd ../../.. || exit
 _OBS_ROOT="$(pwd)"
 export OBS_ROOT=${_OBS_ROOT}
@@ -27,12 +27,12 @@ if ! exists dmgbuild; then
 fi
 
 if [ ! -f "${BUILD_ROOT}/OBS.app" ]; then
-  cd "${OBSAGENTS_ROOT}" || exit
+  cd "${SIDEKICK_ROOT}" || exit
   ./package || exit
 fi
 
 cd "${BUILD_ROOT}" || exit
 hr "Building dmg for OBS.app"
-dmgbuild -s "${OBSAGENTS_ROOT}/scripts/install/obs-dmg/settings.json" "OBS" obs.dmg
+dmgbuild -s "${SIDEKICK_ROOT}/scripts/install/obs-dmg/settings.json" "OBS" obs.dmg
 
 hr "OBS installer created: ${BUILD_ROOT}/obs.dmg"

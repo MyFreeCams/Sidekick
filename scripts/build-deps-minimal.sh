@@ -22,8 +22,8 @@ _NUM_CORES="$(sysctl -n hw.logicalcpu)"
 export NUM_CORES=${_NUM_CORES}
 export CMAKE_BUILD_PARALLEL_LEVEL=${NUM_CORES}
 
-_OBSAGENTS_ROOT="$(pwd)"
-export OBSAGENTS_ROOT=${_OBSAGENTS_ROOT}
+_SIDEKICK_ROOT="$(pwd)"
+export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
 cd ../../..
 _OBS_ROOT="$(pwd)"
 export OBS_ROOT=${_OBS_ROOT}
@@ -75,7 +75,7 @@ install_build_tools() {
 
 main() {
   echo "${red}BUILD_TYPE:        ${BUILD_TYPE}${reset}"
-  echo "OBSAGENTS_ROOT:    ${OBSAGENTS_ROOT}"
+  echo "SIDEKICK_ROOT:    ${SIDEKICK_ROOT}"
   echo "OBS_ROOT:          ${OBS_ROOT}"
   echo "DEV_DIR:           ${DEV_DIR}"
   cd "${DEV_DIR}"
@@ -110,7 +110,7 @@ main() {
     hr "x264 already installed"
   else
     hr "Installing x264"
-    brew install "$OBSAGENTS_ROOT/scripts/homebrew/x264.rb"
+    brew install "$SIDEKICK_ROOT/scripts/homebrew/x264.rb"
   fi
 
   # FFmpeg
@@ -118,7 +118,7 @@ main() {
     hr "FFmpeg already installed"
   else
     hr "Installing FFmpeg"
-    brew install "$OBSAGENTS_ROOT/scripts/homebrew/ffmpeg.rb"
+    brew install "$SIDEKICK_ROOT/scripts/homebrew/ffmpeg.rb"
   fi
 
   # Qt 5.10.1
@@ -133,7 +133,7 @@ main() {
       fi
     else
       hr "Installing Qt ${QT_VERSION}"
-      brew install "$OBSAGENTS_ROOT/scripts/homebrew/qt_5_10/qt.rb"
+      brew install "$SIDEKICK_ROOT/scripts/homebrew/qt_5_10/qt.rb"
     fi
   fi
 
@@ -149,7 +149,7 @@ main() {
       fi
     else
       hr "Installing Qt ${QT_VERSION}"
-      brew install "$OBSAGENTS_ROOT/scripts/homebrew/qt_5_14/qt.rb"
+      brew install "$SIDEKICK_ROOT/scripts/homebrew/qt_5_14/qt.rb"
     fi
   fi
 
@@ -158,7 +158,7 @@ main() {
     hr "Boost ${BOOST_VERSION} already installed"
   else
     hr "Installing Boost ${BOOST_VERSION}"
-    brew install "$OBSAGENTS_ROOT/scripts/homebrew/boost.rb"
+    brew install "$SIDEKICK_ROOT/scripts/homebrew/boost.rb"
   fi
 
   set -e # exit if something fails
@@ -205,7 +205,7 @@ main() {
     hr "WebRTC library found: ${DEV_DIR}/webrtc"
   else
     hr "Building WebRTC"
-    cd "${OBSAGENTS_ROOT}"
+    cd "${SIDEKICK_ROOT}"
     ./build-webrtc
   fi
 

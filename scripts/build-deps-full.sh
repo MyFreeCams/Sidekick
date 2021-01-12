@@ -49,8 +49,8 @@ declare -i NUM_CORES
 NUM_CORES=$(sysctl -n hw.ncpu)
 declare -xri CMAKE_BUILD_PARALLEL_LEVEL=${NUM_CORES}
 
-_OBSAGENTS_ROOT="$(pwd)"
-declare -xr OBSAGENTS_ROOT=${_OBSAGENTS_ROOT}
+_SIDEKICK_ROOT="$(pwd)"
+declare -xr SIDEKICK_ROOT=${_SIDEKICK_ROOT}
 cd ../../..
 _OBS_ROOT="$(pwd)"
 declare -xr OBS_ROOT=${_OBS_ROOT}
@@ -533,9 +533,8 @@ build_swig() {
     make -j ${NUM_CORES}
     cp swig "${OBSDEPS}/bin/"
     mkdir -p "${OBSDEPS}/share/swig/${SWIG_VERSION}"
-    rsync -avh --prune-empty-dirs --include="*.i" --include="*.swg" --include="python" \
-      --include="lua" --include="typemaps" --exclude="*" ../Lib/* \
-    "${OBSDEPS}/share/swig/${SWIG_VERSION}"
+    rsync -avh --prune-empty-dirs --include="*.i" --include="*.swg" --include="python" --include="lua" \
+      --include="typemaps" --exclude="*" ../Lib/* "${OBSDEPS}/share/swig/${SWIG_VERSION}"
     set +e
   fi
 }
@@ -674,7 +673,7 @@ install_qt() {
       fi
     else
       hr "Installing Qt ${QT_VERSION}"
-      brew install "$OBSAGENTS_ROOT/scripts/homebrew/qt_5_10/qt.rb"
+      brew install "$SIDEKICK_ROOT/scripts/homebrew/qt_5_10/qt.rb"
     fi
   fi
   # Qt 5.14.1
@@ -689,7 +688,7 @@ install_qt() {
       fi
     else
       hr "Installing Qt ${QT_VERSION}"
-      brew install "$OBSAGENTS_ROOT/scripts/homebrew/qt_5_14/qt.rb"
+      brew install "$SIDEKICK_ROOT/scripts/homebrew/qt_5_14/qt.rb"
     fi
   fi
   # Qt 5.15.2
@@ -753,7 +752,7 @@ install_boost() {
   else
     hr "Installing Boost ${BOOST_VERSION}"
     set +e
-    brew install "${OBSAGENTS_ROOT}/scripts/homebrew/boost.rb"
+    brew install "${SIDEKICK_ROOT}/scripts/homebrew/boost.rb"
     brew pin boost
   fi
 }
@@ -822,7 +821,7 @@ build_webrtc() {
   else
     hr "Building WebRTC"
     set -e
-    cd "${OBSAGENTS_ROOT}"
+    cd "${SIDEKICK_ROOT}"
     ./build-webrtc "$@"
     set +e
   fi
@@ -831,7 +830,7 @@ build_webrtc() {
 main() {
   set -e
   echo "${red}BUILD_TYPE:        ${BUILD_TYPE}${reset}"
-  echo "OBSAGENTS_ROOT:    ${OBSAGENTS_ROOT}"
+  echo "SIDEKICK_ROOT:     ${SIDEKICK_ROOT}"
   echo "OBS_ROOT:          ${OBS_ROOT}"
   echo "DEV_DIR:           ${DEV_DIR}"
 

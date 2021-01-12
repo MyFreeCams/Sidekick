@@ -17,8 +17,8 @@ export FILE_DATE=${_FILE_DATE}
 readonly _YYYYMMDD=$(date +%Y%m%d)
 export YYYYMMDD=${_YYYYMMDD}
 
-readonly _OBSAGENTS_ROOT="$(pwd)"
-export OBSAGENTS_ROOT=${_OBSAGENTS_ROOT}
+readonly _SIDEKICK_ROOT="$(pwd)"
+export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
 cd ../../.. || exit
 readonly _OBS_ROOT="$(pwd)"
 export OBS_ROOT=${_OBS_ROOT}
@@ -26,7 +26,7 @@ cd .. || exit
 readonly _DEV_DIR="$(pwd)"
 export DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
 
-export DYLIBBUNDLER="${OBSAGENTS_ROOT}/scripts/macdylibbundler/build/dylibbundler"
+export DYLIBBUNDLER="${SIDEKICK_ROOT}/scripts/macdylibbundler/build/dylibbundler"
 export BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
 export BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
 
@@ -92,8 +92,8 @@ build_obs_bundle() {
   cp -R ./rundir/"${BUILD_TYPE}"/data ./OBS.app/Contents/Resources/
   cp -R ./rundir/"${BUILD_TYPE}"/obs-plugins/ ./OBS.app/Contents/Plugins/
 
-  cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
-  cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/obs.icns" ./OBS.app/Contents/Resources/
+  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
+  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/obs.icns" ./OBS.app/Contents/Resources/
 
   ALL_PLUGINS=( coreaudio-encoder.so decklink-ouput-ui.so frontend-tools.so image-source.so \
     linux-jack.so mac-avcapture.so mac-capture.so mac-decklink.so mac-syphon.so mac-vth264.so \
@@ -157,7 +157,7 @@ main() {
 
   # Build dylibbundler
   hr "Compiling macdylibbundler"
-  (cd "${OBSAGENTS_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
+  (cd "${SIDEKICK_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
 
   # Copy obslua
   if [ -f "${BUILD_ROOT}/rundir/${BUILD_TYPE}/data/obs-scripting/obslua.so" ]; then
@@ -187,7 +187,7 @@ main() {
       "${BUILD_ROOT}/OBS.app/Contents/Frameworks/"
   fi
 
-  cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" "./OBS.app/Contents/Resources/"
+  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" "./OBS.app/Contents/Resources/"
 
   # Edit plist
   plutil -insert CFBundleVersion -string "$GIT_TAG" "./OBS.app/Contents/Info.plist"
@@ -369,7 +369,7 @@ main() {
   fi
 
   hr "Generating package"
-  packagesbuild "${OBSAGENTS_ROOT}/scripts/install/osx/sidekick.pkgproj"
+  packagesbuild "${SIDEKICK_ROOT}/scripts/install/osx/sidekick.pkgproj"
 
   set +e
   rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"

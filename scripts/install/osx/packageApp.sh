@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-DYLIBBUNDLER="${OBSAGENTS_ROOT}/scripts/macdylibbundler/build/dylibbundler"
+DYLIBBUNDLER="${SIDEKICK_ROOT}/scripts/macdylibbundler/build/dylibbundler"
 export BUILD_TYPE=${BUILD_TYPE:-Release}
 
 rm -rf ./OBS.app 2> /dev/null
@@ -13,8 +13,8 @@ cp -pfR rundir/${BUILD_TYPE}/bin/ ./OBS.app/Contents/MacOS
 cp -pfR rundir/${BUILD_TYPE}/data ./OBS.app/Contents/Resources
 cp -pfR rundir/${BUILD_TYPE}/obs-plugins/ ./OBS.app/Contents/Plugins
 
-cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
-cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/obs.icns" ./OBS.app/Contents/Resources/
+cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
+cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/obs.icns" ./OBS.app/Contents/Resources/
 
 ALL_PLUGINS=( coreaudio-encoder.so decklink-ouput-ui.so frontend-tools.so image-source.so \
   linux-jack.so mac-avcapture.so mac-capture.so mac-decklink.so mac-syphon.so mac-vth264.so \
