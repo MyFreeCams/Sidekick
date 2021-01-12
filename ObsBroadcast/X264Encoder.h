@@ -105,7 +105,6 @@ private:
     double      maxFramerate_       = 0.0;
     uint32_t    fps_                = 0;
     uint32_t    bitrate_kbps_       = 0;
-    uint32_t    maxBitrateKbps_     = 0;
     size_t      maxPayloadSize_     = 0;
 
     bool        paused_             = false;

@@ -17,7 +17,6 @@
 
 #define WEBRTC_ADAPT_FRAME_ENABLED 0
 #define X264ENC_ENABLE_RECONFIGURE 1
-#define X264ENC_DISABLE_HRD 1
 #define X264ENC_ENABLE_FIR 0
 #define X264ENC_LOG_RTT 0
 #define X264ENC_VERBOSE_LOG 0
@@ -440,11 +439,7 @@ unique_ptr<x264_param_t> X264Encoder::CreateEncoderParams()
     params->b_intra_refresh         = 0;
     params->i_bframe                = 0;
 #if X264ENC_ENABLE_RECONFIGURE
-#if X264ENC_DISABLE_HRD
     params->i_nal_hrd               = X264_NAL_HRD_NONE;
-#else
-    params->i_nal_hrd               = X264_NAL_HRD_VBR;
-#endif
 #else
     params->i_nal_hrd               = X264_NAL_HRD_VBR;
 #endif
@@ -453,11 +448,7 @@ unique_ptr<x264_param_t> X264Encoder::CreateEncoderParams()
     params->i_scenecut_threshold    = 0;  // For consistent GOP
 
     /// Rate control.
-#if X264ENC_ENABLE_RECONFIGURE
-    params->rc.i_rc_method          = X264_RC_CRF;
-#else
     params->rc.i_rc_method          = X264_RC_ABR;
-#endif
     params->rc.i_bitrate            = (int)bitrate_kbps_;
     params->rc.i_vbv_max_bitrate    = params->rc.i_bitrate;
     params->rc.i_vbv_buffer_size    = params->rc.i_bitrate / kVbvBufferSizeFactor;
@@ -537,20 +528,14 @@ void X264Encoder::SetRates(const RateControlParameters& parameters)
     }
     paused_ = false;
 
-    uint32_t newBitrateKbps = parameters.bitrate.get_sum_kbps();
-    if (newBitrateKbps > maxBitrateKbps_)
-    {
-        RTC_LOG_F(LS_INFO) << "Requested bitrate, " << newBitrateKbps
-                           << ", exceeds maximum (" << maxBitrateKbps_ << ")";
-        newBitrateKbps = maxBitrateKbps_;
-    }
-
 #if X264ENC_ENABLE_RECONFIGURE
+    uint32_t newBitrateKbps = parameters.bitrate.get_sum_kbps();
     if (newBitrateKbps != bitrate_kbps_)
     {
         bitrate_kbps_ = newBitrateKbps;
         ReconfigureBitrate((int)bitrate_kbps_);
     }
+
     double newMaxFramerate = std::min((double)kMaxFramerate, parameters.framerate_fps);
     if (abs(newMaxFramerate - maxFramerate_) > 1.0)
     {
