@@ -43,6 +43,7 @@ FcsWebsocketImpl::FcsWebsocketImpl()
     // Set logging to be pretty verbose (everything except message payloads)
     m_client.set_access_channels(websocketpp::log::alevel::all);
     m_client.clear_access_channels(websocketpp::log::alevel::frame_payload);
+    m_client.clear_access_channels(websocketpp::log::alevel::frame_header);
     m_client.set_error_channels(websocketpp::log::elevel::all);
 
     // Initialize ASIO
@@ -159,6 +160,7 @@ bool FcsWebsocketImpl::connect( const string&   username,
         {
             m_client.set_access_channels(websocketpp::log::alevel::all);
             m_client.clear_access_channels(websocketpp::log::alevel::frame_payload);
+            m_client.clear_access_channels(websocketpp::log::alevel::frame_header);
             m_client.set_error_channels(websocketpp::log::elevel::all);
 
             // Start ASIO io_service run loop (single connection will be made to the server)
