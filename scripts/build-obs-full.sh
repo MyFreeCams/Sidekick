@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e # exit if something fails
+
 readonly _BUILD_TYPE=RelWithDebInfo
 readonly _BUILD_DIR=xAuto
 readonly _GENERATOR="Unix Makefiles"
@@ -10,6 +12,8 @@ readonly _QT_VERSION=5.15.2
 readonly _VLC_VERSION=3.0.8
 readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 # readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
+readonly MACOS_CEF_BUILD_VERSION=3770
+# readonly MACOS_CEF_BUILD_VERSION=4183
 
 readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
   -Wno-typedef-redefinition -Wno-enum-conversion -Wno-deprecated \
@@ -21,11 +25,11 @@ readonly _CXXFLAGS="${CFLAGS} -Wno-pragmas"
 declare -xr CMAKE_OSX_ARCHITECTURES=x86_64
 declare -xr CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE}}
 declare -xr BUILD_TYPE=${CMAKE_BUILD_TYPE}
-_NUM_CORES=$(sysctl -n hw.ncpu)
+readonly _NUM_CORES=$(sysctl -n hw.ncpu)
 declare -xri NUM_CORES=${_NUM_CORES}
 declare -xri CMAKE_BUILD_PARALLEL_LEVEL=${NUM_CORES}
 declare -xr CMAKE_GENERATOR=${CMAKE_GENERATOR:-${_GENERATOR}}
-declare -x GENERATOR=${GENERATOR:-${CMAKE_GENERATOR}}
+export GENERATOR=${GENERATOR:-${CMAKE_GENERATOR}}
 export NINJA_PATH="${DEV_DIR}/depot_tools/ninja"
 # XCODE_SELECT="$(xcode-select -p)"
 # if [ "${XCODE_SELECT}" = "/Applications/Xcode.app/Contents/Developer" ]; then CURRENT_XCODE=true; fi
@@ -35,7 +39,7 @@ declare -xr BROWSER=${BUILD_BROWSER}
 declare -xr ENABLE_SCRIPTING=${SCRIPTING:-ON}
 declare -xr DISABLE_PYTHON=${DISABLE_PYTHON:-ON}
 
-declare -x OBS_TAG=${OBS_TAG:-${_OBS_TAG}}
+export OBS_TAG=${OBS_TAG:-${_OBS_TAG}}
 declare -xr QT_VERSION=${QT_VERSION:-${_QT_VERSION}}
 declare -xr VLC_VERSION=${VLC_VERSION:-${_VLC_VERSION}}
 declare -xr CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
@@ -43,8 +47,8 @@ declare -xr CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
 REFRESH_OBS=${REFRESH_OBS:=${_RESET_OBS}}
 declare -xr RESET_OBS=${RESET_OBS:=${REFRESH_OBS}}
 
-readonly _OBSAGENTS_ROOT="$(pwd)"
-declare -xr OBSAGENTS_ROOT=${_OBSAGENTS_ROOT}
+readonly _SIDEKICK_ROOT="$(pwd)"
+declare -xr SIDEKICK_ROOT=${_SIDEKICK_ROOT}
 cd ../../.. || exit
 readonly _OBS_ROOT="$(pwd)"
 declare -xr OBS_ROOT=${_OBS_ROOT}
@@ -72,6 +76,15 @@ declare -xr OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
 readonly _WEBRTC_DIR="${WEBRTC:-${DEV_DIR}/webrtc}"
 declare -xr WEBRTC_ROOT_DIR="${WEBRTC_ROOT_DIR:-${_WEBRTC_DIR}}"
 
+export CFLAGS="-I${OBSDEPS}/include"
+export LDFLAGS="-L${OBSDEPS}/lib"
+export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
+
+declare start
+declare end
+declare -i start_ts
+declare -i end_ts
+
 red=$'\e[1;31m'
 # grn=$'\e[1;32m'
 # blu=$'\e[1;34m'
@@ -90,6 +103,37 @@ hr() {
   [ -n "$2" ] && echo "$2"
   [ -n "$3" ] && printf "$3" "$4" "$5" "$6"
   echo "────────────────────────────────────────────────────────────────"
+}
+
+print_env() {
+  echo
+  echo "${bold}Building           Sidekick${reset}"
+  echo "${red}BUILD_TYPE:        ${BUILD_TYPE}${reset}"
+  echo "GENERATOR:         ${GENERATOR}"
+  echo "OBS_TAG:           ${OBS_TAG}"
+  echo
+  echo "SIDEKICK_ROOT:     ${SIDEKICK_ROOT}"
+  echo "BUILD_ROOT:        ${BUILD_ROOT}"
+  echo "OBS_ROOT:          ${OBS_ROOT}"
+  echo "DEV_DIR:           ${DEV_DIR}"
+  echo
+  echo "DepsPath:          ${DepsPath}"
+  echo "CURL_INCLUDE_DIR:  ${CURL_INCLUDE_DIR}"
+  echo "X264_INCLUDE_DIR:  ${X264_INCLUDE_DIR}"
+  echo "VLCPath:           ${VLCPath}"
+  echo "QTDIR:             ${QTDIR}"
+  echo "CEF_ROOT_DIR:      ${CEF_ROOT_DIR}"
+  echo "BOOST_ROOT:        ${BOOST_ROOT}"
+  echo "OPENSSL_ROOT_DIR:  ${OPENSSL_ROOT_DIR}"
+  echo "WEBRTC_ROOT_DIR:   ${WEBRTC_ROOT_DIR}"
+  echo "RESET OBS:         ${RESET_OBS}"
+  echo
+}
+
+print_start() {
+  start_ts=$(date +%s)
+  start="$(date '+%Y-%m-%d %H:%M:%S')"
+  hr "Build Started:     ${start}"
 }
 
 install_ninja() {
@@ -111,60 +155,24 @@ install_ninja() {
   fi
 }
 
-main() {
-  set -e
-  echo
-  echo "${bold}Building           Sidekick${reset}"
-  echo "${red}BUILD_TYPE:        ${BUILD_TYPE}${reset}"
-  echo "GENERATOR:         ${GENERATOR}"
-  echo "OBS_TAG:           ${OBS_TAG}"
-  echo
-  echo "OBSAGENTS_ROOT:    ${OBSAGENTS_ROOT}"
-  echo "BUILD_ROOT:        ${BUILD_ROOT}"
-  echo "OBS_ROOT:          ${OBS_ROOT}"
-  echo "DEV_DIR:           ${DEV_DIR}"
-  echo
-  echo "DepsPath:          ${DepsPath}"
-  echo "CURL_INCLUDE_DIR:  ${CURL_INCLUDE_DIR}"
-  echo "X264_INCLUDE_DIR:  ${X264_INCLUDE_DIR}"
-  echo "VLCPath:           ${VLCPath}"
-  echo "QTDIR:             ${QTDIR}"
-  echo "CEF_ROOT_DIR:      ${CEF_ROOT_DIR}"
-  echo "BOOST_ROOT:        ${BOOST_ROOT}"
-  echo "OPENSSL_ROOT_DIR:  ${OPENSSL_ROOT_DIR}"
-  echo "WEBRTC_ROOT_DIR:   ${WEBRTC_ROOT_DIR}"
-  echo "RESET OBS:         ${RESET_OBS}"
-  echo
-
+install_dir_prep() {
   sudo rm -rf "/Library/Application Support/obs-studio/sidekick"
   sudo mkdir -p "/Library/Application Support/obs-studio/sidekick"
   sudo chmod 775 "/Library/Application Support/obs-studio/sidekick"
+}
 
-  declare -i start_ts
-  start_ts=$(date +%s)
-  start="$(date '+%Y-%m-%d %H:%M:%S')"
-  hr "Build Started:     ${start}"
+build_dependencies() {
+  cd "${SIDEKICK_ROOT}"
+  ./build-deps skip_build_tools
+}
 
-  if [ "${GENERATOR}" = "Ninja" ]; then install_ninja; fi
-
-  cd "${OBSAGENTS_ROOT}"
-  # "${OBSAGENTS_ROOT}/scripts/build-deps-full.sh" skip_build_tools
-
-  export CFLAGS="-I${OBSDEPS}/include"
-  export LDFLAGS="-L${OBSDEPS}/lib"
-  export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
-
-  cd "${OBS_ROOT}"
+reset_obs() {
   if [ ${RESET_OBS} -eq 1 ]; then
     echo "-- obs-studio hard reset - initiating"
+    cd "${OBS_ROOT}"
     rm -rf ./plugins/enc-amf > /dev/null
     git reset --hard > /dev/null
     git submodule foreach git reset --hard > /dev/null
-    # if [ "${CURRENT_XCODE}" = true ]; then
-    #   hr "Checking out obs-studio pull request #2264"
-    #   git fetch origin +refs/pull/2264/merge > /dev/null
-    #   OBS_TAG=FETCH_HEAD
-    # fi
     git fetch origin > /dev/null
     git checkout ${OBS_TAG} > /dev/null
     git submodule update --init --recursive > /dev/null
@@ -173,7 +181,9 @@ main() {
   else
     echo "-- obs-studio hard reset - skipping"
   fi
+}
 
+edit_cmakelists() {
   # Append add_subdirectory(plugins/MyFreeCams) to ${OBS_ROOT}/CMakeLists.txt
   echo "-- Editing ${OBS_ROOT}/CMakeLists.txt"
   if grep -Fxq "add_subdirectory(plugins/MyFreeCams)" "${OBS_ROOT}/CMakeLists.txt"; then
@@ -191,14 +201,15 @@ main() {
     echo -e "add_subdirectory(Sidekick)\n" > "${OBS_ROOT}/plugins/MyFreeCams/CMakeLists.txt"
     echo "-- Creating ${OBS_ROOT}/plugins/MyFreeCams/CMakeLists.txt - success"
   fi
+}
 
-  cd "${OBS_ROOT}"
+cmake_generate() {
   if [ -d "${BUILD_ROOT}" ]; then
-    mv "${BUILD_DIR}" "${BUILD_DIR}-$(date +'%Y%m%d_%H%M%S')"
+    rm -rf "${BUILD_DIR}"
+    # mv "${BUILD_DIR}" "${BUILD_DIR}-$(date +'%Y%m%d_%H%M%S')"
   fi
   mkdir -p "${BUILD_DIR}"
   cd "${BUILD_DIR}"
-
   cmake \
     -G "${GENERATOR}" \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
@@ -206,6 +217,7 @@ main() {
     -DCMAKE_OSX_ARCHITECTURES="${CMAKE_OSX_ARCHITECTURES}" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
     -DDepsPath="${OBSDEPS}" \
+    -DSWIGDIR="${OBSDEPS}" \
     -DX264_INCLUDE_DIR="${X264_INCLUDE_DIR}" \
     -DVLCPath="${VLCPath}" \
     -DQTDIR="${QTDIR}" \
@@ -221,15 +233,15 @@ main() {
     -DWEBRTC_ROOT_DIR="${WEBRTC_ROOT_DIR}" \
     -DBUILD_BROWSER="${BUILD_BROWSER}" \
     -DBROWSER_DEPLOY="${BUILD_BROWSER}" \
+    -DBROWSER_LEGACY="$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "ON" || echo "OFF")" \
     -DWITH_RTMPS=ON \
     -DDISABLE_PYTHON="${DISABLE_PYTHON}" \
     -DENABLE_SCRIPTING="${ENABLE_SCRIPTING}" \
     ..
+}
 
-  cmake --build . --config ${BUILD_TYPE}
-
+print_summary() {
   end=$(date '+%Y-%m-%d %H:%M:%S')
-  declare -i end_ts
   end_ts=$(date +%s)
   declare -i runtime=$((end_ts-start_ts))
   declare -i hours=$((runtime / 3600))
@@ -242,6 +254,21 @@ main() {
   echo   "Start:           ${start}"
   echo   "End:             ${end}"
   printf "Elapsed:         (hh:mm:ss) %02d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+}
+
+main() {
+  print_env
+  install_dir_prep
+  print_start
+
+  if [ "${GENERATOR}" = "Ninja" ]; then install_ninja; fi
+
+  # build_dependencies
+  reset_obs
+  edit_cmakelists
+  cmake_generate
+  cmake --build . --config ${BUILD_TYPE}
+  print_summary
 }
 
 main "$@"

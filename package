@@ -1,18 +1,82 @@
 #!/usr/bin/env bash
-set -e
 
-find_codesign_ident() {
-  readonly DEFAULT_CODESIGN_IDENT="Developer ID Application"
-  readonly CODESIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Application')
-  readonly _CODESIGN_IDENT_=$(security find-identity -p codesigning -v | grep 'Developer ID Application' | grep -Eoe '\s\w+\s' | grep -Eoe '\w+')
-  readonly _CODESIGN_IDENT=${_CODESIGN_IDENT_:-${DEFAULT_CODESIGN_IDENT}}
-  export CODESIGN_IDENT=${CODESIGN_IDENT:-${_CODESIGN_IDENT}}
-  if [ -z "${CODESIGN_IDENT_FULL}" ]; then NO_CODESIGN=1; fi
-  readonly DEFAULT_PRODUCTSIGN_IDENT="Developer ID Installer"
-  readonly PRODUCTSIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Installer')
-  readonly _PRODUCTSIGN_IDENT_=$(security find-identity -p codesigning -v | grep 'Developer ID Installer' | grep -Eoe '\s\w+\s' | grep -Eoe '\w+')
-  readonly _PRODUCTSIGN_IDENT=${_PRODUCTSIGN_IDENT_:-${DEFAULT_PRODUCTSIGN_IDENT}}
-  export PRODUCTSIGN_IDENT=${PRODUCTSIGN_IDENT:-${_PRODUCTSIGN_IDENT}}
+set -e # exit if something fails
+
+readonly _BUILD_DIR=xAuto
+readonly _BUILD_TYPE=Release
+readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+# readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
+readonly MACOS_CEF_BUILD_VERSION=3770
+# readonly MACOS_CEF_BUILD_VERSION=4183
+
+readonly _SIDEKICK_ROOT=$(pwd)
+export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
+export DYLIBBUNDLER="${SIDEKICK_ROOT}/scripts/macdylibbundler/build/dylibbundler"
+cd ../../.. || exit
+readonly _OBS_ROOT=$(pwd)
+export OBS_ROOT=${_OBS_ROOT}
+cd .. || exit
+readonly _DEV_DIR=$(pwd)
+export DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
+export OBSDEPS="${DEV_DIR}/obsdeps"
+
+export BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
+export BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
+cd "${BUILD_ROOT}"
+
+if [ -f "${BUILD_ROOT}/CMakeCache.txt" ]; then
+  PREV_BUILD_TYPE=$(grep -E 'CMAKE_BUILD_TYPE:[^=]+=' "${BUILD_ROOT}/CMakeCache.txt" | sed -E 's/CMAKE_BUILD_TYPE:[^=]+=//')
+fi
+readonly __BUILD_TYPE=${PREV_BUILD_TYPE:-${_BUILD_TYPE}}
+readonly _BUILD_TYPE_=${1:-${__BUILD_TYPE}}
+export CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE_}}
+export BUILD_TYPE=${CMAKE_BUILD_TYPE}
+_CEF_BUILD_TYPE=Release
+if [ "${BUILD_TYPE}" = "Debug" ]; then _CEF_BUILD_TYPE=Debug; fi
+export CEF_BUILD_TYPE=${CEF_BUILD_TYPE:-${_CEF_BUILD_TYPE}}
+
+if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
+  PREV_GIT_BRANCH=$(grep -E -o 'SIDEKICK_VERSION_GITBRANCH "[^"]+' "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" | sed -E 's/SIDEKICK_VERSION_GITBRANCH "//')
+  PREV_GIT_COMMIT=$(grep -E -o 'SIDEKICK_VERSION_GITCOMMIT "[^"]+' "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" | sed -E 's/SIDEKICK_VERSION_GITCOMMIT "//')
+fi
+
+export CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
+export CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
+
+readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64}"
+export CEF_ROOT_DIR="${CEF_ROOT_DIR:-${_CEF_DIR}}"
+export CEF_ROOT="${CEF_ROOT:-${CEF_ROOT_DIR}}"
+
+export BOOST_ROOT="${BOOST_ROOT:-/usr/local/opt/boost}"
+readonly _OPENSSL_DIR="${OPENSSL:-/usr/local/opt/openssl@1.1}"
+export OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
+
+# Store current xcode path
+readonly XCODE_SELECT=$(xcode-select -p)
+
+readonly red=$'\e[1;31m'
+readonly grn=$'\e[1;32m'
+readonly blu=$'\e[1;34m'
+readonly mag=$'\e[1;35m'
+readonly cyn=$'\e[1;36m'
+readonly bold=$'\e[1m'
+readonly reset=$'\e[0m'
+
+readonly start_ts=$(date +%s)
+readonly start=$(date '+%Y-%m-%d %H:%M:%S')
+declare end
+declare -i end_ts
+
+hr() {
+  echo "───────────────────────────────────────────────────"
+  echo "$1"
+  [ -n "$2" ] && echo "$2"
+  [ -n "$3" ] && echo "$3"
+  [ -n "$4" ] && echo "$4"
+  [ -n "$5" ] && echo "$5"
+  [ -n "$6" ] && echo "$6"
+  [ -n "$7" ] && echo "$7"
+  echo "───────────────────────────────────────────────────"
 }
 
 fetch_git_tags() {
@@ -29,82 +93,18 @@ fetch_git_tags() {
   export YYYYMMDD=${_YYYYMMDD}
 }
 
-create_env() {
-  readonly _BUILD_DIR=xAuto
-  readonly _BUILD_TYPE=Release
-  readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
-  # readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
-
-  fetch_git_tags
-  find_codesign_ident
-
-  readonly _OBSAGENTS_ROOT=$(pwd)
-  export OBSAGENTS_ROOT=${_OBSAGENTS_ROOT}
-  export DYLIBBUNDLER="${OBSAGENTS_ROOT}/scripts/macdylibbundler/build/dylibbundler"
-  cd ../../.. || exit
-  readonly _OBS_ROOT=$(pwd)
-  export OBS_ROOT=${_OBS_ROOT}
-  cd .. || exit
-  readonly _DEV_DIR=$(pwd)
-  export DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
-  export OBSDEPS="${DEV_DIR}/obsdeps"
-
-  export BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
-  export BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
-  cd "${BUILD_ROOT}"
-
-  if [ -f "${BUILD_ROOT}/CMakeCache.txt" ]; then
-    PREV_BUILD_TYPE=$(grep -E 'CMAKE_BUILD_TYPE:[^=]+=' "${BUILD_ROOT}/CMakeCache.txt" | sed -E 's/CMAKE_BUILD_TYPE:[^=]+=//')
-  fi
-  readonly __BUILD_TYPE=${PREV_BUILD_TYPE:-${_BUILD_TYPE}}
-  readonly _BUILD_TYPE_=${1:-${__BUILD_TYPE}}
-  export CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE_}}
-  export BUILD_TYPE=${CMAKE_BUILD_TYPE}
-  _CEF_BUILD_TYPE=Release
-  if [ "${BUILD_TYPE}" = "Debug" ]; then _CEF_BUILD_TYPE=Debug; fi
-  export CEF_BUILD_TYPE=${CEF_BUILD_TYPE:-${_CEF_BUILD_TYPE}}
-
-  if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
-    PREV_GIT_BRANCH=$(grep -E -o 'SIDEKICK_VERSION_GITBRANCH "[^"]+' "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" | sed -E 's/SIDEKICK_VERSION_GITBRANCH "//')
-    PREV_GIT_COMMIT=$(grep -E -o 'SIDEKICK_VERSION_GITCOMMIT "[^"]+' "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" | sed -E 's/SIDEKICK_VERSION_GITCOMMIT "//')
-  fi
-
-  export CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
-  export CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
-
-  readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64}"
-  export CEF_ROOT_DIR="${CEF_ROOT_DIR:-${_CEF_DIR}}"
-  export CEF_ROOT="${CEF_ROOT:-${CEF_ROOT_DIR}}"
-
-  export BOOST_ROOT="${BOOST_ROOT:-/usr/local/opt/boost}"
-  readonly _OPENSSL_DIR="${OPENSSL:-/usr/local/opt/openssl@1.1}"
-  export OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
-
-  # Store current xcode path
-  readonly XCODE_SELECT=$(xcode-select -p)
-
-  readonly red=$'\e[1;31m'
-  readonly grn=$'\e[1;32m'
-  readonly blu=$'\e[1;34m'
-  readonly mag=$'\e[1;35m'
-  readonly cyn=$'\e[1;36m'
-  readonly bold=$'\e[1m'
-  readonly reset=$'\e[0m'
-
-  readonly start_ts=$(date +%s)
-  readonly start=$(date '+%Y-%m-%d %H:%M:%S')
-}
-
-hr() {
-  echo "───────────────────────────────────────────────────"
-  echo "$1"
-  [ -n "$2" ] && echo "$2"
-  [ -n "$3" ] && echo "$3"
-  [ -n "$4" ] && echo "$4"
-  [ -n "$5" ] && echo "$5"
-  [ -n "$6" ] && echo "$6"
-  [ -n "$7" ] && echo "$7"
-  echo "───────────────────────────────────────────────────"
+find_codesign_ident() {
+  readonly DEFAULT_CODESIGN_IDENT="Developer ID Application"
+  readonly CODESIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Application')
+  readonly _CODESIGN_IDENT_=$(security find-identity -p codesigning -v | grep 'Developer ID Application' | grep -Eoe '\s\w+\s' | grep -Eoe '\w+')
+  readonly _CODESIGN_IDENT=${_CODESIGN_IDENT_:-${DEFAULT_CODESIGN_IDENT}}
+  export CODESIGN_IDENT=${CODESIGN_IDENT:-${_CODESIGN_IDENT}}
+  if [ -z "${CODESIGN_IDENT_FULL}" ]; then NO_CODESIGN=1; fi
+  readonly DEFAULT_PRODUCTSIGN_IDENT="Developer ID Installer"
+  readonly PRODUCTSIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Installer')
+  readonly _PRODUCTSIGN_IDENT_=$(security find-identity -p codesigning -v | grep 'Developer ID Installer' | grep -Eoe '\s\w+\s' | grep -Eoe '\w+')
+  readonly _PRODUCTSIGN_IDENT=${_PRODUCTSIGN_IDENT_:-${DEFAULT_PRODUCTSIGN_IDENT}}
+  export PRODUCTSIGN_IDENT=${PRODUCTSIGN_IDENT:-${_PRODUCTSIGN_IDENT}}
 }
 
 print_env() {
@@ -149,8 +149,8 @@ build_obs_bundle() {
   cp -R ./rundir/"${BUILD_TYPE}"/data ./OBS.app/Contents/Resources/
   cp -R ./rundir/"${BUILD_TYPE}"/obs-plugins/ ./OBS.app/Contents/Plugins/
 
-  cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
-  cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/AppIcon.icns" ./OBS.app/Contents/Resources/
+  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
+  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/AppIcon.icns" ./OBS.app/Contents/Resources/
 
   # Scripting plugins (obslua & obspython) are required to be placed in same directory as binary
   if [ -d ./OBS.app/Contents/Resources/data/obs-scripting ]; then
@@ -199,7 +199,7 @@ build_obs_bundle() {
     cp -pfR "${CEF_ROOT}/${CEF_BUILD_TYPE}/Chromium Embedded Framework.framework" ./OBS.app/Contents/Frameworks/
   fi
 
-  cp -pf "${OBSAGENTS_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" ./OBS.app/Contents/Resources/
+  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" ./OBS.app/Contents/Resources/
   plutil -insert CFBundleVersion -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
   plutil -insert CFBundleShortVersionString -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
   plutil -insert SUPublicDSAKeyFile -string OBSPublicDSAKey.pem ./OBS.app/Contents/Info.plist
@@ -241,9 +241,21 @@ codesign_app() {
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$cef_path/Libraries/libswiftshader_libEGL.dylib"
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$cef_path/Libraries/libGLESv2.dylib"
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$cef_path/Libraries/libswiftshader_libGLESv2.dylib"
+      if ! [ "${MACOS_CEF_BUILD_VERSION}" -le 3770 ]; then
+        codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$cef_path/Libraries/libvk_swiftshader.dylib"
+      fi
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "$cef_path"
     fi
-    codesign --force --options runtime --entitlements "${OBSAGENTS_ROOT}/scripts/install/osx/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
+    if ! [ "${MACOS_CEF_BUILD_VERSION}" -le 3770 ]; then
+      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper.app"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (GPU).app"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Plugin).app"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Renderer).app"
+    fi
+    if [ -d "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin" ]; then
+      codesign --force --options runtime --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"
+    fi
+    codesign --force --options runtime --entitlements "${SIDEKICK_ROOT}/scripts/install/osx/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
     codesign -dvv "./$1.app"
 }
 
@@ -353,12 +365,13 @@ cleanup_print_summary() {
 }
 
 main() {
-  create_env "$@"
+  fetch_git_tags
+  find_codesign_ident
   print_env
   sudo xcode-select --reset
 
   hr "Compiling macdylibbundler"
-  (cd "${OBSAGENTS_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
+  (cd "${SIDEKICK_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
 
   hr "Building MFC CEF Login app bundle"
   ${DYLIBBUNDLER} -b -f -cd -of -q -a "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin/MFCCefLogin.app"

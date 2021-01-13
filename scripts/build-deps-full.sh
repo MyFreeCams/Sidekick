@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 set -e # exit if something fails
 
 readonly _VLC_VERSION=3.0.8
@@ -6,6 +7,8 @@ readonly _QT_VERSION=5.15.2
 readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 # readonly _CEF_VERSION=85.0.0+g93b66a0+chromium-85.0.4183.121
 # readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
+readonly MACOS_CEF_BUILD_VERSION=3770
+# readonly MACOS_CEF_BUILD_VERSION=4183
 readonly _BOOST_VERSION=1.69.0
 readonly _OPENSSL_VERSION=1.1.1
 
@@ -45,6 +48,11 @@ declare -xr CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
 declare -xr BOOST_VERSION=${BOOST_VERSION:-${_BOOST_VERSION}}
 declare -xr OPENSSL_VERSION=${OPENSSL_VERSION:-${_OPENSSL_VERSION}}
 
+declare -i SKIP_BUILD_TOOLS=0
+if [ "$1" == "skip_build_tools" ] || [ "$2" == "skip_build_tools" ]; then
+  SKIP_BUILD_TOOLS=1
+fi
+
 declare -i NUM_CORES
 NUM_CORES=$(sysctl -n hw.ncpu)
 declare -xri CMAKE_BUILD_PARALLEL_LEVEL=${NUM_CORES}
@@ -59,11 +67,16 @@ declare -xr DEV_DIR="${DEV_DIR:-$(pwd)}"
 readonly WORK_DIR="${DEV_DIR}/obsdeps-src"
 declare -xr OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
 
+declare start
+declare end
+declare -i start_ts
+declare -i end_ts
+
 readonly red=$'\e[1;31m'
-# readonly grn=$'\e[1;32m'
-# readonly blu=$'\e[1;34m'
-# readonly mag=$'\e[1;35m'
-# readonly cyn=$'\e[1;36m'
+readonly grn=$'\e[1;32m'
+readonly blu=$'\e[1;34m'
+readonly mag=$'\e[1;35m'
+readonly cyn=$'\e[1;36m'
 readonly bold=$'\e[1m'
 readonly reset=$'\e[0m'
 
@@ -79,7 +92,18 @@ hr() {
   echo "────────────────────────────────────────────────────────────────"
 }
 
+init() {
+  echo "${red}BUILD_TYPE:        ${BUILD_TYPE}${reset}"
+  echo "SIDEKICK_ROOT:     ${SIDEKICK_ROOT}"
+  echo "OBS_ROOT:          ${OBS_ROOT}"
+  echo "DEV_DIR:           ${DEV_DIR}"
+  start=$(date '+%Y-%m-%d %H:%M:%S')
+  start_ts=$(date +%s)
+  hr "Building dependencies in: ${DEV_DIR}" "Started ${start}"
+}
+
 create_work_dirs() {
+  mkdir -p "${DEV_DIR}"
   mkdir -p "${WORK_DIR}"
   mkdir -p "${OBSDEPS}/bin"
   mkdir -p "${OBSDEPS}/include"
@@ -88,24 +112,16 @@ create_work_dirs() {
 }
 
 delete_work_dirs() {
-  rm -rf "${OBSDEPS}/lib/pkgconfig"
-  rm -rf "${OBSDEPS}/share"
+  # rm -rf "${OBSDEPS}/lib/pkgconfig"
+  # rm -rf "${OBSDEPS}/share"
   rm -rf "${WORK_DIR}"
 }
 
-cleanup() {
-  # rm "${OBSDEPS}/bin/x264"
-  rm "${OBSDEPS}"/lib/*.la
-  rm "${OBSDEPS}"/lib/*.a
-}
-
-install_homebrew() {
-  if ! exists brew; then
-    hr "Installing Homebrew"
-    set +e
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
-  fi
-}
+# cleanup() {
+#   # rm "${OBSDEPS}/bin/x264"
+#   # rm "${OBSDEPS}"/lib/*.la
+#   # rm "${OBSDEPS}"/lib/*.a
+# }
 
 uninstall_homebrew() {
   hr "Uninstalling homebrew"
@@ -113,17 +129,31 @@ uninstall_homebrew() {
   curl -o uninstall.sh -fsSL https://raw.githubusercontent.com/Homebrew/install/master/uninstall.sh
   /bin/bash uninstall.sh --force
   rm uninstall.sh
+  set -e
+}
+
+install_homebrew() {
+  set +e
+  if [ "$1" = "clean" ]; then uninstall_homebrew; fi
+  if ! exists brew; then
+    hr "Installing Homebrew"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+  fi
+  set -e
 }
 
 install_or_upgrade() {
+  set +e
   if brew ls --versions "$1" >/dev/null; then
     HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade "$1"
   else
     HOMEBREW_NO_AUTO_UPDATE=1 brew install "$1"
   fi
+  set -e
 }
 
 restore_brews() {
+  set +e
   if [ -d /usr/local/opt/xz ] && [ ! -f /usr/local/lib/liblzma.dylib ]; then
     brew link xz
   fi
@@ -136,19 +166,21 @@ restore_brews() {
   if [ -d /usr/local/opt/webp ] && [ ! -f /usr/local/lib/libwebp.dylib ]; then
     brew link webp
   fi
+  set -e
 }
 
 install_build_tools() {
-  hr "Installing build tools"
-  set +e
-  install_or_upgrade libtool
-  install_or_upgrade automake
-  install_or_upgrade pcre
-  install_or_upgrade cmake
-  # install_or_upgrade freetype
-  install_or_upgrade nasm
-  install_or_upgrade pkg-config
-  install_or_upgrade cmocka
+  if [ "$SKIP_BUILD_TOOLS" -eq 0 ]; then
+    hr "Installing build tools"
+    install_or_upgrade libtool
+    install_or_upgrade automake
+    install_or_upgrade pcre
+    install_or_upgrade cmake
+    # install_or_upgrade freetype
+    install_or_upgrade nasm
+    install_or_upgrade pkg-config
+    install_or_upgrade cmocka
+  fi
 }
 
 install_core_obs_deps() {
@@ -168,6 +200,7 @@ install_core_obs_deps() {
   install_or_upgrade fdk-aac
   brew tap akeru-inc/tap
   install_or_upgrade akeru-inc/tap/xcnotary
+  set -e
 }
 
 build_png() {
@@ -175,7 +208,6 @@ build_png() {
     hr "png already installed"
   else
     hr "Building png ${PNG_VERSION} (FFmpeg dependency"
-    set -e
     cd "${WORK_DIR}"
     rm -rf libpng-${PNG_VERSION}
     curl -fkRL -O "https://downloads.sourceforge.net/project/libpng/libpng16/${PNG_VERSION}/libpng-${PNG_VERSION}.tar.xz"
@@ -186,7 +218,6 @@ build_png() {
     ../configure --disable-shared --enable-static --prefix="${OBSDEPS}"
     make -j ${NUM_CORES}
     make install
-    set +e
   fi
 }
 
@@ -195,7 +226,6 @@ build_opus() {
     hr "opus already installed"
   else
     hr "Building opus ${OPUS_VERSION} (FFmpeg dependency)"
-    set -e
     cd "${WORK_DIR}"
     rm -rf opus-${OPUS_VERSION}
     curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-${OPUS_VERSION}.tar.gz"
@@ -206,7 +236,6 @@ build_opus() {
     ../configure --disable-shared --enable-static --prefix="${OBSDEPS}" --disable-doc
     make -j ${NUM_CORES}
     make install
-    set +e
   fi
 }
 
@@ -215,7 +244,6 @@ build_ogg() {
     hr "ogg already installed"
   else
     hr "Building ogg ${OGG_VERSION} (FFmpeg dependency)"
-    set -e
     cd "${WORK_DIR}"
     rm -rf libogg-${OGG_VERSION}
     curl -fkRL -O "https://gitlab.xiph.org/xiph/ogg/-/archive/${OGG_VERSION}/ogg-${OGG_VERSION}.tar.gz"
@@ -227,7 +255,6 @@ build_ogg() {
     ../configure --disable-shared --enable-static --prefix="${OBSDEPS}"
     make -j 1  # error if j > 1
     make install
-    set +e
   fi
 }
 
@@ -236,7 +263,6 @@ build_vorbis() {
     hr "vorbis already installed"
   else
     hr "Building vorbis ${VORBIS_VERSION} (FFmpeg dependency)"
-    set -e
     cd "${WORK_DIR}"
     rm -rf libvorbis-${VORBIS_VERSION}
     curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${VORBIS_VERSION}.tar.gz"
@@ -247,7 +273,6 @@ build_vorbis() {
     ../configure --disable-shared --enable-static --prefix="${OBSDEPS}"
     make -j ${NUM_CORES}
     make install
-    set +e
   fi
 }
 
@@ -256,7 +281,6 @@ build_vpx() {
     hr "vpx already installed"
   else
     hr "Building vpx ${VPX_VERSION} (FFmpeg dependency)"
-    set -e
     cd "${WORK_DIR}"
     rm -rf libvpx-v${VPX_VERSION}
     curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
@@ -274,7 +298,6 @@ build_vpx() {
       --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
     make -j ${NUM_CORES}
     make install
-    set +e
   fi
 }
 
@@ -283,7 +306,6 @@ build_x264() {
     hr "x264 already installed"
   else
     hr "Building x264"
-    set -e
     cd "${WORK_DIR}"
     rm -rf x264
     git clone https://code.videolan.org/videolan/x264.git
@@ -306,7 +328,6 @@ build_x264() {
     mkdir -p "${OBSDEPS}/include"
     rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../* "${OBSDEPS}/include/"
     rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./* "${OBSDEPS}/include/"
-    set +e
   fi
 }
 
@@ -315,7 +336,6 @@ build_theora() {
     hr "libtheora already installed"
   else
     hr "Building libtheora ${THEORA_VERSION} (FFmpeg dependency)"
-    set -e
     cd "${WORK_DIR}"
     rm -rf libtheora-${THEORA_VERSION}
     curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.bz2"
@@ -326,7 +346,6 @@ build_theora() {
     ../configure --disable-shared --enable-static --prefix="${OBSDEPS}" --disable-oggtest --disable-vorbistest --disable-examples
     make -j ${NUM_CORES}
     make install
-    set +e
   fi
 }
 
@@ -335,7 +354,6 @@ build_lame() {
     hr "liblame already installed"
   else
     hr "Building liblame ${LAME_VERSION} (FFmpeg dependency)"
-    set -e
     cd "${WORK_DIR}"
     rm -rf lame-${LAME_VERSION}
     curl -fkRL -O "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz"
@@ -347,7 +365,6 @@ build_lame() {
     ../configure --disable-shared --prefix="${OBSDEPS}" --enable-nasm --disable-dependency-tracking --disable-debug
     make -j ${NUM_CORES}
     make install
-    set +e
   fi
 }
 
@@ -402,7 +419,6 @@ build_mbedtls() {
     hr "medtls already installed"
   else
     hr "Building mbedtls ${MBEDTLS_VERSION} (FFmpeg dependency)"
-    set -e
     cd "${WORK_DIR}"
     rm -rf mbedtls-mbedtls-${MBEDTLS_VERSION}
     curl -fkRL -O "https://github.com/ARMmbed/mbedtls/archive/mbedtls-${MBEDTLS_VERSION}.tar.gz"
@@ -422,7 +438,6 @@ build_mbedtls() {
     install_name_tool -change libmbedcrypto.5.dylib "${OBSDEPS}/lib/libmbedcrypto.5.dylib" "${OBSDEPS}/lib/libmbedtls.${MBEDTLS_VERSION}.dylib"
     install_name_tool -change libmbedcrypto.5.dylib "${OBSDEPS}/lib/libmbedcrypto.5.dylib" "${OBSDEPS}/lib/libmbedx509.${MBEDTLS_VERSION}.dylib"
     create_mbedtls_pkgconfig
-    set +e
   fi
 }
 
@@ -431,7 +446,6 @@ build_srt() {
     hr "srt already installed"
   else
     hr "Building srt ${SRT_VERSION} (FFmpeg dependency)"
-    set -e
     cd "${WORK_DIR}"
     rm -rf srt-${SRT_VERSION}
     curl -fkRL -O "https://github.com/Haivision/srt/archive/v${SRT_VERSION}.tar.gz"
@@ -444,21 +458,7 @@ build_srt() {
       -DUSE_ENCLIB="mbedtls" -DENABLE_APPS=OFF -DCMAKE_FIND_FRAMEWORK=LAST ..
     make -j ${NUM_CORES}
     make install
-    set +e
   fi
-}
-
-build_ffmpeg_deps() {
-  build_png
-  build_opus
-  build_ogg
-  build_vorbis
-  build_vpx
-  build_x264
-  build_theora
-  build_lame
-  build_mbedtls
-  build_srt
 }
 
 build_ffmpeg() {
@@ -466,13 +466,8 @@ build_ffmpeg() {
     hr "FFmpeg already installed"
   else
     hr "Building FFmpeg ${FFMPEG_VERSION}"
-    if [ -d /usr/local/opt/xz ]; then
-      brew unlink xz
-    fi
-    if [ -d /usr/local/opt/sdl2 ]; then
-      brew unlink sdl2
-    fi
-    set -e
+    if [ -d /usr/local/opt/xz ]; then brew unlink xz; fi
+    if [ -d /usr/local/opt/sdl2 ]; then brew unlink sdl2; fi
     export LD_LIBRARY_PATH="${OBSDEPS}/lib"
     export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
     export LDFLAGS="-L${LD_LIBRARY_PATH}"
@@ -501,7 +496,6 @@ build_ffmpeg() {
     unset PKG_CONFIG_PATH
     unset LDFLAGS
     unset CFLAGS
-    set +e
     if [ -d /usr/local/opt/xz ] && [ ! -f /usr/local/lib/liblzma.dylib ]; then
       brew link xz
     fi
@@ -516,10 +510,7 @@ build_swig() {
     hr "swig already installed"
   else
     hr "Building swig ${SWIG_VERSION}"
-    if [ -d "$(brew --cellar)/swig" ]; then
-      brew unlink swig
-    fi
-    set -e
+    if [ -d "$(brew --cellar)/swig" ]; then brew unlink swig; fi
     cd "${WORK_DIR}"
     rm -rf swig-${SWIG_VERSION}
     curl -fkRL -O "https://downloads.sourceforge.net/project/swig/swig/swig-${SWIG_VERSION}/swig-${SWIG_VERSION}.tar.gz"
@@ -535,7 +526,6 @@ build_swig() {
     mkdir -p "${OBSDEPS}/share/swig/${SWIG_VERSION}"
     rsync -avh --prune-empty-dirs --include="*.i" --include="*.swg" --include="python" --include="lua" \
       --include="typemaps" --exclude="*" ../Lib/* "${OBSDEPS}/share/swig/${SWIG_VERSION}"
-    set +e
   fi
 }
 
@@ -544,7 +534,6 @@ build_speexdsp() {
     hr "speexdsp already installed"
   else
     hr "Building speexdsp ${SPEEXDSP_VERSION}"
-    set -e
     cd "${WORK_DIR}"
     rm -rf speexdsp-SpeexDSP-${SPEEXDSP_VERSION}
     curl -fkRL -O "https://github.com/xiph/speexdsp/archive/SpeexDSP-${SPEEXDSP_VERSION}.tar.gz"
@@ -559,7 +548,6 @@ build_speexdsp() {
     find . -name \*.dylib -exec cp -a \{\} "${OBSDEPS}/lib/" \;
     rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../include/* "${OBSDEPS}/include/"
     rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./include/* "${OBSDEPS}/include/"
-    set +e
   fi
 }
 
@@ -568,7 +556,6 @@ build_jansson() {
     hr "jansson already installed"
   else
     hr "Building jansson ${JANSSON_VERSION}"
-    set -e
     cd "${WORK_DIR}"
     rm -rf jansson-${JANSSON_VERSION}
     curl -fkRL -O "https://digip.org/jansson/releases/jansson-${JANSSON_VERSION}.tar.gz"
@@ -581,7 +568,6 @@ build_jansson() {
     find . -name \*.dylib -exec cp -a \{\} "${OBSDEPS}/lib/" \;
     rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../src/* "${OBSDEPS}/include/"
     rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./src/* "${OBSDEPS}/include/"
-    set +e
   fi
 }
 
@@ -590,7 +576,6 @@ build_freetype() {
     hr "freetype already installed"
   else
     hr "Building freetype ${FREETYPE_VERSION}"
-    set -e
     cd "${WORK_DIR}"
     rm -rf jansson-${JANSSON_VERSION}
     curl -fkRL -O "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE_VERSION}/freetype-${FREETYPE_VERSION}.tar.xz"
@@ -601,7 +586,6 @@ build_freetype() {
     ../configure --prefix="${OBSDEPS}" --enable-shared --disable-static --without-harfbuzz --without-brotli
     make -j ${NUM_CORES}
     make install
-    set +e
   fi
 }
 
@@ -610,7 +594,6 @@ build_rnnoise() {
     hr "rnnoise already installed"
   else
     hr "Building rnnoise ${RNNOISE_COMMIT}"
-    set -e
     cd "${WORK_DIR}"
     rm -rf rnnoise-${RNNOISE_COMMIT}
     mkdir -p rnnoise-${RNNOISE_COMMIT}
@@ -624,7 +607,6 @@ build_rnnoise() {
     ../configure --prefix="${OBSDEPS}"
     make -j ${NUM_CORES}
     make install
-    set +e
   fi
 }
 
@@ -633,7 +615,6 @@ build_luajit() {
     hr "LuaJIT already installed"
   else
     hr "Building LuaJIT ${LUAJIT_VERSION}"
-    set -e
     cd "${WORK_DIR}"
     rm -rf LuaJIT-${LUAJIT_VERSION}
     curl -fkRL -O "https://luajit.org/download/LuaJIT-${LUAJIT_VERSION}.tar.gz"
@@ -655,7 +636,6 @@ build_luajit() {
     cp -a /tmp/luajit/lib/* "${OBSDEPS}/lib/"
     cp -a /tmp/luajit/include/* "${OBSDEPS}/include/"
     rm -rf /tmp/luajit
-    set +e
   fi
 }
 
@@ -703,7 +683,6 @@ install_qt() {
       fi
     elif [ ! -f "${OBSDEPS}/lib/cmake/Qt5/Qt5ConfigVersion.cmake" ]; then
       hr "Installing Qt ${QT_VERSION}"
-      set -e
       cd "${WORK_DIR}"
       if [ -d /usr/local/opt/zstd ]; then brew unlink zstd; fi
       if [ -d /usr/local/opt/libtiff ]; then brew unlink libtiff; fi
@@ -732,7 +711,6 @@ install_qt() {
       if [ -d /usr/local/opt/zstd ] && [ ! -f /usr/local/lib/libzstd.dylib ]; then brew link zstd; fi
       if [ -d /usr/local/opt/libtiff ] && [ ! -f /usr/local/lib/libtiff.dylib ]; then brew link libtiff; fi
       if [ -d /usr/local/opt/webp ] && [ ! -f /usr/local/lib/libwebp.dylib ]; then brew link webp; fi
-      set +e
     else
       QTV=$(grep -Eo '\d+\.\d+\.\d+' "${OBSDEPS}/lib/cmake/Qt5/Qt5ConfigVersion.cmake")
       if [ "${QTV}" = "${QT_VERSION}" ]; then
@@ -754,6 +732,7 @@ install_boost() {
     set +e
     brew install "${SIDEKICK_ROOT}/scripts/homebrew/boost.rb"
     brew pin boost
+    set -e
   fi
 }
 
@@ -762,14 +741,12 @@ install_packages_app() {
     hr "Packages app already installed"
   else
     hr "Installing Packages app"
-    set -e
     cd "${DEV_DIR}"
     curl -fkRL -O http://s.sudre.free.fr/Software/files/Packages.dmg
     hdiutil attach Packages.dmg
     sudo installer -pkg /Volumes/Packages*/packages/Packages.pkg -target /
     hdiutil detach /Volumes/Packages*
     rm "${DEV_DIR}/Packages.dmg"
-    set +e
   fi
 }
 
@@ -778,13 +755,11 @@ install_vlc() {
     hr "VLC ${VLC_VERSION} already installed"
   else
     hr "Installing VLC ${VLC_VERSION}"
-    set -e
     cd "${DEV_DIR}"
     rm -rf "vlc-${VLC_VERSION}"
     curl -fkRL -O "https://downloads.videolan.org/vlc/${VLC_VERSION}/vlc-${VLC_VERSION}.tar.xz"
     tar -xf "vlc-${VLC_VERSION}.tar.xz"
     rm "${DEV_DIR}/vlc-${VLC_VERSION}.tar.xz"
-    set +e
   fi
 }
 
@@ -793,7 +768,6 @@ install_cef() {
     hr "CEF ${CEF_VERSION} already installed"
   else
     hr "Installing CEF ${CEF_VERSION}"
-    set -e
     cd "${DEV_DIR}"
     rm -rf "cef_binary_${CEF_BUILD_VERSION}_macosx64"
     if [ "${BUILD_TYPE}" = "Debug" ]; then CEF_BUILD_TYPE=Debug; else CEF_BUILD_TYPE=Release; fi
@@ -804,14 +778,14 @@ install_cef() {
     rm "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
     cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64"
     rm -rf tests
-    sed -i '' 's/\"10.9\"/\"10.11\"/' ./cmake/cef_variables.cmake
+    # sed -i '' 's/\"10.9\"/\"10.11\"/' ./cmake/cef_variables.cmake
+    sed -i '' 's/"'$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "10.9" || echo "10.10")'"/"'${MACOSX_DEPLOYMENT_TARGET}'"/' ./cmake/cef_variables.cmake
     mkdir -p build && cd ./build
     cmake -DCMAKE_CXX_FLAGS="-std=c++11 -stdlib=libc++ -Wno-deprecated-declarations" \
       -DCMAKE_EXE_LINKER_FLAGS="-std=c++11 -stdlib=libc++" \
       -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" -DCMAKE_BUILD_TYPE=${CEF_BUILD_TYPE} ..
     make -j ${NUM_CORES}
     mkdir -p libcef_dll
-    set +e
   fi
 }
 
@@ -820,33 +794,45 @@ build_webrtc() {
     hr "WebRTC library found: ${DEV_DIR}/webrtc"
   else
     hr "Building WebRTC"
-    set -e
     cd "${SIDEKICK_ROOT}"
     ./build-webrtc "$@"
-    set +e
   fi
 }
 
+print_summary() {
+  end=$(date '+%Y-%m-%d %H:%M:%S')
+  end_ts=$(date +%s)
+  declare -i runtime=$((end_ts-start_ts))
+  declare -i hours=$((runtime / 3600))
+  declare -i minutes=$(( (runtime % 3600) / 60 ))
+  declare -i seconds=$(( (runtime % 3600) % 60 ))
+
+  if [ "$1" != "skip_build_tools" ]; then
+    hr \
+      "Start:    ${start}" \
+      "End:      ${end}" \
+      "Elapsed:  (hh:mm:ss) %02d:%02d:%02d\n" \
+      ${hours} ${minutes} ${seconds}
+  fi
+}
+
+build_ffmpeg_deps() {
+  build_png
+  build_opus
+  build_ogg
+  build_vorbis
+  build_vpx
+  build_x264
+  build_theora
+  build_lame
+  build_mbedtls
+  build_srt
+}
+
 main() {
-  set -e
-  echo "${red}BUILD_TYPE:        ${BUILD_TYPE}${reset}"
-  echo "SIDEKICK_ROOT:     ${SIDEKICK_ROOT}"
-  echo "OBS_ROOT:          ${OBS_ROOT}"
-  echo "DEV_DIR:           ${DEV_DIR}"
-
-  start=$(date '+%Y-%m-%d %H:%M:%S')
-  declare -i start_ts
-  start_ts=$(date +%s)
-  hr "Building dependencies in: ${DEV_DIR}" "Started ${start}"
-
-  mkdir -p "${DEV_DIR}"
-  cd "${DEV_DIR}"
-
-  if [ "$1" = "clean" ]; then uninstall_homebrew; fi
-  install_homebrew
-
-  if [ "$1" != "skip_build_tools" ]; then install_build_tools; fi
-
+  init
+  install_homebrew "$@"
+  install_build_tools
   create_work_dirs
   install_core_obs_deps
   build_ffmpeg_deps
@@ -865,25 +851,9 @@ main() {
   install_or_upgrade akeru-inc/tap/xcnotary
   restore_brews
   delete_work_dirs
-  cleanup
-
+  # cleanup
   build_webrtc "$@"
-
-  end=$(date '+%Y-%m-%d %H:%M:%S')
-  declare -i end_ts
-  end_ts=$(date +%s)
-  declare -i runtime=$((end_ts-start_ts))
-  declare -i hours=$((runtime / 3600))
-  declare -i minutes=$(( (runtime % 3600) / 60 ))
-  declare -i seconds=$(( (runtime % 3600) % 60 ))
-
-  if [ "$1" != "skip_build_tools" ]; then
-    hr \
-      "Start:    ${start}" \
-      "End:      ${end}" \
-      "Elapsed:  (hh:mm:ss) %02d:%02d:%02d\n" \
-      ${hours} ${minutes} ${seconds}
-  fi
+  print_summary "$@"
 }
 
 main "$@"
