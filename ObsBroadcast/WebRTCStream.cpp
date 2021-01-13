@@ -15,14 +15,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef MFC_AGENT_EDGESOCK
-#define MFC_AGENT_EDGESOCK 1
-#endif
-
-#ifndef SIDEKICK_ENABLE_VIRTUALCAM
-#define SIDEKICK_ENABLE_VIRTUALCAM 1
-#endif
-
 #define MFC_LIMIT_WEBRTC_BITRATE_2500 1
 #define WEBRTCSTREAM_MODIFY_SENDER_PARAMETERS 0
 #define WEBRTCSTREAM_USE_BITRATE_SETTINGS 0
@@ -48,11 +40,7 @@
 #include <libPlugins/MFCEdgeIngest.h>
 
 // obs
-#include <obs-frontend-api.h>
 #include <media-io/video-io.h>
-
-#include <QMainWindow>
-#include <QMetaObject>
 
 // webrtc
 #include "api/create_peerconnection_factory.h"
@@ -304,14 +292,6 @@ bool WebRTCStream::Stop(bool normal)
 
     if (m_pWsClient)
         m_pWsClient->disconnect(normal);  // Close websocket connection
-
-#if SIDEKICK_ENABLE_VIRTUALCAM
-    QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
-    QMetaObject::invokeMethod(main, "StopVirtualCam");
-#if MFC_AGENT_EDGESOCK
-    g_ctx.sm_edgeSock->sendVirtualCameraState(false);
-#endif
-#endif
 
     obs_output_end_data_capture(m_pOutput);  // Stop main thread
     return ret;
@@ -771,17 +751,6 @@ void WebRTCStream::onReadyToStartBroadcast()
     obs_info("\nBeginning data capture...\n");
     if (!obs_output_begin_data_capture(m_pOutput, 0))
         obs_error("\nError initiating OBS data capture\n");
-
-#if SIDEKICK_ENABLE_VIRTUALCAM
-    QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
-    if (QMetaObject::invokeMethod(main, "StartVirtualCam"))
-    {
-        obs_info("Virtual Camera active");
-#if MFC_AGENT_EDGESOCK
-        g_ctx.sm_edgeSock->sendVirtualCameraState(true);
-#endif
-    }
-#endif
 }
 
 

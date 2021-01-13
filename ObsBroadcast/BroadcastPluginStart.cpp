@@ -24,8 +24,12 @@
 #define PANEL_UNIT_TEST 0
 #endif
 
-#ifndef SIDEKICK_SET_WEBRTC
-#define SIDEKICK_SET_WEBRTC 0
+#ifndef MFC_AGENT_EDGESOCK
+#define MFC_AGENT_EDGESOCK 1
+#endif
+
+#ifndef SIDEKICK_ENABLE_VIRTUALCAM
+#define SIDEKICK_ENABLE_VIRTUALCAM 1
 #endif
 
 #ifndef SIDEKICK_CONSOLE
@@ -34,6 +38,10 @@
 
 #ifndef SIDEKICK_VERBOSE_CONSOLE
 #define SIDEKICK_VERBOSE_CONSOLE 0
+#endif
+
+#ifndef SIDEKICK_SET_WEBRTC
+#define SIDEKICK_SET_WEBRTC 0
 #endif
 
 #ifdef _WIN32
@@ -53,6 +61,7 @@
 
 // qt
 #include <QMessageBox>
+#include <QMetaObject>
 #include <QObject>
 #include <QScrollBar>
 #include <QString>
@@ -73,6 +82,7 @@
 #include <libfcs/fcs_b64.h>
 #include <libfcs/MfcTimer.h>
 #include <libPlugins/build_version.h>
+#include <libPlugins/EdgeChatSock.h>
 #include <libPlugins/IPCShared.h>
 #include <libPlugins/MFCConfigConstants.h>
 #include <libPlugins/ObsUtil.h>
@@ -970,6 +980,17 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
                 // When streaming starts, pause polling agentSvc.php
                 g_ctx.onStartStreaming();
                 g_thread.setCmd(THREADCMD_STREAMSTART);
+
+#if SIDEKICK_ENABLE_VIRTUALCAM
+                QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
+                if (QMetaObject::invokeMethod(main, "StartVirtualCam"))
+                {
+                    _MESG("Virtual Camera active");
+#if MFC_AGENT_EDGESOCK
+                    g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+#endif
+                }
+#endif
             }
         }
         else _MESG( "OBS_FRONTEND_EVENT_STREAMING_STARTED; but not isMfc so ignoring");
@@ -988,6 +1009,14 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
             // When streaming stops, we resume polling agentSvc.php
             g_ctx.onStopStreaming();
             g_thread.setCmd(THREADCMD_STREAMSTOP);
+
+#if SIDEKICK_ENABLE_VIRTUALCAM
+            QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
+            QMetaObject::invokeMethod(main, "StopVirtualCam");
+#if MFC_AGENT_EDGESOCK
+            g_ctx.sm_edgeSock->sendVirtualCameraState(false);
+#endif
+#endif
         }
     }
     else if (eventType == OBS_FRONTEND_EVENT_PROFILE_CHANGED)
@@ -1023,11 +1052,13 @@ const char* MapObsEventType(enum obs_frontend_event eventType)
     case OBS_FRONTEND_EVENT_TRANSITION_CHANGED:             return "OBS_FRONTEND_EVENT_TRANSITION_CHANGED";
     case OBS_FRONTEND_EVENT_TRANSITION_STOPPED:             return "OBS_FRONTEND_EVENT_TRANSITION_STOPPED";
     case OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED:        return "OBS_FRONTEND_EVENT_TRANSITION_LIST_CHANGED";
+    case OBS_FRONTEND_EVENT_TRANSITION_DURATION_CHANGED:    return "OBS_FRONTEND_EVENT_TRANSITION_DURATION_CHANGED";
     case OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED:       return "OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED";
     case OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED:  return "OBS_FRONTEND_EVENT_SCENE_COLLECTION_LIST_CHANGED";
     case OBS_FRONTEND_EVENT_PROFILE_CHANGED:                return "OBS_FRONTEND_EVENT_PROFILE_CHANGED";
     case OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED:           return "OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED";
     case OBS_FRONTEND_EVENT_EXIT:                           return "OBS_FRONTEND_EVENT_EXIT";
+    case OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED:            return "OBS_FRONTEND_EVENT_REPLAY_BUFFER_SAVED";
     case OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTING:         return "OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTING";
     case OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED:          return "OBS_FRONTEND_EVENT_REPLAY_BUFFER_STARTED";
     case OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPING:         return "OBS_FRONTEND_EVENT_REPLAY_BUFFER_STOPPING";
