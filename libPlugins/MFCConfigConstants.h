@@ -81,7 +81,6 @@
 #define MODELVERSION_API                        "/ModelVersion"
 #define HEARTBEAT_API                           "/Heartbeat"
 
-// Default values.
 #ifndef DEFAULT_HEARTBEAT_INTERVAL
 #define DEFAULT_HEARTBEAT_INTERVAL              60
 #endif
@@ -109,41 +108,9 @@
 #define MFC_DEFAULT_WEBRTC_OUTPUT               "mfc_wowza_output"
 #define MFC_DEFAULT_WEBRTC_PROTOCOL             "TCP"
 #define MFC_DEFAULT_WEBRTC_CODEC                "h264"
-#define MFC_DEFAULT_WEBRTC_HEIGHT               720
 #define MFC_DEFAULT_WEBRTC_WIDTH                1280
+#define MFC_DEFAULT_WEBRTC_HEIGHT               720
 #define MFC_DEFAULT_WEBRTC_FRAMERATE            30
-
-#ifndef MFC_DEFAULT_BROADCAST_URL
-#define MFC_DEFAULT_BROADCAST_URL               "rtmp://publish.myfreecams.com/NxServer"
-#endif
-
-#ifndef MFC_NORTH_AMERICA_EAST_BROADCAST_URL
-#define MFC_NORTH_AMERICA_EAST_BROADCAST_URL    "rtmp://publish-ord.myfreecams.com/NxServer"
-#endif
-
-#ifndef MFC_NORTH_AMERICA_WEST_BROADCAST_URL
-#define MFC_NORTH_AMERICA_WEST_BROADCAST_URL    "rtmp://publish-tuk.myfreecams.com/NxServer"
-#endif
-
-#ifndef MFC_EUROPE_EAST_BROADCAST_URL
-#define MFC_EUROPE_EAST_BROADCAST_URL           "rtmp://publish-buh.myfreecams.com/NxServer"
-#endif
-
-#ifndef MFC_EUROPE_WEST_BROADCAST_URL
-#define MFC_EUROPE_WEST_BROADCAST_URL           "rtmp://publish-ams.myfreecams.com/NxServer"
-#endif
-
-#ifndef MFC_SOUTH_AMERICA_BROADCAST_URL
-#define MFC_SOUTH_AMERICA_BROADCAST_URL         "rtmp://publish-sao.myfreecams.com/NxServer"
-#endif
-
-#ifndef MFC_AUSTRALIA_BROADCAST_URL
-#define MFC_AUSTRALIA_BROADCAST_URL             "rtmp://publish-syd.myfreecams.com/NxServer"
-#endif
-
-#ifndef MFC_EAST_ASIA_BROADCAST_URL
-#define MFC_EAST_ASIA_BROADCAST_URL             "rtmp://publish-tyo.myfreecams.com/NxServer"
-#endif
 
 #define JSON_MODEL_STRM_KEY                     "modelStreamingKey"
 #define JSON_PLUGIN_TYPE                        "pluginType"
@@ -221,10 +188,6 @@
 #define MFC_SERVICES_JSON_NAME_WEBRTC_VALUE     "MyFreeCams WebRTC"
 #endif
 
-#ifndef MFC_SERVICES_JSON_PRIMARY_SERVER_NAME
-#define MFC_SERVICES_JSON_PRIMARY_SERVER_NAME   "Automatic"
-#endif
-
 #define MFC_SERVICES_JSON_KEYINT                "keyint"
 #ifndef MFC_SERVICES_JSON_KEYINT_VALUE
 #define MFC_SERVICES_JSON_KEYINT_VALUE          2
@@ -232,7 +195,7 @@
 
 #define MFC_SERVICES_JSON_BFRAMES               "bframes"
 #ifndef MFC_SERVICES_JSON_BFRAMES_VALUE
-#define MFC_SERVICES_JSON_BFRAMES_VALUE         2
+#define MFC_SERVICES_JSON_BFRAMES_VALUE         0
 #endif
 
 #define MFC_SERVICES_JSON_MAX_WIDTH             "max width"
@@ -257,7 +220,7 @@
 
 #define MFC_SERVICES_JSON_VIDEO_BITRATE         "max video bitrate"
 #ifndef MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE
-#define MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE   7000
+#define MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE   6000
 #endif
 
 #define MFC_SERVICES_JSON_X264_PROFILE          "profile"
@@ -267,7 +230,7 @@
 
 #define MFC_SERVICES_JSON_X264OPTS              "x264opts"
 #ifndef MFC_SERVICES_JSON_X264OPTS_VALUE
-#define MFC_SERVICES_JSON_X264OPTS_VALUE        "tune=zerolatency scenecut=0 bframes=2"
+#define MFC_SERVICES_JSON_X264OPTS_VALUE        "tune=zerolatency scenecut=0"
 #endif
 
 #define RTMP_SERVICES_FORMAT_VERSION            3
@@ -278,32 +241,60 @@
 #define SERVICE_JSON_STREAM_KEY                 "key"
 #define SERVICE_JSON_STREAM_URL                 "server"
 
-#ifndef MFC_NORTH_AMERICA_EAST_SERVER_NAME
-#define MFC_NORTH_AMERICA_EAST_SERVER_NAME      "North America (East Coast)"
+#ifndef MFC_SERVICES_JSON_PRIMARY_SERVER_NAME
+#define MFC_SERVICES_JSON_PRIMARY_SERVER_NAME   "Automatic"
 #endif
-
-#ifndef MFC_NORTH_AMERICA_WEST_SERVER_NAME
-#define MFC_NORTH_AMERICA_WEST_SERVER_NAME      "North America (West Coast)"
-#endif
-
-#ifndef MFC_EUROPE_EAST_SERVER_NAME
-#define MFC_EUROPE_EAST_SERVER_NAME             "Europe (East)"
-#endif
-
-#ifndef MFC_EUROPE_WEST_SERVER_NAME
-#define MFC_EUROPE_WEST_SERVER_NAME             "Europe (West)"
-#endif
-
-#ifndef MFC_SOUTH_AMERICA_SERVER_NAME
-#define MFC_SOUTH_AMERICA_SERVER_NAME           "South America"
+#ifndef MFC_DEFAULT_BROADCAST_URL
+#define MFC_DEFAULT_BROADCAST_URL               "rtmp://publish.myfreecams.com/NxServer"
 #endif
 
 #ifndef MFC_AUSTRALIA_SERVER_NAME
 #define MFC_AUSTRALIA_SERVER_NAME               "Australia"
 #endif
+#ifndef MFC_AUSTRALIA_BROADCAST_URL
+#define MFC_AUSTRALIA_BROADCAST_URL             "rtmp://publish-syd.myfreecams.com/NxServer"
+#endif
 
 #ifndef MFC_EAST_ASIA_SERVER_NAME
 #define MFC_EAST_ASIA_SERVER_NAME               "East Asia"
+#endif
+#ifndef MFC_EAST_ASIA_BROADCAST_URL
+#define MFC_EAST_ASIA_BROADCAST_URL             "rtmp://publish-tyo.myfreecams.com/NxServer"
+#endif
+
+#ifndef MFC_EUROPE_EAST_SERVER_NAME
+#define MFC_EUROPE_EAST_SERVER_NAME             "Europe (East)"
+#endif
+#ifndef MFC_EUROPE_EAST_BROADCAST_URL
+#define MFC_EUROPE_EAST_BROADCAST_URL           "rtmp://publish-buh.myfreecams.com/NxServer"
+#endif
+
+#ifndef MFC_EUROPE_WEST_SERVER_NAME
+#define MFC_EUROPE_WEST_SERVER_NAME             "Europe (West)"
+#endif
+#ifndef MFC_EUROPE_WEST_BROADCAST_URL
+#define MFC_EUROPE_WEST_BROADCAST_URL           "rtmp://publish-ams.myfreecams.com/NxServer"
+#endif
+
+#ifndef MFC_NORTH_AMERICA_EAST_SERVER_NAME
+#define MFC_NORTH_AMERICA_EAST_SERVER_NAME      "North America (East Coast)"
+#endif
+#ifndef MFC_NORTH_AMERICA_EAST_BROADCAST_URL
+#define MFC_NORTH_AMERICA_EAST_BROADCAST_URL    "rtmp://publish-ord.myfreecams.com/NxServer"
+#endif
+
+#ifndef MFC_NORTH_AMERICA_WEST_SERVER_NAME
+#define MFC_NORTH_AMERICA_WEST_SERVER_NAME      "North America (West Coast)"
+#endif
+#ifndef MFC_NORTH_AMERICA_WEST_BROADCAST_URL
+#define MFC_NORTH_AMERICA_WEST_BROADCAST_URL    "rtmp://publish-tuk.myfreecams.com/NxServer"
+#endif
+
+#ifndef MFC_SOUTH_AMERICA_SERVER_NAME
+#define MFC_SOUTH_AMERICA_SERVER_NAME           "South America"
+#endif
+#ifndef MFC_SOUTH_AMERICA_BROADCAST_URL
+#define MFC_SOUTH_AMERICA_BROADCAST_URL         "rtmp://publish-sao.myfreecams.com/NxServer"
 #endif
 
 #endif // MFC_CONFIG_CONSTANTS_H_

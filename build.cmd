@@ -15,12 +15,12 @@ if "%~1"=="RelWithDebInfo" (set BUILD_TYPE=RelWithDebInfo)
 if "%~1"=="Debug" (set BUILD_TYPE=Debug)
 if "%~1"=="preserve" (set NO_RESET=1)
 
-set _OBS_TAG=26.1.1
+set _OBS_TAG=26.1.2
 set _Deps_VERSION=2019
 set _X264_VERSION=161.r3015
 set _CURL_VERSION=7.68.0
 set _VLC_VERSION=3.0.4
-set _QT_VERSION=5.10.1
+set _QT_VERSION=5.15.2
 set _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 set _BOOST_VERSION=1.69.0
 set _OPENSSL_VERSION=1.1.1
@@ -111,6 +111,8 @@ cmake -G "%MSVC_VERSION%" -A x64 -T host=x64^
  -DCOMPILE_D3D12_HOOK=true^
  -DCOPIED_DEPENDENCIES=false^
  -DCOPY_DEPENDENCIES=true^
+ -DENABLE_VLC=ON^
+ -DCMAKE_SYSTEM_VERSION=10.0^
  -DVIRTUALCAM_GUID=%VIRTUALCAM_GUID%^
  ..
 if errorlevel 1 (exit /b)
@@ -141,7 +143,8 @@ exit /b
   set X264_SHA1=0a1afc492ba4949eb7dbb0af8aabbf36424d6e32
   set CURL_SHA256=5e49e97ea3e3dd707f1f56985113b908b9a95e81c3212290c7fefbe4d79fb093
   set VLC_SHA1=218603f05ab5f30de0cc87b0ccceb57bb1efcfa4
-  set QT_SHA1=4daec4733e75ad03b45fd351441f9a88d3cdc6d8
+  REM set QT_SHA1=4daec4733e75ad03b45fd351441f9a88d3cdc6d8
+  set QT_SHA1=d42b99beef90da3947c0d544f9a1a58d29192aaa
   set CEF_MINIMAL_SHA1=c9dcb8edfa159cc0dc14202315af97d5166fffe8
   set CEF_SHA1=adf10a3d049760ff8a19590019ba157a089128c2
   set BOOST_SHA1=15208c018da1e552da7c07b9b1e5cf855bebe8b0
@@ -286,7 +289,7 @@ exit /b
   if defined CURL_LIBRARY (echo -- CURL_LIBRARY already defined: %CURL_LIBRARY%) else (set "CURL_LIBRARY=%CURL_ROOT%\bin\libcurl.lib")
   if defined VLCPath (echo -- VLCPath already defined: %VLCPath%) else (set "VLCPath=%DEV_DIR%\vlc\vlc-%VLC_VERSION%")
   if defined QTDIR64 (echo -- QTDIR64 already defined: %QTDIR64%) else (
-    if defined QTDIR (set "QTDIR64=%QTDIR%") else (set "QTDIR64=%DEV_DIR%\Qt\%QT_VERSION%\msvc2017_64")
+    if defined QTDIR (set "QTDIR64=%QTDIR%") else (set "QTDIR64=%DEV_DIR%\Qt\%QT_VERSION%\msvc2019_64")
   )
   if defined CEF_64 (echo -- CEF_64 already defined: %CEF_64%) else (
     if defined CEF (set "CEF_64=%CEF%") else (set "CEF_64=%DEV_DIR%\CEF_64\cef_binary_%CEF_VERSION%_windows64")

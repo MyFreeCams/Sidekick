@@ -211,55 +211,61 @@ bool CObsServicesJson::loadDefaultRTMPService(njson& arr)
 {
     njson jsRTMP =
     {
-        { "common", true },
-        { "name", MFC_SERVICES_JSON_NAME_RTMP_VALUE },
-        { "recommended",
-            {
-                { "keyint", MFC_SERVICES_JSON_KEYINT_VALUE },
-                { "max width", MFC_SERVICES_JSON_MAX_WIDTH_VALUE },
-                { "max height", MFC_SERVICES_JSON_MAX_HEIGHT_VALUE },
-                { "max fps", MFC_SERVICES_JSON_MAX_FPS_VALUE },
-                { "max video bitrate", MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE },
-                { "max audio bitrate", MFC_SERVICES_JSON_AUDIO_BITRATE_VALUE },
-                { "profile", MFC_SERVICES_JSON_X264_PROFILE_VALUE },
-                { "bframes", MFC_SERVICES_JSON_BFRAMES_VALUE },
-                { "x264opts", MFC_SERVICES_JSON_X264OPTS_VALUE }
-            }
-        },
+        { "name",   MFC_SERVICES_JSON_NAME_RTMP_VALUE   },
+        { "common", true                                },
         { "servers",
             {
                 {
-                    { "name", MFC_SERVICES_JSON_PRIMARY_SERVER_NAME },
-                    { "url", MFC_DEFAULT_BROADCAST_URL }
-                }/*,
-                {
-                    { "name", MFC_NORTH_AMERICA_EAST_SERVER_NAME },
-                    { "url", MFC_NORTH_AMERICA_EAST_BROADCAST_URL }
+                    { "name",   MFC_SERVICES_JSON_PRIMARY_SERVER_NAME   },
+                    { "url",    MFC_DEFAULT_BROADCAST_URL               }
                 },
                 {
-                    { "name", MFC_NORTH_AMERICA_WEST_SERVER_NAME },
-                    { "url", MFC_NORTH_AMERICA_WEST_BROADCAST_URL }
+                    { "name",   MFC_AUSTRALIA_SERVER_NAME               },
+                    { "url",    MFC_AUSTRALIA_BROADCAST_URL             }
                 },
                 {
-                    { "name", MFC_EUROPE_EAST_SERVER_NAME },
-                    { "url", MFC_EUROPE_EAST_BROADCAST_URL }
+                    { "name",   MFC_EAST_ASIA_SERVER_NAME               },
+                    { "url",    MFC_EAST_ASIA_BROADCAST_URL             }
                 },
                 {
-                    { "name", MFC_EUROPE_WEST_SERVER_NAME },
-                    { "url", MFC_EUROPE_WEST_BROADCAST_URL }
+                    { "name",   MFC_EUROPE_EAST_SERVER_NAME             },
+                    { "url",    MFC_EUROPE_EAST_BROADCAST_URL           }
                 },
                 {
-                    { "name", MFC_SOUTH_AMERICA_SERVER_NAME },
-                    { "url", MFC_SOUTH_AMERICA_BROADCAST_URL }
+                    { "name",   MFC_EUROPE_WEST_SERVER_NAME             },
+                    { "url",    MFC_EUROPE_WEST_BROADCAST_URL           }
                 },
                 {
-                    { "name", MFC_AUSTRALIA_SERVER_NAME },
-                    { "url", MFC_AUSTRALIA_BROADCAST_URL }
+                    { "name",   MFC_NORTH_AMERICA_EAST_SERVER_NAME      },
+                    { "url",    MFC_NORTH_AMERICA_EAST_BROADCAST_URL    }
                 },
                 {
-                    { "name", MFC_EAST_ASIA_SERVER_NAME },
-                    { "url", MFC_EAST_ASIA_BROADCAST_URL }
-                }*/
+                    { "name",   MFC_NORTH_AMERICA_WEST_SERVER_NAME      },
+                    { "url",    MFC_NORTH_AMERICA_WEST_BROADCAST_URL    }
+                },
+                {
+                    { "name",   MFC_SOUTH_AMERICA_SERVER_NAME           },
+                    { "url",    MFC_SOUTH_AMERICA_BROADCAST_URL         }
+                }
+            }
+        },
+        { "recommended",
+            {
+                { "keyint",               MFC_SERVICES_JSON_KEYINT_VALUE            },
+                { "profile",              MFC_SERVICES_JSON_X264_PROFILE_VALUE      },
+                { "max fps",              MFC_SERVICES_JSON_MAX_FPS_VALUE           },
+                { "max video bitrate",    MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE     },
+                { "max audio bitrate",    MFC_SERVICES_JSON_AUDIO_BITRATE_VALUE     },
+                { "bframes",              MFC_SERVICES_JSON_BFRAMES_VALUE           },
+                { "x264opts",             MFC_SERVICES_JSON_X264OPTS_VALUE          },
+                { "supported resolutions",
+                    {
+                        "1920x1080",
+                        "1280x720",
+                        "960x540",
+                        "640x360"
+                    }
+                }
             }
         }
     };
@@ -277,21 +283,30 @@ bool CObsServicesJson::loadDefaultWebRTCService(njson& arr)
 {
     njson jswebRTC =
     {
-        { "common", true },
-        { "name", MFC_SERVICES_JSON_NAME_WEBRTC_VALUE },
-        { "recommended" ,
-            {
-                { "keyint", MFC_SERVICES_JSON_KEYINT_VALUE },
-                { "max audio bitrate", MFC_SERVICES_JSON_AUDIO_BITRATE_VALUE },
-                { "max video bitrate", MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE },
-                { "output", MFC_DEFAULT_WEBRTC_OUTPUT }
-            },
-        },
+        { "name",       MFC_SERVICES_JSON_NAME_WEBRTC_VALUE },
+        { "common",     true                                },
         { "servers",
             {
                 {
-                    { "name", MFC_SERVICES_JSON_PRIMARY_SERVER_NAME },
-                    { "url", "Automatic" }
+                    { "name",   MFC_SERVICES_JSON_PRIMARY_SERVER_NAME   },
+                    { "url",    "Automatic"                             }
+                }
+            }
+        },
+        { "recommended",
+            {
+                { "output",             MFC_DEFAULT_WEBRTC_OUTPUT               },
+                { "keyint",             MFC_SERVICES_JSON_KEYINT_VALUE          },
+                { "max fps",            MFC_SERVICES_JSON_MAX_FPS_VALUE         },
+                { "max video bitrate",  MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE   },
+                { "max audio bitrate",  MFC_SERVICES_JSON_AUDIO_BITRATE_VALUE   },
+                { "supported resolutions",
+                    {
+                        "1920x1080",
+                        "1280x720",
+                        "960x540",
+                        "640x360"
+                    }
                 }
             }
         }

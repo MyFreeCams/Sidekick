@@ -67,6 +67,7 @@ WowzaWebsocketClientImpl::WowzaWebsocketClientImpl()
     m_client.set_access_channels(websocketpp::log::alevel::all);
     m_client.clear_access_channels(websocketpp::log::alevel::frame_payload);
     m_client.clear_access_channels(websocketpp::log::alevel::frame_header);
+    m_client.clear_access_channels(websocketpp::log::alevel::control);
     m_client.set_error_channels(websocketpp::log::elevel::all);
 
     // Initialize ASIO
