@@ -420,7 +420,7 @@ bool WowzaWebsocketClientImpl::disconnect(bool bWait)
             if (m_pConnection->send(close.dump()))
                 return false;
             // Wait for unpublish message to send
-            std::this_thread::sleep_for(std::chrono::seconds(2));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
         if (!m_pConnection)
