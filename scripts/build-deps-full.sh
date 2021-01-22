@@ -66,6 +66,10 @@ cd ..
 declare -xr DEV_DIR="${DEV_DIR:-$(pwd)}"
 readonly WORK_DIR="${DEV_DIR}/obsdeps-src"
 declare -xr OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
+export LD_LIBRARY_PATH="${OBSDEPS}/lib"
+export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
+export LDFLAGS="-L${LD_LIBRARY_PATH}"
+export CFLAGS="-I${OBSDEPS}/include"
 
 declare start
 declare end
@@ -577,7 +581,7 @@ build_freetype() {
   else
     hr "Building freetype ${FREETYPE_VERSION}"
     cd "${WORK_DIR}"
-    rm -rf jansson-${JANSSON_VERSION}
+    rm -rf freetype-${FREETYPE_VERSION}
     curl -fkRL -O "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE_VERSION}/freetype-${FREETYPE_VERSION}.tar.xz"
     tar -xf freetype-${FREETYPE_VERSION}.tar.xz
     cd ./freetype-${FREETYPE_VERSION}
