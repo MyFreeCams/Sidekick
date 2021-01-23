@@ -165,21 +165,25 @@ build_obs_bundle() {
     PLUGINS+="-x ./OBS.app/Contents/Plugins/${f##*/} "
   done
 
+  for f in ./OBS.app/Contents/MacOS/*.so; do
+    PLUGINS+="-x ./OBS.app/Contents/MacOS/${f##*/} "
+  done
+
   if [ -f ./OBS.app/Contents/MacOS/obs-ffmpeg-mux ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/obs-ffmpeg-mux "; fi
-  if [ -f ./OBS.app/Contents/MacOS/libobs-opengl.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/libobs-opengl.so "; fi
-  if [ -f ./OBS.app/Contents/MacOS/obslua.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/obslua.so "; fi
-  if [ -f ./OBS.app/Contents/MacOS/_obspython.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/_obspython.so "; fi
+  # if [ -f ./OBS.app/Contents/MacOS/libobs-opengl.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/libobs-opengl.so "; fi
+  # if [ -f ./OBS.app/Contents/MacOS/obslua.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/obslua.so "; fi
+  # if [ -f ./OBS.app/Contents/MacOS/_obspython.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/_obspython.so "; fi
 
   # Fix install names & rpaths on dependencies and bundle dylibs
   ${DYLIBBUNDLER} -f -q -cd -of -a ./OBS.app ${PLUGINS}
 
   set +e
-  rm -f ./OBS.app/Contents/MacOS/*.dylib 2> /dev/null
   find ./OBS.app -name .gitignore -exec rm -f \{\} \;
-  # rm -f ./OBS.app/Contents/MacOS/libobs.0.dylib 2> /dev/null
-  # rm -f ./OBS.app/Contents/MacOS/libobs-frontend-api.dylib 2> /dev/null
+  rm -f ./OBS.app/Contents/MacOS/libobs.0.dylib 2> /dev/null
+  rm -f ./OBS.app/Contents/MacOS/libobs-frontend-api.dylib 2> /dev/null
+  rm -f ./OBS.app/Contents/MacOS/libobs-scripting.dylib 2> /dev/null
+  # rm -f ./OBS.app/Contents/MacOS/*.dylib 2> /dev/null
   # rm -f ./OBS.app/Contents/MacOS/libobsglad.0.dylib 2> /dev/null
-  # rm -f ./OBS.app/Contents/MacOS/libobs-scripting.dylib 2> /dev/null
   mv -f ./OBS.app/Contents/MacOS/libobs-opengl.so ./OBS.app/Contents/Frameworks
 
   # Copy QtNetwork for plugin support
@@ -214,23 +218,23 @@ fix_dependencies_mfcbroadcast() {
       @executable_path/../Frameworks/websocketclient.dylib \
       @loader_path/websocketclient.dylib \
       "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
-    install_name_tool -change \
-      @executable_path/../Frameworks/libobs.0.dylib \
-      @rpath/libobs.0.dylib \
-      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
-    install_name_tool -change \
-      @executable_path/../Frameworks/libobs-frontend-api.dylib \
-      @rpath/libobs-frontend-api.dylib \
-      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
+    # install_name_tool -change \
+    #   @executable_path/../Frameworks/libobs.0.dylib \
+    #   @rpath/libobs.0.dylib \
+    #   "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
+    # install_name_tool -change \
+    #   @executable_path/../Frameworks/libobs-frontend-api.dylib \
+    #   @rpath/libobs-frontend-api.dylib \
+    #   "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
   fi
   if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib" ]; then
     install_name_tool -id \
       @rpath/websocketclient.dylib \
       "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
-    install_name_tool -change \
-      @executable_path/../Frameworks/libobs.0.dylib \
-      @rpath/libobs.0.dylib \
-      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
+    # install_name_tool -change \
+    #   @executable_path/../Frameworks/libobs.0.dylib \
+    #   @rpath/libobs.0.dylib \
+    #   "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
   fi
 }
 
@@ -388,7 +392,7 @@ main() {
   rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"
   cp -pfR "${BUILD_ROOT}/OBS.app" "${BUILD_ROOT}/OBS-Sidekick.app"
 
-  # fix_dependencies_mfcbroadcast
+  fix_dependencies_mfcbroadcast
   prepare_files_for_package
   codesign_apps
 
