@@ -297,8 +297,6 @@ void SidekickPropertiesUI::onUnlink(void)
     g_ctx.clear(true);
     g_ctx.cfg.writePluginConfig();
     g_ctx.cfg.readPluginConfig();
-    //relabelPropertiesText();
-    //onObsProfileChange();
     CBroadcastCtx::sendEvent(SkReadProfile, 0, 0);
 }
 
@@ -357,14 +355,7 @@ MFCDock::MFCDock(QWidget* parent)
     : QDockWidget(parent)
     , ui(std::make_unique<Ui::MFCDock>())
 {
-    QFile fileDark(":/css/QtDarkOrange-MFCDock.stylesheet");
-    fileDark.open(QFile::ReadOnly);
-    QString fileData = fileDark.readAll();
-    setStyleSheet(fileData);
-
     ui->setupUi(this);
-    ui->linkMfcButton->setAttribute(Qt::WA_MacShowFocusRect, true);
-    ui->unlinkMfcButton->setAttribute(Qt::WA_MacShowFocusRect, true);
 }
 
 
@@ -403,8 +394,6 @@ void MFCDock::relabelPropertiesText()
     std::string sService = isWebRTC ? "WebRTC" : "RTMP";
     std::string sLoginStatus = isLoggedIn ? "YES" : "NO";
     std::string sLoginLabel = isLoggedIn ? "Logged In" : "Not Logged In";
-    std::string sLinkedLabelStyle = "QLabel { font-weight: bold; }";
-    std::string sLoginLabelStyle = "QLabel { font-weight: bold; }";
     bool mfcLogoVisible = false;
 
     // Reset logged in label text
@@ -412,32 +401,24 @@ void MFCDock::relabelPropertiesText()
     {
         if (isLinked)
         {
-            stdprintf(s_sText, "Sidekick (%s) is LINKED with %s.  ModelWeb Login: %s", sService.c_str(), sUsername.c_str(), sLoginStatus.c_str() );
-            //pszText = s_sText.c_str();
             pszText = "Linked";
-            //sLinkedLabelStyle = "QLabel { background-color: #008000; color: #fff; font-weight: bold; }";
             if (isLoggedIn)
                 mfcLogoVisible = true;
         }
         else
         {
-            //pszText = "Sidekick is NOT LINKED with any model account.";
             pszText = "Not Linked";
-            //sLinkedLabelStyle = "QLabel { background-color: darkred; color: #fff; font-weight: bold; }";
         }
     }
     else
     {
-        //pszText = "Sidekick DISABLED: current profile is not using a MyFreeCams service.";
-        pszText = "Inactive";
+        pszText = "Non MFC Service";
         sLoginLabel.clear();
         sService.clear();
     }
 
     ui->linkedLabel->setText(pszText);
-    //ui->linkedLabel->setStyleSheet(sLinkedLabelStyle.c_str());
     ui->loginLabel->setText(sLoginLabel.c_str());
-    //ui->loginLabel->setStyleSheet(sLoginLabelStyle.c_str());
     ui->modeLabel->setText(sService.c_str());
     ui->usernameLabel->setText(sUsername.c_str());
 

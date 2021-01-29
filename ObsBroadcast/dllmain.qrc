@@ -8,6 +8,5 @@
         <file>images/handle.png</file>
         <file alias="mfc_logo.png">images/mfc_logo.png</file>
         <file>css/QtDarkOrange.stylesheet</file>
-        <file>css/QtDarkOrange-MFCDock.stylesheet</file>
     </qresource>
 </RCC>

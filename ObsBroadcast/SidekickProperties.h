@@ -100,8 +100,8 @@ public:
         sizePolicy.setHeightForWidth(pButton->sizePolicy().hasHeightForWidth());
         pButton->setSizePolicy(sizePolicy);
 
-        pButton->setMinimumSize(QSize(100, 0));
-        pButton->setCheckable(true);
+        pButton->setMinimumSize(QSize(100, 30));
+        pButton->setCheckable(false);
 
         return pButton;
     }
@@ -158,7 +158,7 @@ public:
 
         modeLabel = new QLabel(mfcDockContents);
         modeLabel->setObjectName(QStringLiteral("modeLabel"));
-        modeLabel->setToolTip(QStringLiteral("current broadcasting mode"));
+        modeLabel->setToolTip(QStringLiteral("Broadcasting mode"));
         sizePolicyLinkLabel.setHeightForWidth(modeLabel->sizePolicy().hasHeightForWidth());
         modeLabel->setSizePolicy(sizePolicyLinkLabel);
         modeLabel->setAlignment(Qt::AlignCenter);
@@ -188,8 +188,8 @@ public:
 
         retranslateUi(MFCDock);
 
-        QObject::connect(linkMfcButton,   SIGNAL(released()), MFCDock, SLOT(onLink()));
-        QObject::connect(unlinkMfcButton, SIGNAL(released()), MFCDock, SLOT(onUnlink()));
+        QObject::connect(linkMfcButton,   SIGNAL(clicked()), MFCDock, SLOT(onLink()));
+        QObject::connect(unlinkMfcButton, SIGNAL(clicked()), MFCDock, SLOT(onUnlink()));
 
         QMetaObject::connectSlotsByName(MFCDock);
     }
