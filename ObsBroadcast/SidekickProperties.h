@@ -142,6 +142,7 @@ public:
 
         linkedLabel = new QLabel(mfcDockContents);
         linkedLabel->setObjectName(QStringLiteral("linkedLabel"));
+        linkedLabel->setToolTip(QStringLiteral("MyFreeCams link status"));
         sizePolicyLinkLabel.setHeightForWidth(linkedLabel->sizePolicy().hasHeightForWidth());
         linkedLabel->setSizePolicy(sizePolicyLinkLabel);
         linkedLabel->setAlignment(Qt::AlignCenter);
@@ -149,6 +150,7 @@ public:
 
         loginLabel = new QLabel(mfcDockContents);
         loginLabel->setObjectName(QStringLiteral("loginLabel"));
+        loginLabel->setToolTip(QStringLiteral("ModelWeb login status"));
         sizePolicyLinkLabel.setHeightForWidth(loginLabel->sizePolicy().hasHeightForWidth());
         loginLabel->setSizePolicy(sizePolicyLinkLabel);
         loginLabel->setAlignment(Qt::AlignCenter);
@@ -156,13 +158,15 @@ public:
 
         modeLabel = new QLabel(mfcDockContents);
         modeLabel->setObjectName(QStringLiteral("modeLabel"));
+        modeLabel->setToolTip(QStringLiteral("current broadcasting mode"));
         sizePolicyLinkLabel.setHeightForWidth(modeLabel->sizePolicy().hasHeightForWidth());
         modeLabel->setSizePolicy(sizePolicyLinkLabel);
         modeLabel->setAlignment(Qt::AlignCenter);
         buttonsVLayout->addWidget(modeLabel);
 
         usernameLabel = new QLabel(mfcDockContents);
-        usernameLabel->setObjectName(QStringLiteral("modeLabel"));
+        usernameLabel->setObjectName(QStringLiteral("usernameLabel"));
+        usernameLabel->setToolTip(QStringLiteral("MFC Username"));
         sizePolicyLinkLabel.setHeightForWidth(usernameLabel->sizePolicy().hasHeightForWidth());
         usernameLabel->setSizePolicy(sizePolicyLinkLabel);
         usernameLabel->setAlignment(Qt::AlignCenter);

@@ -3,6 +3,7 @@ QDialog
     background-image:url(:/dlg_bg.png);
 }
 
+/*
 QToolTip
 {
     border: 1px solid black;
@@ -11,6 +12,7 @@ QToolTip
     border-radius: 3px;
     opacity: 100;
 }
+*/
 
 QWidget
 {
@@ -289,6 +291,7 @@ QDockWidget::title
     /* background-color: QLinearGradient(x1:0, y1:0, x2:0, y2:1, stop:0 #323232, stop: 0.5 #242424, stop:1 #323232); */
 }
 
+/*
 QDockWidget::close-button, QDockWidget::float-button
 {
     text-align: center;
@@ -305,6 +308,7 @@ QDockWidget::close-button:pressed, QDockWidget::float-button:pressed
 {
     padding: 1px -1px -1px 1px;
 }
+*/
 
 QMainWindow::separator
 {
