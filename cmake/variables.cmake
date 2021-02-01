@@ -12,7 +12,7 @@ function(SET_VARIABLES)
 	set(MFC_SERVICES_JSON_NAME_WEBRTC_VALUE "MyFreeCams WebRTC" CACHE STRING "MFC WebRTC Service name")
 	set(MFC_SERVICES_JSON_PRIMARY_SERVER_NAME "Automatic" CACHE STRING "Primary MFC Server name")
 	set(MFC_SERVICES_JSON_AUDIO_BITRATE_VALUE "192" CACHE STRING "MFC Broadcast Service audio bitrate")
-	set(MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE "6000" CACHE STRING "MFC Broadcast Service video bitrate")
+	set(MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE "10000" CACHE STRING "MFC Broadcast Service video bitrate")
 	set(MFC_SERVICES_JSON_X264OPTS_VALUE "tune=zerolatency scenecut=0" CACHE STRING "MFC Broadcast Service x264 encoder options")
 
 	set(MFC_LOG_LEVEL "ILog::LogLevel::MAX_LOGLEVEL" CACHE STRING "Default logging level")
@@ -41,7 +41,6 @@ function(SET_VARIABLES)
 		set(MFC_OBS_PLUGIN_LOG_PATH "${MFC_OBS_PLUGIN_ROOT_PATH}/MFCBroadcast/Logs" CACHE PATH "Path to the log files (no '/' at the end)")
 
 		set(MFC_OBS_PLUGIN_ROOT_PATH_BUILD "${CMAKE_BINARY_DIR}/MFCBroadcast" CACHE PATH "Build root for MFCBroadcast plugin")
-		# set(MFC_OBS_PLUGIN_BIN_PATH_BUILD "${CMAKE_BINARY_DIR}/rundir/obs-plugins" CACHE PATH "Build bin path for plugins")
 		set(MFC_OBS_PLUGIN_BIN_PATH_BUILD "${MFC_OBS_PLUGIN_ROOT_PATH_BUILD}/bin" CACHE PATH "Build bin path for MFCBroadcast plugin")
 
 		set(MFC_OBS_CEF_LOGIN_BIN_PATH "${MFC_OBS_PLUGIN_ROOT_PATH}/sidekick" CACHE PATH "Install binary path for MFCCefLogin app")

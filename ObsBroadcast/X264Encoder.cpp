@@ -443,7 +443,7 @@ unique_ptr<x264_param_t> X264Encoder::CreateEncoderParams()
 #else
     params->i_nal_hrd               = X264_NAL_HRD_VBR;
 #endif
-    params->i_keyint_max            = (int)fps_ * kIDRIntervalSec;
+    params->i_keyint_max            = static_cast<int>(fps_ * kIDRIntervalSec);
     params->i_keyint_min            = params->i_keyint_max / 2;
     params->i_scenecut_threshold    = 0;  // For consistent GOP
 
@@ -728,7 +728,7 @@ bool X264Encoder::ReconfigureFps(uint32_t fps)
 
     params.i_fps_num    = fps;
     params.i_fps_den    = 1;
-    params.i_keyint_max = (int)fps * kIDRIntervalSec;
+    params.i_keyint_max = static_cast<int>(fps * kIDRIntervalSec);
     params.i_keyint_min = params.i_keyint_max / 2;
 
     int ret = x264_encoder_reconfig(encoder_, &params);

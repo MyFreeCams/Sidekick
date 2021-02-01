@@ -256,16 +256,16 @@ bool CObsServicesJson::loadDefaultRTMPService(njson& arr)
                 { "max fps",              MFC_SERVICES_JSON_MAX_FPS_VALUE           },
                 { "max video bitrate",    MFC_SERVICES_JSON_VIDEO_BITRATE_VALUE     },
                 { "max audio bitrate",    MFC_SERVICES_JSON_AUDIO_BITRATE_VALUE     },
-                { "bframes",              MFC_SERVICES_JSON_BFRAMES_VALUE           },
-                { "x264opts",             MFC_SERVICES_JSON_X264OPTS_VALUE          },
-                { "supported resolutions",
-                    {
-                        "1920x1080",
-                        "1280x720",
-                        "960x540",
-                        "640x360"
-                    }
-                }
+                { "x264opts",             MFC_SERVICES_JSON_X264OPTS_VALUE          }
+                //{ "bframes",              MFC_SERVICES_JSON_BFRAMES_VALUE           },
+                //{ "supported resolutions",
+                //    {
+                //        "1920x1080",
+                //        "1280x720",
+                //        "960x540",
+                //        "640x360"
+                //    }
+                //}
             }
         }
     };
