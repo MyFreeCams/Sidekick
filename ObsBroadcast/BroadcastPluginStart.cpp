@@ -679,6 +679,12 @@ void SidekickTimer::onTimerEvent()
                         // went from webrtc to non webrtc
                         _MESG("** WebRTC Service deactivated on profile change **");
                         g_ctx.isWebRTC = false;
+
+                        if (sidekick_prop)
+                            sidekick_prop->relabelPropertiesText();
+
+                        if (pMFCDock)
+                            pMFCDock->relabelPropertiesText();
                     }
 
                     if ( ! isMfc )
