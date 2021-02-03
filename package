@@ -95,15 +95,13 @@ fetch_git_tags() {
 }
 
 find_codesign_ident() {
-  readonly DEFAULT_CODESIGN_IDENT="Developer ID Application"
   readonly CODESIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Application')
-  readonly _CODESIGN_IDENT_=$(security find-identity -p codesigning -v | grep 'Developer ID Application' | grep -Eoe '\s\w+\s' | grep -Eoe '\w+')
-  readonly _CODESIGN_IDENT=${_CODESIGN_IDENT_:-${DEFAULT_CODESIGN_IDENT}}
+  readonly _CODESIGN_IDENT=$(security find-identity -p codesigning -v | grep 'Developer ID Application' | grep -Eoe '\s\w+\s"' | grep -Eoe '\w+')
+  if [ -z "${CODESIGN_IDENT}" ]; then CODESIGN=1; fi
   export CODESIGN_IDENT=${CODESIGN_IDENT:-${_CODESIGN_IDENT}}
-  if [ -z "${CODESIGN_IDENT_FULL}" ]; then NO_CODESIGN=1; fi
-  readonly DEFAULT_PRODUCTSIGN_IDENT="Developer ID Installer"
-  readonly PRODUCTSIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Installer')
-  readonly _PRODUCTSIGN_IDENT_=$(security find-identity -p codesigning -v | grep 'Developer ID Installer' | grep -Eoe '\s\w+\s' | grep -Eoe '\w+')
+  if [ -z "${CODESIGN_IDENT_FULL}" ] && [ "${CODESIGN}" -ne 1 ]; then NO_CODESIGN=1; fi
+  readonly PRODUCTSIGN_IDENT_FULL=$(security find-identity -v | grep 'Developer ID Installer')
+  readonly _PRODUCTSIGN_IDENT_=$(security find-identity -v | grep 'Developer ID Installer' | grep -Eoe '\s\w+\s"' | grep -Eoe '\w+')
   readonly _PRODUCTSIGN_IDENT=${_PRODUCTSIGN_IDENT_:-${DEFAULT_PRODUCTSIGN_IDENT}}
   export PRODUCTSIGN_IDENT=${PRODUCTSIGN_IDENT:-${_PRODUCTSIGN_IDENT}}
 }
@@ -134,8 +132,10 @@ print_env() {
   echo "BUILD_ROOT:            ${BUILD_ROOT}"
   echo "OBS_ROOT:              ${OBS_ROOT}"
   echo "DEV_DIR:               ${DEV_DIR}"
-  echo "CODESIGN_IDENT:        ${CODESIGN_IDENT_FULL}"
-  echo "PRODUCTSIGN_IDENT:     ${PRODUCTSIGN_IDENT_FULL}"
+  echo "CODESIGN_IDENT_FULL:   ${CODESIGN_IDENT_FULL}"
+  echo "PRODUCTSIGN_IDENT_FULL:${PRODUCTSIGN_IDENT_FULL}"
+  echo "CODESIGN_IDENT:        ${CODESIGN_IDENT}"
+  echo "PRODUCTSIGN_IDENT:     ${PRODUCTSIGN_IDENT}"
 }
 
 build_obs_bundle() {
@@ -255,22 +255,22 @@ codesign_app() {
     fi
     if ! [ "${MACOS_CEF_BUILD_VERSION}" -le 3770 ]; then
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper.app"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (GPU).app"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Plugin).app"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Renderer).app"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (GPU).app"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Plugin).app"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Renderer).app"
     fi
     if [ -d "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin" ]; then
       codesign --force --options runtime --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"
     fi
-    codesign --force --options runtime --entitlements "${SIDEKICK_ROOT}/scripts/install/osx/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
+    codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
     codesign -dvv "./$1.app"
 }
 
 codesign_apps() {
   if [ -z "${NO_CODESIGN}" ]; then
     codesign_app MFCCefLogin "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin"
-    codesign_app OBS "${BUILD_ROOT}"
-    codesign_app OBS-Sidekick "${BUILD_ROOT}"
+    # codesign_app OBS "${BUILD_ROOT}"
+    # codesign_app OBS-Sidekick "${BUILD_ROOT}"
 
     for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
@@ -316,7 +316,7 @@ notarize_package() {
   if [ -n "${NOTARIZATION_USERNAME}" ]; then
     xcrun altool --store-password-in-keychain-item "AC_PASSWORD" -u "${NOTARIZATION_USERNAME}" -p "${NOTARIZATION_PASSWORD}"
     echo "Notarization precheck - started"
-    if xcnotary precheck "./OBS-Sidekick.app"; then
+    if xcnotary precheck "${BUILD_ROOT}/Sidekick.pkg"; then
       echo "Notarization precheck - success"
       hr "Notarizing package"
       xcnotary notarize "${BUILD_ROOT}/Sidekick.pkg" --developer-account "${NOTARIZATION_USERNAME}" --developer-password-keychain-item "AC_PASSWORD" --provider "${ASC_PROVIDER_SHORTNAME}"
@@ -333,7 +333,8 @@ codesign_package() {
     mv "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/Sidekick-unsigned.pkg"
     productsign --sign "${PRODUCTSIGN_IDENT:--}" "${BUILD_ROOT}/Sidekick-unsigned.pkg" "${BUILD_ROOT}/Sidekick.pkg"
     # Validate signature
-    spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"
+    pkgutil --check-signature "${BUILD_ROOT}/Sidekick.pkg"
+    #spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"
     notarize_package
   fi
 }
