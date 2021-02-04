@@ -52,7 +52,7 @@ readonly _OPENSSL_DIR="${OPENSSL:-/usr/local/opt/openssl@1.1}"
 export OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
 
 # Store current xcode path
-readonly XCODE_SELECT=$(xcode-select -p)
+readonly CURRENT_XCODE=$(xcode-select -p)
 
 readonly red=$'\e[1;31m'
 readonly grn=$'\e[1;32m'
@@ -320,6 +320,8 @@ notarize_package() {
       echo "Notarization precheck - success"
       hr "Notarizing package"
       xcnotary notarize "${BUILD_ROOT}/Sidekick.pkg" --developer-account "${NOTARIZATION_USERNAME}" --developer-password-keychain-item "AC_PASSWORD" --provider "${ASC_PROVIDER_SHORTNAME}"
+      # System Policy (Gatekeeper) assessment
+      spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"
     else
       echo "Notarization precheck - failed"
       return 1
@@ -334,13 +336,19 @@ codesign_package() {
     productsign --sign "${PRODUCTSIGN_IDENT:--}" "${BUILD_ROOT}/Sidekick-unsigned.pkg" "${BUILD_ROOT}/Sidekick.pkg"
     # Validate signature
     pkgutil --check-signature "${BUILD_ROOT}/Sidekick.pkg"
-    #spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"
     notarize_package
   fi
 }
 
 cleanup_print_summary() {
   set +e
+  # Restore previously selected Xcode
+  local DEFAULT_XCODE=$(xcode-select -p)
+  if [ "${DEFAULT_XCODE}" != "${CURRENT_XCODE}" ]; then
+    echo "Restoring previous Xcode"
+    sudo xcode-select --switch "${CURRENT_XCODE}"
+  fi
+
   # rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"
   rm -f "${BUILD_ROOT}/OBS.app/Contents/Plugins/MFCBroadcast.so" 2> /dev/null
   rm -f "${BUILD_ROOT}/OBS.app/Contents/Plugins/websocketclient.dylib" 2> /dev/null
@@ -402,9 +410,6 @@ main() {
 
   codesign_package
   cleanup_print_summary
-
-  # Restore previously selected Xcode
-  sudo xcode-select --switch "${XCODE_SELECT}"
 }
 
 main "$@"
