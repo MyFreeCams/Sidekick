@@ -13,22 +13,25 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+#pragma once
+
+#ifndef COLLECT_SYSTEM_INFO_H_
+#define COLLECT_SYSTEM_INFO_H_
+
 #ifdef __APPLE__
 #include "SysParam_Mac.h"
-#endif
-
-#ifdef _WIN32
+#elif defined(_WIN32)
 #include <conio.h>
 #include <windows.h>
-#else
-#endif
 
 #include <libfcs/MfcJson.h>
 
-#ifdef _WIN32
-LONG GetDWORDRegKey(HKEY hKey, const std::wstring &strValueName, DWORD &nValue, DWORD nDefaultValue);
-LONG GetStringRegKey(HKEY hKey, const std::wstring &strValueName, std::wstring &strValue, const std::wstring &strDefaultValue);
+LONG GetDWORDRegKey(HKEY hKey, const std::wstring& strValueName, DWORD& nValue, DWORD nDefaultValue);
+LONG GetStringRegKey(HKEY hKey, const std::wstring& strValueName, std::wstring& strValue, const std::wstring& strDefaultValue);
 bool Is64BitWindows();
 bool collectSystemInfo(MfcJsonObj& js);
-#else
-#endif
+
+#endif  // _WIN32
+
+#endif  // COLLECT_SYSTEM_INFO_H_

@@ -13,7 +13,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-// CollectSystemInfo.cpp : Helper to
 
 #ifndef DO_SERVICE_JSON_COPY
 #define DO_SERVICE_JSON_COPY
@@ -49,7 +48,7 @@
 
 #include "CollectSystemInfo.h"
 
-#include <libobs/util/platform.h>
+#include <util/platform.h>
 
 extern CBroadcastCtx g_ctx; // part of MFCLibPlugins.lib::MfcPluginAPI.obj
 
@@ -57,6 +56,7 @@ using std::string;
 using std::wstring;
 
 #ifdef _WIN32
+
 
 LONG GetDWORDRegKey(HKEY hKey, const wstring& strValueName, DWORD& nValue, DWORD nDefaultValue)
 {
@@ -71,6 +71,7 @@ LONG GetDWORDRegKey(HKEY hKey, const wstring& strValueName, DWORD& nValue, DWORD
     return nError;
 }
 
+
 LONG GetStringRegKey(HKEY hKey, const wstring& strValueName, wstring& strValue, const wstring& strDefaultValue)
 {
     strValue = strDefaultValue;
@@ -83,24 +84,18 @@ LONG GetStringRegKey(HKEY hKey, const wstring& strValueName, wstring& strValue, 
     return nError;
 }
 
+
 bool Is64BitWindows()
 {
-
 #if defined(_WIN64)
     return true;  // 64-bit programs run only on Win64
-#elif defined(_WIN32)
+#else
     // 32-bit programs run on both 32-bit and 64-bit Windows
     bool f64 = FALSE;
     return IsWow64Process(GetCurrentProcess(), &f64) && f64;
-#else
-    return FALSE; // Win64 does not support Win16
 #endif
-
 }
-#endif  // _WIN32
 
-
-#ifdef _WIN32
 
 bool collectSystemInfo(MfcJsonObj& js)
 {
@@ -111,10 +106,9 @@ bool collectSystemInfo(MfcJsonObj& js)
     HKEY hKey;
 
     if (Is64BitWindows())
-    {
         keyPath = L"SOFTWARE\\WOW6432Node\\Microsoft\\Windows NT\\CurrentVersion\\";
-    }
-    else keyPath = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\";
+    else
+        keyPath = L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\";
 
     if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, keyPath.c_str(), 0, KEY_READ, &hKey) == ERROR_SUCCESS)
     {
@@ -125,10 +119,9 @@ bool collectSystemInfo(MfcJsonObj& js)
 
         // If these are 0, then we are not Windows 10 so another query is necessary
         if (keyMajVer == 0 && keyMinVer == 0)
-        {
             GetStringRegKey(hKey, L"CurrentVersion", keyCurrentVersion, L"err");
-        }
-        else keyCurrentVersion = to_wstring(keyMajVer) + L"." + to_wstring(keyMinVer);
+        else
+            keyCurrentVersion = to_wstring(keyMajVer) + L"." + to_wstring(keyMinVer);
 
         os_wcs_to_utf8(keyProductName.c_str(), keyProductName.size(), szBuf, sizeof(szBuf));
         sProduct = szBuf;
@@ -148,7 +141,6 @@ bool collectSystemInfo(MfcJsonObj& js)
     string sObsVer( obs_get_version_string() );
     js.objectAdd("skv", SIDEKICK_VERSION_STR);
     js.objectAdd("appver", stdprintf("OBS %s", sObsVer.c_str()));
-
 
     WCHAR wszBuf[128];
     DWORD dwSz = sizeof(wszBuf);

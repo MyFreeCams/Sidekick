@@ -33,17 +33,17 @@ class CSysParam
 {
 public:
     CSysParam() = default;
-    CSysParam(const char *pCat, const char *pDevice, const char *pDetails)
+    CSysParam(const char* pCat, const char* pDevice, const char* pDetails)
     {
         m_sCategory = pCat;
         m_sDevice = pDevice;
         m_sDetails = pDetails;
     }
-    CSysParam(const CSysParam &src)
+    CSysParam(const CSysParam& src)
     {
         operator=(src);
     }
-    const CSysParam &operator=(const CSysParam &src)
+    const CSysParam& operator=(const CSysParam& src)
     {
         m_sCategory = src.m_sCategory;
         m_sDetails = src.m_sDetails;
@@ -52,7 +52,7 @@ public:
     }
     ~CSysParam() = default;
 
-    int ToJson(MfcJsonObj &);
+    int ToJson(MfcJsonObj&);
 
 private:
     std::string m_sCategory;
@@ -67,22 +67,22 @@ public:
     CSysParamList() = default;
     ~CSysParamList() = default;
 
-    int ToJson(MfcJsonObj &);
-    void CollectData(const std::string &sBinPath);
+    int ToJson(MfcJsonObj&);
+    void CollectData(const std::string& sBinPath);
 
 protected:
     int CollectWMIData();
     int CollectHardwareInfo();
-    int GetWMIOperatingSystem(IWbemServices *pSvc);
-    void ListDevices(CONST GUID *pClassGuid, LPCTSTR pszEnumerator, const char *pCategory);
-    int GetWMIBios(IWbemServices *pSvc);
-    int GetWMIService(IWbemServices *pSvc);
-    int GetWMIProcess(IWbemServices *pSvc);
-    bool getCurrentBrowser(std::string &);
+    int GetWMIOperatingSystem(IWbemServices* pSvc);
+    void ListDevices(CONST GUID* pClassGuid, LPCTSTR pszEnumerator, const char* pCategory);
+    int GetWMIBios(IWbemServices* pSvc);
+    int GetWMIService(IWbemServices* pSvc);
+    int GetWMIProcess(IWbemServices* pSvc);
+    bool getCurrentBrowser(std::string&);
 
-    void GetWMIProperty(IWbemClassObject *pclsObj, WCHAR *pName, const char *pCategory, const char *pDevice);
-    bool GetWMIPropertyValue(IWbemClassObject *pclsObj, WCHAR *pName, std::string &);
-    bool getFileVersions(const std::string &sBinPath);
+    void GetWMIProperty(IWbemClassObject* pclsObj, WCHAR* pName, const char* pCategory, const char* pDevice);
+    bool GetWMIPropertyValue(IWbemClassObject* pclsObj, WCHAR* pName, std::string&);
+    bool getFileVersions(const std::string& sBinPath);
 };
 
 #endif  // #ifndef _WIN32

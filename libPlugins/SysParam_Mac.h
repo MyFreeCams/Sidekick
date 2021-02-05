@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+#pragma once
+
 #ifndef _SYSPARAM_MAC_H__
 #define _SYSPARAM_MAC_H__
 
@@ -10,24 +28,23 @@
 
 class MfcJsonObj;
 
-bool collectSystemInfo(MfcJsonObj &js);
+bool collectSystemInfo(MfcJsonObj& js);
 
 class CSysParam
 {
 public:
     CSysParam() = default;
-    CSysParam(const char *pCat, const char *pDevice, const char *pDetails)
+    CSysParam(const char* pCat, const char* pDevice, const char* pDetails)
     {
         m_sCategory = pCat;
         m_sDevice = pDevice;
         m_sDetails = pDetails;
-
     }
-    CSysParam(const CSysParam &src)
+    CSysParam(const CSysParam& src)
     {
         operator=(src);
     }
-    const CSysParam &operator=(const CSysParam &src)
+    const CSysParam& operator=(const CSysParam& src)
     {
         m_sCategory = src.m_sCategory;
         m_sDetails = src.m_sDetails;
@@ -36,11 +53,11 @@ public:
     }
     ~CSysParam() = default;
 
-    int ToJson(MfcJsonObj &);
+    int ToJson(MfcJsonObj&);
 
-    std::string &getCategory() { return m_sCategory; }
-    std::string &getDevice() { return m_sDevice;}
-    std::string &getDetails() { return m_sDetails; }
+    std::string& getCategory() { return m_sCategory; }
+    std::string& getDevice() { return m_sDevice; }
+    std::string& getDetails() { return m_sDetails; }
 
 private:
     std::string m_sCategory;
@@ -55,8 +72,8 @@ public:
     CSysParamList() = default;
     ~CSysParamList() = default;
 
-    int ToJson(MfcJsonObj &);
-    void CollectData(const std::string &sBinPath);
+    int ToJson(MfcJsonObj&);
+    void CollectData(const std::string& sBinPath);
 
     void get_processor_name(void);
     void get_processor_speed(void);

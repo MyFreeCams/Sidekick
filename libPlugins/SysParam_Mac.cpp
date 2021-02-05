@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 
 // System Includes
 #include <Availability.h>
@@ -15,24 +30,31 @@
 #include <IOKit/hid/IOHIDDevice.h>
 #include <IOKit/hid/IOHIDManager.h>
 
+#include <obs.h>
+#include <obs-module.h>
+#include <obs-frontend-api.h>
 #include <util/platform.h>
 
 // MFC Includes
 #include <libfcs/MfcJson.h>
 #include <libfcs/Log.h>
+#include <ObsBroadcast/ObsBroadcast.h>
 
 // project includes
 #include "MFCConfigConstants.h"
 #include "SysParam_Mac.h"
+#include "build_version.h"
 
-int CSysParam::ToJson(MfcJsonObj &json)
+extern CBroadcastCtx g_ctx; // part of MFCLibPlugins.lib::MfcPluginAPI.obj
+
+
+int CSysParam::ToJson(MfcJsonObj& json)
 {
     int nRv = 0;
 
-    // MfcJsonObj json(JSON_type::JSON_T_ARRAY_BEGIN);
     MfcJsonObj js;
-    js.objectAdd(std::string("Category"), this->m_sCategory.c_str());
-    js.objectAdd(std::string("Device"), this->m_sDevice.c_str());
+    js.objectAdd(std::string("Category"), m_sCategory.c_str());
+    js.objectAdd(std::string("Device"), m_sDevice.c_str());
     js.objectAdd(std::string("Details"), MfcJsonObj::encodeURIComponent(m_sDetails).c_str());
 #ifdef _DEBUG
     std::string s = js.prettySerialize();
@@ -44,7 +66,7 @@ int CSysParam::ToJson(MfcJsonObj &json)
 }
 
 
-int CSysParamList::ToJson(MfcJsonObj &json)
+int CSysParamList::ToJson(MfcJsonObj& json)
 {
     int nRv = 0;
     MfcJsonObj js;
@@ -72,7 +94,7 @@ int CSysParamList::ToJson(MfcJsonObj &json)
 // CollectData
 //
 // collect all data.
-void CSysParamList::CollectData(const std::string &sBinPath)
+void CSysParamList::CollectData(const std::string& sBinPath)
 {
     UNUSED_PARAMETER(sBinPath);
     struct utsname buf{};
@@ -98,41 +120,34 @@ void CSysParamList::CollectData(const std::string &sBinPath)
 // get_os_name
 //
 // fetch the OS name
-#ifdef __MAC_10_15
-std::string get_os_name(id pInfo, SEL UTF8StringSel)
+std::string get_os_name(id pInfo, SEL UTF8Str)
 {
+#ifdef __MAC_10_15
     typedef int (*os_func)(id, SEL);
     os_func operatingSystem = (os_func)objc_msgSend;
-    unsigned long os_id = (unsigned long)operatingSystem(
-        pInfo, sel_registerName("operatingSystem"));
+    auto os_id = (unsigned long)operatingSystem(pInfo, sel_registerName("operatingSystem"));
 
     typedef id (*os_name_func)(id, SEL);
     os_name_func operatingSystemName = (os_name_func)objc_msgSend;
-    id os = operatingSystemName(pInfo,
-                                sel_registerName("operatingSystemName"));
-    typedef const char *(*utf8_func)(id, SEL);
+    id os = operatingSystemName(pInfo, sel_registerName("operatingSystemName"));
+
+    typedef const char*(*utf8_func)(id, SEL);
     utf8_func UTF8String = (utf8_func)objc_msgSend;
-    const char *name = UTF8String(os, UTF8StringSel);
-
-    return std::string(name);
-
-}
+    const char* name = UTF8String(os, UTF8Str);
 #else
-std::string get_os_name(id pInfo, SEL UTF8String)
-{
-    unsigned long os_id = (unsigned long)objc_msgSend(pInfo, sel_registerName("operatingSystem"));
+    auto os_id = (unsigned long)objc_msgSend(pInfo, sel_registerName("operatingSystem"));
 
     id os = objc_msgSend(pInfo, sel_registerName("operatingSystemName"));
-    const char *name = (const char*)objc_msgSend(os, UTF8String);
+    const char* name = (const char*)objc_msgSend(os, UTF8Str);
 
-    if (os_id == 5 /*NSMACHOperatingSystem*/)
+    if (os_id !== 5 /*NSMACHOperatingSystem*/)
     {
-    return std::string(name);
+        name = "Unknown";
     }
-    return std::string("Unknown");
-
-}
 #endif
+
+    return std::string(name);
+}
 
 
 //-------------------------------------------------------------------------
@@ -146,13 +161,13 @@ std::string get_os_version(id pInfo, SEL UTF8StringSel)
     version_func operatingSystemVersionString = (version_func)objc_msgSend;
     id vs = operatingSystemVersionString(
             pInfo, sel_registerName("operatingSystemVersionString"));
-    typedef const char *(*utf8_func)(id, SEL);
+    typedef const char*(*utf8_func)(id, SEL);
     utf8_func UTF8String = (utf8_func)objc_msgSend;
-    const char *version = UTF8String(vs, UTF8StringSel);
+    const char* version = UTF8String(vs, UTF8StringSel);
     return std::string(version);
 #else
     id vs = objc_msgSend(pInfo, sel_registerName("operatingSystemVersionString"));
-    const char *version = (const char*)objc_msgSend(vs, UTF8StringSel);
+    const char* version = (const char*)objc_msgSend(vs, UTF8StringSel);
 
     return std::string(version ? version : "Unknown");
 #endif
@@ -165,7 +180,7 @@ std::string get_os_version(id pInfo, SEL UTF8StringSel)
 // get cpu name
 void CSysParamList::get_processor_name(void)
 {
-    char   *name = NULL;
+    char*  name = NULL;
     size_t size;
     int    ret;
 
@@ -176,7 +191,7 @@ void CSysParamList::get_processor_name(void)
         return;
     }
 
-    name = (char *)malloc(size);
+    name = (char*)malloc(size);
 
     ret = sysctlbyname("machdep.cpu.brand_string", name, &size, NULL, 0);
     if (ret == 0)
@@ -289,11 +304,39 @@ void CSysParamList::get_kernel_version(void)
 
 
 //---------------------------------------------------------------------------
+// get_computer_name
+//
+// get computer name
+std::string get_computer_name(void)
+{
+    std::string computer_name = "";
+    char        computer_hostname[128];
+    size_t      size = sizeof(computer_hostname);
+    int         ret;
+
+    auto strip_local = [&](const std::string& in)
+    {
+        return in.substr(0, in.find(".local"));
+    };
+
+    ret = sysctlbyname("kern.hostname", computer_hostname, &size,
+                       NULL, 0);
+    if (ret == 0)
+    {
+        computer_name = strip_local(computer_hostname);
+        // push_back(CSysParam("System","SysName",computer_name.c_str()));
+    }
+
+    return computer_name;
+}
+
+
+//---------------------------------------------------------------------------
 // collectSystemInfo
 //
 // little helper function to get mac os info
 //
-bool collectSystemInfo(MfcJsonObj &js)
+bool collectSystemInfo(MfcJsonObj& js)
 {
     Class NSProcessInfo = objc_getClass("NSProcessInfo");
     typedef id (*func)(id, SEL);
@@ -309,5 +352,53 @@ bool collectSystemInfo(MfcJsonObj &js)
 #endif
     js.objectAdd("os_name", os_name);
     js.objectAdd("os_ver", os_ver);
+
+    string sObsVer(obs_get_version_string());
+    js.objectAdd("skv", SIDEKICK_VERSION_STR);
+    js.objectAdd("appver", stdprintf("OBS %s", sObsVer.c_str()));
+
+    std::string computer_name = get_computer_name();
+    js.objectAdd("nm", computer_name);
+
+    char** ppNames = obs_frontend_get_profiles();
+    char** ppName = ppNames;
+
+    int64_t nCurrent = -1;
+    int64_t n = 0;
+    MfcJsonPtr pList = new MfcJsonObj(JSON_T_ARRAY);
+    const char* pszProfile = obs_frontend_get_current_profile();
+    while (ppName && *ppName)
+    {
+        if (pszProfile && strcmp(pszProfile, *ppName) == 0)
+            nCurrent = n;
+
+        pList->arrayAdd(*ppName);
+        ppName++;
+        n++;
+    }
+
+    bfree((void*)pszProfile);
+    bfree(ppNames);
+
+    js.objectAdd("profiles", pList);
+    if (nCurrent >= 0 && nCurrent < n)
+        js.objectAdd("curprofile", nCurrent);
+
+    js.objectAdd("streamtype", FCVIDEO_TX_IDLE);
+
+    std::string sTransport("Unknown");
+
+    if (g_ctx.isMfc)
+    {
+        if      (g_ctx.isRTMP)      sTransport = "RTMP";
+        else if (g_ctx.isWebRTC)    sTransport = "WebRTC";
+    }
+    else sTransport = "Non-MFC";
+    js.objectAdd("transport", sTransport);
+
+    auto info = obs_output_get_display_name("virtualcam_output");
+    if (info)
+        js.objectAdd("hasVirtualCamera", true);
+
     return true;
 }
