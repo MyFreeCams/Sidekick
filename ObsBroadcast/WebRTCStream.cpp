@@ -669,30 +669,35 @@ void WebRTCStream::onRemoteIceCandidate(const string& candidate, const string& m
     cricket::Candidate c;
     webrtc::SdpDeserializeCandidate(mid, s, &c, &error);
 
-    if (SDPUtil::IsProtocol(s, "TCP"))
+    string site = m_sRegion;
+    MFCEdgeIngest::SiteIpPort edge;
+    if (m_sRegion.empty())
     {
-        string site = m_sRegion;
-        MFCEdgeIngest::SiteIpPort edge;
-        if (m_sRegion.empty())
-        {
-            edge = MFCEdgeIngest::WebrtcTcpIpPort(m_sVideoServer);
-            site = edge.site;
-        }
-        else if (!SDPUtil::CaseInsStringCompare(m_sRegion, "TUK")
-                 && !SDPUtil::CaseInsStringCompare(m_sRegion, "ORD"))
-        {
-            edge = MFCEdgeIngest::WebrtcTcpIpPort(m_sVideoServer, m_sRegion);
-            site = edge.site;
-        }
-        if (!edge.tcpIp.empty() && edge.port > 0
-            && !SDPUtil::CaseInsStringCompare(site, "TUK")
-            && !SDPUtil::CaseInsStringCompare(site, "ORD"))
+        edge = MFCEdgeIngest::WebrtcTcpIpPort(m_sVideoServer);
+        site = edge.site;
+    }
+    else if (!SDPUtil::CaseInsStringCompare(m_sRegion, "TUK")
+             && !SDPUtil::CaseInsStringCompare(m_sRegion, "ORD"))
+    {
+        edge = MFCEdgeIngest::WebrtcTcpIpPort(m_sVideoServer, m_sRegion);
+        site = edge.site;
+    }
+    if (!edge.tcpIp.empty() && edge.port > 0
+        && !SDPUtil::CaseInsStringCompare(site, "TUK")
+        && !SDPUtil::CaseInsStringCompare(site, "ORD"))
+    {
+        if (SDPUtil::IsProtocol(s, "TCP"))
         {
             c.set_address(rtc::SocketAddress(edge.tcpIp, edge.port));
             string originalIceIpPort = iceIpPortProtocol;
             iceIpPortProtocol = edge.tcpIp + ":" + std::to_string(edge.port) + " " + proto + " (" + site + ")";
             obs_info("\nModifying remote candidate - old: %s, new: %s",
                      originalIceIpPort.c_str(), iceIpPortProtocol.c_str());
+        }
+        else
+        {
+            obs_info("\nIgnoring remote %s\n", s.c_str());
+            return;
         }
     }
     obs_info("\nAdding remote candidate: %s\n", iceIpPortProtocol.c_str());
