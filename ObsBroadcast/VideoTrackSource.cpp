@@ -21,8 +21,6 @@
 #include "absl/algorithm/container.h"
 #include "api/video/color_space.h"
 #include "api/video/encoded_image.h"
-#include "api/video/video_stream_encoder_create.h"
-#include "api/video/video_stream_encoder_settings.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/nv12_buffer.h"
 #include "api/video/video_frame_buffer.h"
@@ -98,7 +96,7 @@ void VideoTrackSource::onIncomingData(const uint8_t* dataY, uint32_t strideY,
                                       const uint8_t* dataUV, uint32_t strideUV,
                                       int64_t frameTimeNanos, uint16_t frameId,
                                       int width, int height,
-                                      VideoRotation videoRotation, VideoType videoType)
+                                      VideoRotation videoRotation)
 {
     if (!KeepFrame(frameTimeNanos))
         return;

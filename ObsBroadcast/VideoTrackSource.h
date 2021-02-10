@@ -67,7 +67,7 @@ public:
                         const uint8_t* dataUV, uint32_t strideUV,
                         int64_t timestamp_us, uint16_t frameId,
                         int width, int height,
-                        VideoRotation videoRotation, VideoType videoType);
+                        VideoRotation videoRotation);
 
     /// VideoTrackSourceInterface implementation.
     bool is_screencast() const override { return false; }

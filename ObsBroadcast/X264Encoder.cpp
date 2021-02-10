@@ -370,7 +370,7 @@ int X264Encoder::InitEncode(const VideoCodec* inst, const VideoEncoder::Settings
     }
 
     // Initialize encoded image using the size of unencoded data for buffer capacity allocation.
-    const size_t newCapacity = CalcBufferSize(VideoType::kNV12, width_, height_);
+    const size_t newCapacity = CalcBufferSize(VideoType::kYV12, width_, height_);
 
     image_.SetEncodedData(EncodedImageBuffer::Create(newCapacity));
     image_._encodedWidth  = (uint32_t)width_;
@@ -672,13 +672,14 @@ int32_t X264Encoder::Encode(const VideoFrame& inputFrame, const vector<VideoFram
     }
 
     // Parse bitstream for QP.
-    int qp;
-    auto bitstream = rtc::ArrayView<const uint8_t>(image_.data(), image_.size());
-    bitstreamParser_.ParseBitstream(bitstream);
-    if (bitstreamParser_.GetLastSliceQp(&qp))
-        image_.qp_ = qp;
+    bitstreamParser_.ParseBitstream(image_);
+    image_.qp_ = bitstreamParser_.GetLastSliceQp().value_or(-1);
+    if (image_.qp_ < 0 || image_.qp_ > 51)
+        image_.qp_ = picOut.i_qpplus1;
 
 #if X264ENC_VERBOSE_LOG
+    RTC_LOG(INFO) << "timestamp ntp:    " << image_.ntp_time_ms_;
+    RTC_LOG(INFO) << "timestamp 90kHz:  " << image_.Timestamp();
     RTC_LOG(INFO) << "resolution:       " << width_ << "x" << height_;
     RTC_LOG(INFO) << "numNals:          " << numNals;
     RTC_LOG(INFO) << "enc frame size:   " << encodedFrameSize;

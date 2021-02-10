@@ -778,7 +778,7 @@ void WebRTCStream::onVideoFrame(video_data* frame)
                                  frame->data[1], frame->linesize[1],
                                  (int64_t)frame->timestamp, ++frame_id_,
                                  m_nWidth, m_nHeight,
-                                 kVideoRotation_0, VideoType::kNV12);
+                                 kVideoRotation_0);
 }
 
 
