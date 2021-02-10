@@ -190,7 +190,7 @@
 
 #define MFC_SERVICES_JSON_KEYINT                "keyint"
 #ifndef MFC_SERVICES_JSON_KEYINT_VALUE
-#define MFC_SERVICES_JSON_KEYINT_VALUE          2
+#define MFC_SERVICES_JSON_KEYINT_VALUE          1
 #endif
 
 #define MFC_SERVICES_JSON_BFRAMES               "bframes"
@@ -297,4 +297,4 @@
 #define MFC_SOUTH_AMERICA_BROADCAST_URL         "rtmp://publish-sao.myfreecams.com/NxServer"
 #endif
 
-#endif // MFC_CONFIG_CONSTANTS_H_
+#endif  // MFC_CONFIG_CONSTANTS_H_
