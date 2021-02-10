@@ -3,10 +3,10 @@ set -e # exit if something fails
 
 IS_DEBUG=0
 readonly _DEPOT_TOOLS_COMMIT=master
-readonly _WEBRTC_VERSION=88
-readonly _BRANCH_NUMBER=4324
-readonly ARGS_RELEASE='use_rtti=true is_debug=false libcxx_abi_unstable=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_include_tests=false rtc_build_tools=false rtc_build_examples=false libyuv_include_tests=false build_libsrtp_tests=false rtc_exclude_transient_suppressor=true rtc_include_ilbc=false rtc_include_pulse_audio=false rtc_libvpx_build_vp9=false mac_deployment_target="10.11.0" mac_min_system_version="10.11.0" mac_sdk_min="10.11"'
-readonly ARGS_DEBUG='use_rtti=true is_debug=true libcxx_abi_unstable=false rtc_use_h264=true ffmpeg_branding="Chrome" rtc_include_tests=false rtc_build_tools=false rtc_build_examples=false'
+readonly _WEBRTC_VERSION=89
+readonly _BRANCH_NUMBER=4389
+readonly ARGS_RELEASE='use_rtti=true is_debug=false is_official_build=true libcxx_abi_unstable=false chrome_pgo_phase=0 rtc_use_h264=true ffmpeg_branding="Chrome" is_chrome_branded=false'
+readonly ARGS_DEBUG='use_rtti=true is_debug=true libcxx_abi_unstable=false rtc_use_h264=true ffmpeg_branding="Chrome"'
 
 checkout_depot_tools_commit() {
   if [ "${DEPOT_TOOLS_COMMIT}" != "master" ]; then
