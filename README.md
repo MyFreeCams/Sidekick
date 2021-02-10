@@ -19,21 +19,25 @@ OBS Plugin for Broadcasting to MyFreeCams using WebRTC
   git clone git@github.com:MyFreeCams/Sidekick.git && cd Sidekick
   ```
 
-* macOS only: Install dependencies
-  ```bash
-  ./build-deps
-  ```
-
 * Build
+  * macOS only: Install dependencies
+    ```bash
+    ./build-deps
+    ```
+
   ```bash
   ./build
   ```
 
 * Package
+  * macOS only (omit to skip notarization):
+    ```bash
+    export NOTARIZATION_USERNAME=your_apple_id_email@provider.com
+    # only needed first time (password will be stored in keychain)
+    export NOTARIZATION_PASSWORD=secret
+    ```
+
   ```bash
-  export NOTARIZATION_USERNAME=your_apple_id_email@provider.com  # omit to skip notarization
-  # only needed first time (password will be stored in keychain)
-  export NOTARIZATION_PASSWORD=secret                            # omit to skip notarization
   ./package
   ```
 
