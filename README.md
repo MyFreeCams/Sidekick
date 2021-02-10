@@ -31,6 +31,9 @@ OBS Plugin for Broadcasting to MyFreeCams using WebRTC
 
 * Package
   ```bash
+  export NOTARIZATION_USERNAME=your_apple_id_email@provider.com  # omit to skip notarization
+  # only needed first time (password will be stored in keychain)
+  export NOTARIZATION_PASSWORD=secret                            # omit to skip notarization
   ./package
   ```
 

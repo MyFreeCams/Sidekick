@@ -218,23 +218,11 @@ fix_dependencies_mfcbroadcast() {
       @executable_path/../Frameworks/websocketclient.dylib \
       @loader_path/websocketclient.dylib \
       "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
-    # install_name_tool -change \
-    #   @executable_path/../Frameworks/libobs.0.dylib \
-    #   @rpath/libobs.0.dylib \
-    #   "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
-    # install_name_tool -change \
-    #   @executable_path/../Frameworks/libobs-frontend-api.dylib \
-    #   @rpath/libobs-frontend-api.dylib \
-    #   "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
   fi
   if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib" ]; then
     install_name_tool -id \
       @rpath/websocketclient.dylib \
       "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
-    # install_name_tool -change \
-    #   @executable_path/../Frameworks/libobs.0.dylib \
-    #   @rpath/libobs.0.dylib \
-    #   "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
   fi
 }
 
@@ -314,10 +302,15 @@ prepare_files_for_package() {
 
 notarize_package() {
   if [ -n "${NOTARIZATION_USERNAME}" ]; then
-    xcrun altool --store-password-in-keychain-item "AC_PASSWORD" -u "${NOTARIZATION_USERNAME}" -p "${NOTARIZATION_PASSWORD}"
+    if [ -n "${NOTARIZATION_PASSWORD}" ]; then
+      xcrun altool --store-password-in-keychain-item "AC_PASSWORD" -u "${NOTARIZATION_USERNAME}" -p "${NOTARIZATION_PASSWORD}"
+    fi
     echo "Notarization precheck - started"
     if xcnotary precheck "${BUILD_ROOT}/Sidekick.pkg"; then
       echo "Notarization precheck - success"
+      if [ -n "${ASC_PROVIDER_SHORTNAME}" ]; then
+        ASC_PROVIDER_SHORTNAME=$(xcrun altool --list-providers -p "@keychain:AC_PASSWORD" 2>/dev/null | grep -Eoe '[a-zA-Z0-9]+\s+[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+' | grep -Eoe '^[a-zA-Z0-9]+')
+      fi
       hr "Notarizing package"
       xcnotary notarize "${BUILD_ROOT}/Sidekick.pkg" --developer-account "${NOTARIZATION_USERNAME}" --developer-password-keychain-item "AC_PASSWORD" --provider "${ASC_PROVIDER_SHORTNAME}"
       # System Policy (Gatekeeper) assessment
