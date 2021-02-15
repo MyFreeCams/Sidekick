@@ -392,8 +392,7 @@ void MFCDock::relabelPropertiesText()
     }
 
     std::string sService = isWebRTC ? "WebRTC" : "RTMP";
-    std::string sLoginStatus = isLoggedIn ? "YES" : "NO";
-    std::string sLoginLabel = isLoggedIn ? "Logged In" : "Not Logged In";
+    std::string sLoginLabel = isLoggedIn ? "<i>ModelWeb logged in</i>" : "<i>ModelWeb not logged in</i>";
     bool mfcLogoVisible = false;
 
     // Reset logged in label text
