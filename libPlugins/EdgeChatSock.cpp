@@ -600,20 +600,17 @@ void EdgeChatSock::onSessionState(FcMsg& msg, MfcJsonObj& jsData)
 }
 
 
-// Produces random floating-point values uniformly distributed on the interval [0, 1)
-double randomNumber()
+// Produces random integers uniformly distributed on the interval [min, max]
+int randomInt(int min, int max)
 {
-    std::mt19937_64 rng;
-    uint64_t timeSeed = std::chrono::high_resolution_clock::now().time_since_epoch().count();
-    std::seed_seq ss{uint32_t(timeSeed & 0xffffffff), uint32_t(timeSeed>>32)};
-    // initialize the random number generator with time-dependent seed
-    rng.seed(ss);
-    // initialize a uniform distribution between 0 and 1
-    std::uniform_real_distribution<double> unif(0, 1);
-    return unif(rng);
+    std::random_device rd;                              // obtain a random number from hardware
+    std::mt19937 gen(rd());                             // seed the generator
+    std::uniform_int_distribution<> distr(min, max);    // define the range
+    return distr(gen);
 }
 
 
+// static
 std::string EdgeChatSock::FcsServer()
 {
     unsigned int dwLen = 0;
@@ -623,7 +620,6 @@ std::string EdgeChatSock::FcsServer()
     try
     {
         CCurlHttpRequest httpreq;
-        //uint8_t* pResponse = httpreq.Get(serverConfigUrl, "application/json", &dwLen, "", nullptr);
         uint8_t* pResponse = httpreq.Get(serverConfigUrl, &dwLen);
         if (pResponse != nullptr)
         {
@@ -642,10 +638,7 @@ std::string EdgeChatSock::FcsServer()
                 servers.push_back(it.key());
             }
 
-            std::random_device rd;                                              // obtain a random number from hardware
-            std::mt19937 gen(rd());                                             // seed the generator
-            std::uniform_int_distribution<> distr(0, (int)servers.size() - 1);  // define the range
-            server = servers[distr(gen)];
+            server = servers[randomInt(0, (int)servers.size() - 1)];
         }
     }
     catch (const std::exception& e)
