@@ -982,14 +982,15 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
                 g_thread.setCmd(THREADCMD_STREAMSTART);
 
 #if SIDEKICK_ENABLE_VIRTUALCAM
+#if (LIBOBS_API_MAJOR_VER > 26)
+                obs_frontend_start_virtualcam();
+#else
                 QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
-                if (QMetaObject::invokeMethod(main, "StartVirtualCam"))
-                {
-                    _MESG("Virtual Camera active");
+                QMetaObject::invokeMethod(main, "StartVirtualCam");
 #if MFC_AGENT_EDGESOCK
-                    g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+                g_ctx.sm_edgeSock->sendVirtualCameraState(true);
 #endif
-                }
+#endif
 #endif
             }
         }
@@ -1011,10 +1012,14 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
             g_thread.setCmd(THREADCMD_STREAMSTOP);
 
 #if SIDEKICK_ENABLE_VIRTUALCAM
+#if (LIBOBS_API_MAJOR_VER > 26)
+            obs_frontend_stop_virtualcam();
+#else
             QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
             QMetaObject::invokeMethod(main, "StopVirtualCam");
 #if MFC_AGENT_EDGESOCK
             g_ctx.sm_edgeSock->sendVirtualCameraState(false);
+#endif
 #endif
 #endif
         }
@@ -1031,6 +1036,16 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
     {
         g_thread.setCmd(THREADCMD_SHUTDOWN);
     }
+#if (MFC_AGENT_EDGESOCK && LIBOBS_API_MAJOR_VER > 26)
+    else if (eventType == OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED)
+    {
+        g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+    }
+    else if (eventType == OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED)
+    {
+        g_ctx.sm_edgeSock->sendVirtualCameraState(false);
+    }
+#endif
 }
 
 
@@ -1070,6 +1085,10 @@ const char* MapObsEventType(enum obs_frontend_event eventType)
     case OBS_FRONTEND_EVENT_FINISHED_LOADING:               return "OBS_FRONTEND_EVENT_FINISHED_LOADING";
     case OBS_FRONTEND_EVENT_RECORDING_PAUSED:               return "OBS_FRONTEND_EVENT_RECORDING_PAUSED";
     case OBS_FRONTEND_EVENT_RECORDING_UNPAUSED:             return "OBS_FRONTEND_EVENT_RECORDING_UNPAUSED";
+#if (LIBOBS_API_MAJOR_VER > 26)
+    case OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED:             return "OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED";
+    case OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED:             return "OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED";
+#endif
     }
 
     snprintf(s_szObsEventType, sizeof(s_szObsEventType), "OBS_UnknownEvent_%u", eventType);
