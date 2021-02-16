@@ -331,6 +331,7 @@ void EdgeChatSock::onLogin(FcMsg& msg, MfcJsonObj& jsData)
         js.objectAdd("agent_host", pHost);
         collectSystemInfo(*pHost);
         pHost->objectAdd("activeState", (int64_t)m_modelState);
+        pHost->objectAdd("virtualCameraActive", m_virtualCameraActive);
 
         if ( ! m_edgeClient->send( FcMsg::textMsg(true, FCTYPE_AGENT, 0, 0, 0, 0, js) ) )
             obs_error("FcsWebsocketImpl::disconnect() unable to send logoff msg");

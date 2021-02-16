@@ -185,10 +185,6 @@ bool collectSystemInfo(MfcJsonObj& js)
     else sTransport = "Non-MFC";
     js.objectAdd("transport", sTransport);
 
-    auto info = obs_output_get_display_name("virtualcam_output");
-    if (info)
-        js.objectAdd("hasVirtualCamera", true);
-
     return true;
 }
 
