@@ -18,6 +18,8 @@
 #include "VideoTrackSource.h"
 #include "NV12Buf.h"
 
+#include <libPlugins/MFCConfigConstants.h>
+
 #include "absl/algorithm/container.h"
 #include "api/video/color_space.h"
 #include "api/video/encoded_image.h"
@@ -38,8 +40,8 @@
 
 using rtc::RefCountedObject;
 
-static const int MAX_WIDTH = 1920;
-static const int MAX_HEIGHT = 1020;
+static const int MAX_WIDTH = MFC_SERVICES_JSON_MAX_WIDTH_VALUE;
+static const int MAX_HEIGHT = MFC_SERVICES_JSON_MAX_HEIGHT_VALUE;
 static const int MAX_FPS = 30;
 static const int REQUIRED_ALIGNMENT = 2;
 

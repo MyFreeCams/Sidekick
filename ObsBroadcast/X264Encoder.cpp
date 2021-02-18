@@ -26,6 +26,8 @@
 #include "SanitizeInputs.h"
 #include "webrtc_version.h"
 
+#include <libPlugins/MFCConfigConstants.h>
+
 #include "absl/types/optional.h"
 #include "api/video/color_space.h"
 #include "api/video/video_frame_buffer.h"
@@ -62,7 +64,7 @@ using RangeID = ColorSpace::RangeID;
     RTC_LOG(severity) << errorBuffer
 #endif
 
-static const uint32_t kIDRIntervalSec   = 1;
+static const uint32_t kIDRIntervalSec   = MFC_SERVICES_JSON_KEYINT_VALUE;
 static const uint32_t kMaxFramerate     = 30;
 
 static const uint32_t kLongStartcodeSize  = 4;
