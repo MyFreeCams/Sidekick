@@ -67,10 +67,9 @@ target_include_directories(${MyTarget} PUBLIC
 		#${CMAKE_CURRENT_BINARY_DIR}
 		#${CMAKE_CURRENT_BINARY_DIR}/..
 		#${CMAKE_CURRENT_SOURCE_DIR}/..
-		../libfcs
 	${Boost_INCLUDE_DIRS}
 	${nlohmannjson_SOURCE_DIR}/single_include
-	../libipc
+
 )
 
 target_compile_definitions(${MyTarget} PUBLIC

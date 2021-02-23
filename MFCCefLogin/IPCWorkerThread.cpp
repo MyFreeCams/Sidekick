@@ -43,7 +43,7 @@
 #include <libfcs/fcslib_string.h>
 
 // ipclib includes
-#include <mfc_ipc.h>
+#include "../libipc/mfc_ipc.h"
 #ifdef _USE_OLD_MEMMANAGER
 #include "IPCSemaphore.h"
 #endif

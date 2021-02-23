@@ -19,11 +19,11 @@
 #endif
 #include <list>
 
-#include <Log.h>
-#include <fcslib_string.h>
+#include "../libfcs/Log.h"
+#include "../libfcs/fcslib_string.h"
 
 // local project files
-#include <mfc_ipc.h>
+#include "mfc_ipc.h"
 
 #include "ShmemManager.h"
 #include "ShmemVector.h"

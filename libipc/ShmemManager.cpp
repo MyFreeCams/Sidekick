@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "fcslib_string.h"
+#include "../libfcs/fcslib_string.h"
 
 #include "EvtDefines.h"
 #include "IPCUtil.h"

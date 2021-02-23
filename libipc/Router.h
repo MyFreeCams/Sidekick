@@ -18,7 +18,7 @@
 
 
 // local files
-#include <mfc_ipc.h>
+#include "../libipc/mfc_ipc.h"
 
 namespace MFCIPC
 {

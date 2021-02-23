@@ -36,7 +36,7 @@
 #include <libfcs/Log.h>
 
 // IPC Lib
-#include "mfc_ipc.h">
+#include "../libipc/mfc_ipc.h"
 
 // project includes
 #include "IPCWorkerThread.h"

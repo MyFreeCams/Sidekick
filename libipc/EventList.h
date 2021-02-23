@@ -15,12 +15,12 @@
  */
 
 #pragma once
-#pragma optimize("",off)
+//#pragma optimize("",off)
 
 #include <string>
 
-#include "Log.h"
-#include "fcslib_string.h"
+#include "../libfcs/Log.h"
+#include "../libfcs/fcslib_string.h"
 #include <regex>
 
 namespace MFCIPC
