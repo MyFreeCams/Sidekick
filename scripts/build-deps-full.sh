@@ -4,11 +4,13 @@ set -e # exit if something fails
 
 readonly _VLC_VERSION=3.0.8
 readonly _QT_VERSION=5.15.2
-readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+# readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 # readonly _CEF_VERSION=85.0.0+g93b66a0+chromium-85.0.4183.121
 # readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
-readonly MACOS_CEF_BUILD_VERSION=3770
+readonly _CEF_VERSION=88.2.9+g5c8711a+chromium-88.0.4324.182
+# readonly MACOS_CEF_BUILD_VERSION=3770
 # readonly MACOS_CEF_BUILD_VERSION=4183
+readonly MACOS_CEF_BUILD_VERSION=4324
 readonly _BOOST_VERSION=1.69.0
 readonly _OPENSSL_VERSION=1.1.1
 
@@ -781,9 +783,17 @@ install_cef() {
     tar -xf "cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
     rm "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
     cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64"
-    rm -rf tests
+    # rm -rf tests
     # sed -i '' 's/\"10.9\"/\"10.11\"/' ./cmake/cef_variables.cmake
-    sed -i '' 's/"'$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "10.9" || echo "10.10")'"/"'$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "10.11" || echo "${MACOSX_DEPLOYMENT_TARGET}")'"/' ./cmake/cef_variables.cmake
+    local old_ver=10.10
+    local new_ver=$MACOSX_DEPLOYMENT_TARGET
+    if [ $MACOS_CEF_BUILD_VERSION -le 3770 ]; then
+      old_ver=10.9
+      new_ver=10.11
+    elif [ $MACOS_CEF_BUILD_VERSION -ge 4324 ]; then
+      old_ver=10.11
+    fi
+    sed -i '' 's/"'$old_ver'"/"'$new_ver'"/' ./cmake/cef_variables.cmake
     mkdir -p build && cd ./build
     cmake -DCMAKE_CXX_FLAGS="-std=c++11 -stdlib=libc++ -Wno-deprecated-declarations" \
       -DCMAKE_EXE_LINKER_FLAGS="-std=c++11 -stdlib=libc++" \

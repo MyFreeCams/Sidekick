@@ -14,18 +14,16 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include "cefEventHandler.h"
+
 #include <windows.h>
-#include <list>
 #include <string>
 
-// cef include files
 #include "include/cef_browser.h"
-
-// project files
-#include "cefEventHandler.h"
 
 void cefEventHandler::PlatformTitleChange(CefRefPtr<CefBrowser> browser, const CefString& title)
 {
     CefWindowHandle hwnd = browser->GetHost()->GetWindowHandle();
-    SetWindowText(hwnd, std::wstring(title).c_str());
+    if (hwnd)
+        SetWindowText(hwnd, std::wstring(title).c_str());
 }

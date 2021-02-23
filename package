@@ -4,10 +4,12 @@ set -e # exit if something fails
 
 readonly _BUILD_DIR=xAuto
 readonly _BUILD_TYPE=RelWithDebInfo
-readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+# readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 # readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
-readonly MACOS_CEF_BUILD_VERSION=3770
+readonly _CEF_VERSION=88.2.9+g5c8711a+chromium-88.0.4324.182
+# readonly MACOS_CEF_BUILD_VERSION=3770
 # readonly MACOS_CEF_BUILD_VERSION=4183
+readonly MACOS_CEF_BUILD_VERSION=4324
 
 readonly _SIDEKICK_ROOT=$(pwd)
 export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
@@ -237,20 +239,6 @@ build_obs_bundle() {
   plutil -insert SUPublicDSAKeyFile -string OBSPublicDSAKey.pem ./OBS.app/Contents/Info.plist
 }
 
-fix_dependencies_mfcbroadcast() {
-  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" ]; then
-    install_name_tool -change \
-      @executable_path/../Frameworks/websocketclient.dylib \
-      @loader_path/websocketclient.dylib \
-      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
-  fi
-  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib" ]; then
-    install_name_tool -id \
-      @rpath/websocketclient.dylib \
-      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
-  fi
-}
-
 prepare_files_for_package() {
   cd "${BUILD_ROOT}"
   mkdir -p "${BUILD_ROOT}/MFCBroadcast/bin"
@@ -259,17 +247,12 @@ prepare_files_for_package() {
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libx264"* "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libssl"* "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libcrypto"* "${BUILD_ROOT}/MFCBroadcast/bin/"
+  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" ]; then
+    cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  fi
 
-  for f in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
-    install_name_tool -change \
-      "@executable_path/../Frameworks/${f##*/}" \
-      "@loader_path/${f##*/}" \
-      "${BUILD_ROOT}/MFCBroadcast/bin/MFCBroadcast.so"
-    install_name_tool -change \
-      "@executable_path/../Frameworks/${f##*/}" \
-      "@loader_path/${f##*/}" \
-      "${BUILD_ROOT}/MFCBroadcast/bin/websocketclient.dylib"
-    for g in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
+  for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
+    for g in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
       install_name_tool -change \
         "@executable_path/../Frameworks/${f##*/}" \
         "@loader_path/${f##*/}" \
@@ -291,21 +274,23 @@ codesign_app() {
     cd "$2"
     if [ -d "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework" ]; then
       local cef_path="./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libEGL.dylib"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libswiftshader_libEGL.dylib"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libGLESv2.dylib"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libswiftshader_libGLESv2.dylib"
-      if ! [ "${MACOS_CEF_BUILD_VERSION}" -le 3770 ]; then
-        codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libvk_swiftshader.dylib"
-      fi
+      for f in "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/"*.dylib; do
+        codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
+      done
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "${cef_path}"
     fi
-    if ! [ "${MACOS_CEF_BUILD_VERSION}" -le 3770 ]; then
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper.app"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (GPU).app"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Plugin).app"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Renderer).app"
-    fi
+    for f in "./$1.app/Contents/Frameworks/"*Helper.app; do
+      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    done
+    for f in "./$1.app/Contents/Frameworks/"*Helper*GPU*.app; do
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    done
+    for f in "./$1.app/Contents/Frameworks/"*Helper*Plugin*.app; do
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    done
+    for f in "./$1.app/Contents/Frameworks/"*Helper*Renderer*.app; do
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    done
     if [ -d "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin" ]; then
       codesign --force --options runtime --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"
     fi
@@ -416,7 +401,7 @@ main() {
   (cd "${SIDEKICK_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
 
   hr "Building MFC CEF Login app bundle"
-  ${DYLIBBUNDLER} -b -f -cd -of -q -a "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin/MFCCefLogin.app"
+  ${DYLIBBUNDLER} -f -q -cd -of -a "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin/MFCCefLogin.app"
 
   hr "Building OBS app bundle"
   (build_obs_bundle)
@@ -427,7 +412,6 @@ main() {
   rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"
   cp -pfR "${BUILD_ROOT}/OBS.app" "${BUILD_ROOT}/OBS-Sidekick.app"
 
-  fix_dependencies_mfcbroadcast
   prepare_files_for_package
   codesign_apps
   generate_package

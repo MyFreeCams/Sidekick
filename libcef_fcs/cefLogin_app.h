@@ -143,7 +143,7 @@ public:
         m_spHandler = handler;
     }
 
-    CefRefPtr<cefEventHandler>getHandler()
+    CefRefPtr<cefEventHandler> getHandler()
     {
         // base::AutoLock lock_scope(lock_);
         std::lock_guard<std::recursive_mutex> lock(m_Mutex);
@@ -184,6 +184,8 @@ public:
         setURL(MFC_CEF_LOGIN_URL);
 
         CefRefPtr<CefCommandLine> command_line = CefCommandLine::GetGlobalCommandLine();
+
+        const bool enable_chrome_runtime = command_line->HasSwitch("enable-chrome-runtime");
 
 #if defined(OS_WIN) || defined(OS_LINUX)
         // Create the browser using the Views framework if "--use-views" is specified
@@ -249,7 +251,7 @@ public:
         if (url.empty())
             url = getURL();
 #endif
-        if (use_views)
+        if (use_views && !enable_chrome_runtime)
         {
             // Create the BrowserView.
             CefRefPtr<CefBrowserView> browser_view =
@@ -305,6 +307,15 @@ public:
             CefBrowserHost::CreateBrowser(window_info, handler, url, browser_settings, nullptr, nullptr);
         }
     }
+
+#if 0
+    // CefBrowserProcessHandler method
+    CefRefPtr<CefClient> GetDefaultClient() OVERRIDE
+    {
+        // Called when a new browser window is created via the Chrome runtime UI.
+        return cefEventHandler::GetInstance();
+    }
+#endif
 
     // Create default event handler. This method can be overridden.
     virtual CefRefPtr<cefEventHandler> createEventHandler(const bool useViews)

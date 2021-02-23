@@ -4,6 +4,7 @@
 #include <QUrl>
 #include <QDesktopServices>
 
+#include <obs-module.h>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -98,6 +99,48 @@ bool QCefBrowserClient::OnOpenURLFromTab(
 	return true;
 }
 
+void QCefBrowserClient::OnLoadError(CefRefPtr<CefBrowser> browser,
+				    CefRefPtr<CefFrame> frame,
+				    CefLoadHandler::ErrorCode errorCode,
+				    const CefString &errorText,
+				    const CefString &failedUrl)
+{
+	UNUSED_PARAMETER(browser);
+	if (errorCode == ERR_ABORTED)
+		return;
+
+	struct dstr html;
+	char *path = obs_module_file("error.html");
+	char *errorPage = os_quick_read_utf8_file(path);
+
+	dstr_init_copy(&html, errorPage);
+
+	dstr_replace(&html, "%%ERROR_URL%%", failedUrl.ToString().c_str());
+
+	dstr_replace(&html, "Error.Title", obs_module_text("Error.Title"));
+	dstr_replace(&html, "Error.Description",
+		     obs_module_text("Error.Description"));
+	dstr_replace(&html, "Error.Retry", obs_module_text("Error.Retry"));
+	const char *translError;
+	std::string errorKey = "ErrorCode." + errorText.ToString();
+	if (obs_module_get_string(errorKey.c_str(),
+				  (const char **)&translError)) {
+		dstr_replace(&html, "%%ERROR_CODE%%", translError);
+	} else {
+		dstr_replace(&html, "%%ERROR_CODE%%",
+			     errorText.ToString().c_str());
+	}
+
+	frame->LoadURL(
+		"data:text/html;base64," +
+		CefURIEncode(CefBase64Encode(html.array, html.len), false)
+			.ToString());
+
+	dstr_free(&html);
+	bfree(path);
+	bfree(errorPage);
+}
+
 /* CefLifeSpanHandler */
 bool QCefBrowserClient::OnBeforePopup(
 	CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>, const CefString &target_url,
@@ -113,6 +156,8 @@ bool QCefBrowserClient::OnBeforePopup(
 #ifdef _WIN32
 		HWND hwnd = (HWND)widget->effectiveWinId();
 		windowInfo.parent_window = hwnd;
+#else
+		UNUSED_PARAMETER(windowInfo);
 #endif
 		return false;
 	}
@@ -164,6 +209,9 @@ bool QCefBrowserClient::OnPreKeyEvent(CefRefPtr<CefBrowser> browser,
 		browser->ReloadIgnoreCache();
 		return true;
 	}
+#else
+	UNUSED_PARAMETER(browser);
+	UNUSED_PARAMETER(event);
 #endif
 	return false;
 }

@@ -92,7 +92,7 @@ cefEventHandler::~cefEventHandler()
 #endif
 }
 
-cefEventHandler *cefEventHandler::getInstance()
+cefEventHandler *cefEventHandler::GetInstance()
 {
 #ifndef _WIN32
     return g_pEvent;
@@ -213,7 +213,6 @@ void cefEventHandler::OnLoadError(CefRefPtr<CefBrowser> browser,
         << std::string(failedUrl) << " with error " << std::string(errorText)
         << " (" << errorCode << ").</h2></body></html>";
 
-    //frame->LoadString(ss.str(), failedUrl);
     frame->LoadURL(GetDataURI(ss.str(), "text/html"));
 }
 
@@ -222,8 +221,7 @@ void cefEventHandler::CloseAllBrowsers(bool force_close)
     if (!CefCurrentlyOn(TID_UI))
     {
         // Execute on the UI thread.
-        CefPostTask(TID_UI, base::Bind(&cefEventHandler::CloseAllBrowsers,
-                                       this, force_close));
+        CefPostTask(TID_UI, base::Bind(&cefEventHandler::CloseAllBrowsers, this, force_close));
         return;
     }
 
