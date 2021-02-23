@@ -202,8 +202,7 @@ if(MFC_DO_CEF_BUILD)
 
 	set(CEF_BINARY_DIR $<IF:$<CONFIG:Debug>,${CEF_BINARY_DIR_DEBUG},${CEF_BINARY_DIR_RELEASE}>)
 
-	message(STATUS "CMAKE_CXX_FLAGS (before): ${CMAKE_CXX_FLAGS}")
-	message(STATUS "CEF_CXX_COMPILER_FLAGS (before): ${CEF_CXX_COMPILER_FLAGS}")
+
 	if(APPLE)
 		# enable RTTI, disable warnings as errors
 		list(REMOVE_ITEM CEF_CXX_COMPILER_FLAGS -fno-rtti -fno-exceptions -funwind-tables -fno-asynchronous-unwind-tables)
@@ -220,8 +219,6 @@ if(MFC_DO_CEF_BUILD)
 			add_compile_options("/MT")
 		endif()
 	endif()
-	message(STATUS "CMAKE_CXX_FLAGS (after): ${CMAKE_CXX_FLAGS}")
-	message(STATUS "CEF_CXX_COMPILER_FLAGS (after): ${CEF_CXX_COMPILER_FLAGS}")
 
 	if(NOT MFC_BROWSER_LOGIN)
 		add_subdirectory(${CEF_LIBCEF_DLL_WRAPPER_PATH} libcef_dll_wrapper) # location: ${CEF_ROOT}/libcef_dll
