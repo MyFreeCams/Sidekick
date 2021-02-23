@@ -1,1 +1,1 @@
-You will be guided through the steps necessary to uninstall this software.
+This package will uninstall the MFC Sidekick OBS plugin. No settings, profiles, or scenes will be removed.
