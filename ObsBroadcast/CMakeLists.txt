@@ -69,7 +69,8 @@ set(MyTarget_WEBRTC_FILES
 )
 source_group(WebRTC FILES ${MyTarget_WEBRTC_FILES})
 if(APPLE)
-	set_source_files_properties(${MyTarget_WEBRTC_FILES} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+
+	set_source_files_properties(${MyTarget_WEBRTC_FILES} PROPERTIES COMPILE_FLAGS " -fvisibility=hidden -fvisibility-inlines-hidden")
 endif()
 
 # add platform sources.
@@ -149,13 +150,22 @@ add_library(${MyTarget} MODULE
 target_include_directories(${MyTarget} PRIVATE
 	${WEBRTC_INCLUDE_DIRS}
 	${LIBX264_INCLUDE_DIRS}
+	../libipc
+	../libfcs
 )
 
 target_compile_definitions(${MyTarget} PUBLIC
 	BOOST_ALL_NO_LIB
 	#BOOST_LIB_DIAGNOSTIC
 )
+if (APPLE)
+	#less visibiilty issues with this
+	list(REMOVE_ITEM CMAKE_CXX_FLAGS -fno-exceptions -fno-rtti -Werror -funwind-tables -fno-asynchronous-unwind-tables)
+	#target_compile_options(${MyTarget} PUBLIC -fexceptions -Wno-error -Wno-unused-parameter -Wno-unused-variable -fvisibility=hidden -fvisibility-inlines-hidden)
+	# removed visibility 2/15 9:47am
+	target_compile_options(${MyTarget} PUBLIC -fexceptions -Wno-error -Wno-unused-parameter -Wno-unused-variable )
 
+endif ()
 if(WIN32)
 	target_compile_options(${MyTarget} PUBLIC "/GS-")
 endif()
@@ -178,6 +188,9 @@ target_link_libraries(${MyTarget} PRIVATE
 	WebRTC::WebRTC
 	${LIBX264_LIBRARIES}
 	${MyTarget_PLATFORM_LIBRARIES}
+	${Boost_LIBRARIES}
+	libipc
+	#/Users/toddanderson/mfc-dev/obs-studio/xAuto/plugins/myfreecams/sidekick/libipc/libipc.a
 )
 
 target_link_directories(${MyTarget} PRIVATE
@@ -258,3 +271,6 @@ elseif(WIN32)
 	# message(STATUS "Copying ${NATIVE_RCC_FILE} => ${NATIVE_MFC_OBS_PLUGIN_BIN_PATH}")
 	# file(COPY ${NATIVE_RCC_FILE} DESTINATION ${NATIVE_MFC_OBS_PLUGIN_BIN_PATH})
 endif()
+
+
+

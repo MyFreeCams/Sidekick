@@ -35,6 +35,9 @@
 #include <libPlugins/IPCShared.h>
 #include <libfcs/Log.h>
 
+// IPC Lib
+#include "mfc_ipc.h">
+
 // project includes
 #include "IPCWorkerThread.h"
 #include "MFCJsExtensions.h"
@@ -172,6 +175,10 @@ int main(int argc, char *argv[])
     sLogPath += "/Logs";  // /Users/username/Logs/
     Log::Setup(sLogPath);
     Log::AddOutputMask(MFC_LOG_LEVEL, MFC_LOG_OUTPUT_MASK);
+
+    MFCIPC::CRouter::setRouterID("MFCCefLogin");
+    MFCIPC::CRouter::getInstance()->start(5);
+
     _TRACE("Startup build # %d", MFC_BUILD_NUMBER);
 
     // Load the CEF framework library at runtime instead of linking directly
@@ -236,13 +243,19 @@ int main(int argc, char *argv[])
         [delegate performSelectorOnMainThread:@selector(createApplication:)
                                    withObject:nil
                                 waitUntilDone:NO];
-
+#ifdef USE_OLD_MEMMANAGER
         CIPCWorkerThread myThread(*app);
         if (1 == 1 || myThread.init())
         {
             // Run the CEF message loop. This will block until CefQuitMessageLoop() is called.
             CefRunMessageLoop();
         }
+#else
+        CIPCWorkerEventHandler ipc(ADDR_FCSLOGIN, *app);
+        // Run the CEF message loop. This will block until CefQuitMessageLoop() is called.
+        CefRunMessageLoop();
+#endif
+
         // Shut down CEF.
         CefShutdown();
 

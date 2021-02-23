@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,22 +13,25 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#pragma once
 
-#include <include/cef_version.h>
 
-#include <libcef_fcs/cefEventHandler.h>
+#include <mfc_ipc.h>
 
-class CMFCCefEventHandler : public cefEventHandler
+#include <boost/algorithm/string.hpp>
+
+namespace MFCIPC
 {
-    typedef cefEventHandler myBaseClass;
+//---------------------------------------------------------------------
+// isEqualk
+//
+// don't want to have to include string.hpp because of namespace
+// issues.  Keep the include file isolated. 
+bool IPCUtil::isEqual(std::string &s, std::string &s2)
+{
+    boost::algorithm::to_lower(s);
+    boost::algorithm::to_lower(s2);
+    return s == s2;
+}
 
-public:
-    explicit CMFCCefEventHandler(bool useViews);
 
-    bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
-                                  CefRefPtr<CefFrame> frame,
-                                  CefProcessId source_process,
-                                  CefRefPtr<CefProcessMessage> message) OVERRIDE;
-
-};
+}

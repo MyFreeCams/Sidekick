@@ -773,6 +773,7 @@ unsigned long CObsUtil::ExecProcess(const char* pPath, const char* pFile)
 #endif
 }
 
+//#define RUN_CEFLOGIN_FROM_DEBUGGER 1
 
 // open cef mfc login app or panel
 bool CObsUtil::ExecMFCLogin()
@@ -792,11 +793,18 @@ bool CObsUtil::ExecMFCLogin()
     else
     {
         string sPathBin( getInstallPath() );
+#ifndef RUN_CEFLOGIN_FROM_DEBUGGER
         sPathBin += "\\cef";
+#endif
         dwProc = CObsUtil::ExecProcess(sPathBin.c_str(), MFC_CEF_APP_EXE_NAME);
     }
 #else
+#ifdef RUN_CEFLOGIN_FROM_DEBUGGER
+    dwProc = CObsUtil::ExecProcess("../../../plugins/MyFreeCams/Sidekick/MFCCefLogin/Debug", MFC_CEF_APP_EXE_NAME);
+#else
     dwProc = CObsUtil::ExecProcess(MFC_OBS_CEF_LOGIN_BIN_PATH, MFC_CEF_APP_EXE_NAME);
+#endif
+
 #endif  // _WIN32
     bRv = (dwProc > 0);
 #endif  // MFC_BROWSER_LOGIN

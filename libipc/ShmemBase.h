@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,22 +13,17 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
 #pragma once
 
-#include <include/cef_version.h>
-
-#include <libcef_fcs/cefEventHandler.h>
-
-class CMFCCefEventHandler : public cefEventHandler
+namespace MFCIPC
 {
-    typedef cefEventHandler myBaseClass;
-
-public:
-    explicit CMFCCefEventHandler(bool useViews);
-
-    bool OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
-                                  CefRefPtr<CefFrame> frame,
-                                  CefProcessId source_process,
-                                  CefRefPtr<CefProcessMessage> message) OVERRIDE;
-
+struct SHMEM_BASE
+{
+    uint64_t m_nKey;
+    boost::posix_time::ptime m_tmCreateDate;
+    boost::posix_time::ptime m_tmUpdateTime;
+    bool m_bIsInUse;
 };
+}
+

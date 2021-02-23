@@ -72,3 +72,8 @@ size_t fcs_strlcat(char *dst, const char *src, size_t siz);         // portable 
 size_t fcs_strlcpy_range(char chStart, char chStop, char *dst, const char *src, size_t siz);
 
 std::string &stdLeftTrim(std::string &s);		// left trim
+
+std::string stdToLower(std::string &s);         // to lower case
+
+
+

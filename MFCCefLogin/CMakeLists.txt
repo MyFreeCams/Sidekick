@@ -146,6 +146,8 @@ if(OS_MAC)
 		libcef_dll_wrapper
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
+		${Boost_LIBRARIES}
+		libipc
 	)
 	set_target_properties(${CEF_HELPER_TARGET} PROPERTIES
 		MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/mac/helper-Info.plist
@@ -177,8 +179,18 @@ if(OS_MAC)
 		libcef_dll_wrapper
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
-		# ${Boost_LIBRARIES}
+		${Boost_LIBRARIES}
+		libipc
 	)
+	target_include_directories(${CEF_TARGET} PUBLIC
+			../libfcs
+			../libipc
+			)
+	target_include_directories(${CEF_HELPER_TARGET} PUBLIC
+			../libfcs
+			../libipc
+			)
+
 	set_target_properties(${CEF_TARGET} PROPERTIES
 		MACOSX_BUNDLE TRUE
 		# MACOSX_BUNDLE_BUNDLE_NAME ${CEF_TARGET}
@@ -210,6 +222,9 @@ if(OS_MAC)
 		"${CMAKE_CURRENT_SOURCE_DIR}"
 		"${CEF_APP}"
 	)
+	list(REMOVE_ITEM CMAKE_CXX_FLAGS -fno-exceptions -fno-rtti -Werror -funwind-tables -fno-asynchronous-unwind-tables)
+	target_compile_options(${CEF_TARGET} PUBLIC -fexceptions -Wno-error -Wno-unused-parameter -Wno-unused-variable -fvisibility=hidden -fvisibility-inlines-hidden)
+	target_compile_options(${CEF_HELPER_TARGET} PUBLIC -fexceptions -Wno-error -Wno-unused-parameter -Wno-unused-variable -fvisibility=hidden -fvisibility-inlines-hidden)
 endif()
 
 #
@@ -227,6 +242,7 @@ if(OS_WINDOWS)
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
 		${Boost_LIBRARIES}
+		libipc
 	)
 	# Turn on RTTI & disable warnings as errors
 	target_compile_options(${CEF_TARGET} PUBLIC /MT /GR /WX-)
@@ -281,6 +297,16 @@ if(OS_MAC)
 		# Copy the helper app bundle into the Frameworks subdirectory.
 		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CEF_HELPER_APP}"
 			"${CEF_APP}/Contents/Frameworks/${CEF_HELPER_OUTPUT_NAME}.app"
+
+		COMMAND ${CMAKE_COMMAND} -E echo "copy libipc ${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib ${CEF_APP}/Contents/Frameworks/${CEF_HELPER_OUTPUT_NAME}.app/Contents/MacOS/libipc.dylib"
+
+			COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
+			"${CEF_APP}/Contents/Frameworks/${CEF_HELPER_OUTPUT_NAME}.app/Contents/MacOS/libipc.dylib"
+
+		COMMAND ${CMAKE_COMMAND} -E echo "PATH: ${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib ${CEF_APP}/Contents/macos/libipc.dylib"
+
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
+			"${CEF_APP}/Contents/macos/libipc.dylib"
 		# Copy the CEF framework into the Frameworks subdirectory.
 		COMMAND ${CMAKE_COMMAND} -E copy_directory
 			"${CEF_BINARY_DIR}/Chromium Embedded Framework.framework"

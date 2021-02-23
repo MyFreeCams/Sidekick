@@ -62,7 +62,9 @@ const char* __progname = "MFCCefLogin";
 
 string cefGetInstallPath(void);
 
+#ifdef USE_OLD_MEMMANAGER
 extern MFC_Shared_Mem::CMessageManager g_LocalRenderMemManager;
+#endif
 
 //---------------------------------------------------------------------
 // Entry point function for all processes for windows
@@ -73,7 +75,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
-
+    //::MessageBoxA(NULL,"Attach debugger now!","ceflogin", MB_OK);
     // Enable High-DPI support on Windows 7 or newer.
     CefEnableHighDPISupport();
 
@@ -125,50 +127,58 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
     // add new extensions
     app->addExtension(new CMFCJsCredentials);
 
-    CIPCWorkerThread worker(*app);
-    if (worker.init() || 1 == 1)
+    //CIPCWorkerThread worker(*app);
+    //if (worker.init() || 1 == 1)
+
+    MFCIPC::CRouter::setRouterID("MFCCefLogin");
+    MFCIPC::CRouter::getInstance()->start(5);
+
+    CIPCWorkerEventHandler evtHandler(ADDR_FCSLOGIN,*app);
+
+    
+    // CEF applications have multiple sub-processes (render, plugin, GPU, etc)
+    // that share the same executable. This function checks the command-line and,
+    // if this is a sub-process, executes the appropriate logic.
+    int exit_code = CefExecuteProcess(main_args, app.get(), sandbox_info);
+    if (exit_code >= 0)
     {
-        // CEF applications have multiple sub-processes (render, plugin, GPU, etc)
-        // that share the same executable. This function checks the command-line and,
-        // if this is a sub-process, executes the appropriate logic.
-        int exit_code = CefExecuteProcess(main_args, app.get(), sandbox_info);
-        if (exit_code >= 0)
-        {
-            // The sub-process has completed so return here.
-            return exit_code;
-        }
+        // The sub-process has completed so return here.
+        return exit_code;
+    }
 
-        // On Windows, we only get this far if this is the browser process.
+    // On Windows, we only get this far if this is the browser process.
 
-        // Specify CEF global settings here.
-        CefSettings settings;
+    // Specify CEF global settings here.
+    CefSettings settings;
 
-        _TRACE("Debugging enabled. To attach chrome go to: http://localhost:8080");
-        // to attach the chrome debug tools: http://localhost:8080
-        settings.remote_debugging_port = 8080;
-        // settings.log_severity = LOGSEVERITY_DISABLE;
-#if !defined(CEF_USE_SANDBOX)
+    _TRACE("Debugging enabled. To attach chrome go to: http://localhost:8080");
+    // to attach the chrome debug tools: http://localhost:8080
+    settings.remote_debugging_port = 8080;
+
+    // settings.log_severity = LOGSEVERITY_DISABLE;
+    #if !defined(CEF_USE_SANDBOX)
         settings.no_sandbox = true;
-#endif
-        // Initialize CEF.
-        CefInitialize(main_args, settings, app.get(), sandbox_info);
+    #endif
 
-        // start worker thread
-        worker.Start();
+    // Initialize CEF.
+    CefInitialize(main_args, settings, app.get(), sandbox_info);
 
-        // run cef message loop.  This won't return until we exit.
-        CefRunMessageLoop();
+    // start worker thread
+    //    worker.Start();
 
-        // shutdown worker thread
-        worker.End();
+    // run cef message loop.  This won't return until we exit.
+    CefRunMessageLoop();
 
-        // Shut down CEF.
-        CefShutdown();
-    }
-    else
-    {
-        _TRACE("Failed to created shared memory file.  Maybe MFCBroadcast is NOT running?");
-    }
+    // shutdown worker thread
+    //    worker.End();
+
+    // Shut down CEF.
+    CefShutdown();
+    
+    //else
+    //{
+    //    _TRACE("Failed to created shared memory file.  Maybe MFCBroadcast is NOT running?");
+   // }
 
     return 0;
 }
