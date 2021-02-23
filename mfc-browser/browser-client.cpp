@@ -25,7 +25,9 @@
 #include <util/platform.h>
 
 #include <libPlugins/IPCShared.h>
+#ifdef USE_OLD_MEMMANAGER
 MFC_Shared_Mem::CMessageManager g_LocalBrowserMemManager;
+#endif
 void MfcDebug(const char *pCaption, const char *pFmt, ...);
 
 using namespace json11;
@@ -131,7 +133,8 @@ bool BrowserClient::OnProcessMessageReceived(
 			{"recording", obs_frontend_recording_active()},
 			{"streaming", obs_frontend_streaming_active()},
 			{"replaybuffer", obs_frontend_replay_buffer_active()}};
-	} else if (name == "credentials") {
+#ifdef USE_OLD_MEMMANAGER
+        } else if (name == "credentials") {
 		MfcDebug("BrowserClient::OnProcessMessageReceived",
 			 "credentials");
 
@@ -153,6 +156,7 @@ bool BrowserClient::OnProcessMessageReceived(
 					ADDR_CEF_JSEXTENSION,
 					MSG_TYPE_DOCREDENTIALS, sJson.c_str()));
 		}
+#endif
 	} else {
 		return false;
 	}

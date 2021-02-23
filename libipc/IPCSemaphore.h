@@ -13,10 +13,59 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef _USE_OLD_MEMMANAGER
-#ifdef _WIN32
-//#include <malloc.h>
-#endif
 
-#include "IPCShared.h"
-#endif
+
+#pragma once
+namespace boost {
+class mutex;
+class condition_variable;
+}
+
+namespace MFCIPC
+{
+
+
+
+
+class CSemaphore
+{
+public:
+    CSemaphore (int n);
+    CSemaphore();
+    
+    ~CSemaphore();
+
+    void post();
+    void wait();
+    bool timed_wait(int nMilliseconds);
+
+    void setCount(int nCnt);
+
+private:
+     std::unique_ptr<boost::mutex>m_spMutex;
+     std::unique_ptr<boost::condition_variable> m_spCond;
+    int m_nCnt;
+};
+
+
+
+class CIPCSemaphore
+{
+public:
+  CIPCSemaphore (int n);
+  CIPCSemaphore();
+
+  ~CIPCSemaphore();
+
+  void post();
+  void wait();
+  bool timed_wait(int nMilliseconds);
+
+  void setCount(int nCnt);
+
+private:
+  std::unique_ptr<boost::mutex>m_spMutex;
+  std::unique_ptr<boost::condition_variable> m_spCond;
+  int m_nCnt;
+};
+}

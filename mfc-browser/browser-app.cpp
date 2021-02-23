@@ -33,7 +33,9 @@
 
 #include <libPlugins/IPCShared.h>
 #include "MfcJsExtensions.h"
+#ifdef USE_OLD_MEMMANAGER
 MFC_Shared_Mem::CMessageManager g_LocalRenderMemManager;
+#endif
 void MfcDebug(const char *pCaption, const char *pFmt, ...)
 {
 #ifdef MFC_BROWSER_DEBUG

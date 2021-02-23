@@ -28,7 +28,11 @@
 // cef include files
 // #include "include/cef_app.h"
 
+// boost includes
 #include "boost/date_time/posix_time/posix_time.hpp"
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/condition.hpp>
+
 
 // solution includes
 #include <libcef_fcs/cefLogin_app.h>
@@ -38,30 +42,148 @@
 #include <libfcs/Log.h>
 #include <libfcs/fcslib_string.h>
 
+// ipclib includes
+#include <mfc_ipc.h>
+#ifdef _USE_OLD_MEMMANAGER
+#include "IPCSemaphore.h"
+#endif
+
 // project includes
 #include "IPCWorkerThread.h"
 
-using namespace MFC_Shared_Mem;
+#define MYADDRESS ADDR_FCSLOGIN
+#define PARTNER_ADDRESS ADDR_OBS_BROADCAST_Plugin
 
+#ifdef _USE_OLD_MEMMANAGER
+CSemaphore g_semaClient;
+#endif
+
+CIPCWorkerEventHandler::CIPCWorkerEventHandler(const char *p, MFC_LOGIN_APP &app)
+    : _myBase(p)
+    , m_App(app)
+    , m_spMutexFlags(new boost::mutex)
+    , m_spMutexApp(new boost::mutex)
+{
+
+}
+
+CIPCWorkerEventHandler::~CIPCWorkerEventHandler()
+{}
+
+//---------------------------------------------------------------------
+// onAttachPRocess
+//
+//
+void CIPCWorkerEventHandler::onAttachProcess(MFCIPC::CProcessRecord&)
+{
+
+}
+
+//---------------------------------------------------------------------
+// OnDetachProcess
+//
+//
+void CIPCWorkerEventHandler::onDetachProcess(MFCIPC::CProcessRecord& r)
+{
+    _TRACE("Process detach! %s",r.getID());
+    closeAllBrowsers();
+
+}
+
+//---------------------------------------------------------------------
+// onIncoming
+//
+// handle incoming events
+void CIPCWorkerEventHandler::onIncoming(MFCIPC::CIPCEvent& msg)
+{
+       CefRefPtr<CefBrowser> browser = this->getBrowser();
+       MFCIPC::CRouter *pR = MFCIPC::CRouter::getInstance();
+
+        switch (msg.getType())
+         {
+            case MSG_TYPE_PING:
+                {
+                _TRACE("Ping Message  Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(), msg.getFrom(), msg.getPayload());
+                break;
+                }
+            case MSG_TYPE_START:
+                //_TRACE("MSG_TYPE_START Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(), msg.getFrom(), msg.getPayload());
+                break;
+
+            // shutdown message is sent by broadcast plugin when it shuts down. 
+            case MSG_TYPE_SHUTDOWN:
+            {
+                _TRACE("MSG_TYPE_SHUTDOWN Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(),msg.getFrom(), msg.getPayload());
+                //pR->sendEvent("Shutdown",ADDR_OBS_BROADCAST_Plugin, MYADDRESS, MSG_TYPE_SHUTDOWN, stdprintf("%u",_getpid()).c_str());
+                this->closeAllBrowsers();
+                
+                break;
+            }
+
+            default:
+                _TRACE("unhandled message Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(),msg.getFrom(), msg.getPayload());
+                break;
+            
+         } // end switch
+
+}
+
+//---------------------------------------------------------------------
+// getBrowser
+//
+// helper function to get the cef browser object.
+CefRefPtr<CefBrowser> CIPCWorkerEventHandler::getBrowser()
+{
+    boost::lock_guard lock(*m_spMutexApp);
+    CefRefPtr<cefEventHandler> pEvtHandler = m_App.getHandler();
+    CefRefPtr<CefBrowser> browser = pEvtHandler->getBrowser();
+    return browser;
+}
+
+
+//---------------------------------------------------------------------
+// closeAllBrowsers
+//
+// close all browser windows.
+void CIPCWorkerEventHandler::closeAllBrowsers()
+{
+    boost::lock_guard lock(*m_spMutexApp);
+    m_App.getHandler()->CloseAllBrowsers(false);
+}
+
+#ifdef _USE_OLD_MEMMANAGER
 //---------------------------------------------------------------------
 // CIPCWorkerThread
 //
 // thread to handle all communication with broadcast plugin.
 //
 CIPCWorkerThread::CIPCWorkerThread(MFC_LOGIN_APP &app)
-    : m_pThread(NULL), m_App(app), m_bStop(false)
-{}
+    : m_pThread(NULL)
+    , m_spMutexFlags(new boost::mutex)
+    , m_spMutexApp(new boost::mutex)
+    , m_spSemaClient(new CSemaphore)
+    , m_App(app)
+    , m_bStop(false)
+{
+
+}
 
 CIPCWorkerThread::~CIPCWorkerThread()
-{}
+{
+}
 
 bool CIPCWorkerThread::init()
 {
-   return getSharedMemManager().init(false);
+    CRouter::setRouterID("MFCCefLogin");
+    //
+    // start router with a low maintenance bid
+    // the lower the maintenance bid, the less likely
+    // it is for this instance to do messagse maintenance. 
+    return CRouter::getInstance()->start(5);
+//   return getSharedMemManager().init(false);
 }
 
-#define MYADDRESS ADDR_FCSLOGIN
-#define PARTNER_ADDRESS ADDR_OBS_BROADCAST_Plugin
+
 
 //---------------------------------------------------------------------
 // getBrowser
@@ -69,7 +191,8 @@ bool CIPCWorkerThread::init()
 // helper function to get the cef browser object.
 CefRefPtr<CefBrowser> CIPCWorkerThread::getBrowser()
 {
-    CefRefPtr<cefEventHandler> pEvtHandler = getCefApp().getHandler();
+    boost::lock_guard lock(*m_spMutexApp);
+    CefRefPtr<cefEventHandler> pEvtHandler = m_App.getHandler();
     CefRefPtr<CefBrowser> browser = pEvtHandler->getBrowser();
     return browser;
 }
@@ -87,63 +210,66 @@ int CIPCWorkerThread::Process()
     int nRecCnt = 0;
 #endif
     // send a startup msg to broadcast plugin with our PID
-    getSharedMemManager().sendMessage(ADDR_OBS_BROADCAST_Plugin, MYADDRESS, MSG_TYPE_START, stdprintf("%u", _getpid()).c_str());
+    //getSharedMemManager().sendMessage(ADDR_OBS_BROADCAST_Plugin, MYADDRESS, MSG_TYPE_START, stdprintf("%u", _getpid()).c_str());
+    CRouter *pR = CRouter::getInstance();
+    pR->sendEvent("startup",ADDR_OBS_BROADCAST_Plugin,MYADDRESS, MSG_TYPE_START,"%u",_getpid());
 
-    boost::posix_time::ptime tPing = boost::posix_time::second_clock::local_time();
-    while (!isStopFlag())
-    {
-        int nCnt = 0;
-        // get all messages that are addressed to this process
-        // these messages were probably sent by the broadcast plugin.
-        CSharedMemMsg msg;
-        while (getSharedMemManager().getNextMessage(&msg, ADDR_FCSLOGIN))
-        {
-            nCnt++;
-            switch (msg.getID())
-            {
+    CSimpleEventHandler myHandler(MYADDRESS);
+    myHandler.setIncomingFunc([&pR,this](CIPCEvent &msg){
+        CefRefPtr<CefBrowser> browser = this->getBrowser();
+
+        switch (msg.getType())
+         {
             case MSG_TYPE_PING:
-                _TRACE("Ping Message  Type: %d To: %s From: %s Msg: %s", (int) msg.getID(), msg.getTo(), msg.getFrom(), msg.getMessage());
+                {
+                _TRACE("Ping Message  Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(), msg.getFrom(), msg.getPayload());
                 break;
-
+                }
             case MSG_TYPE_START:
-                //_TRACE("MSG_TYPE_START Type: %d To: %s From: %s Msg: %s", (int) msg.getID(), msg.getTo(), msg.getFrom(), msg.getMessage());
+                //_TRACE("MSG_TYPE_START Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(), msg.getFrom(), msg.getPayload());
                 break;
 
             case MSG_TYPE_SHUTDOWN:
             {
-                _TRACE("MSG_TYPE_SHUTDOWN Type: %d To: %s From: %s Msg: %s", (int) msg.getID(), msg.getTo(),msg.getFrom(), msg.getMessage());
+                _TRACE("MSG_TYPE_SHUTDOWN Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(),msg.getFrom(), msg.getPayload());
+                    
                 //getSharedMemManager().sendMessage( MFC_Shared_Mem::CSharedMemMsg( ADDR_OBS_BROADCAST_Plugin, MYADDRESS, MSG_TYPE_SHUTDOWN, stdprintf("%u",_getpid()).c_str()));
-                getCefApp().getHandler()->CloseAllBrowsers(false);
+                pR->sendEvent("Shutdown",ADDR_OBS_BROADCAST_Plugin, MYADDRESS, MSG_TYPE_SHUTDOWN, stdprintf("%u",_getpid()).c_str());
+                this->setStopFlag(true);
+                g_semaClient.post();
+                this->closeAllBrowsers();
+                
                 break;
             }
             case MSG_TYPE_DOLOGIN:
             {
-                _TRACE("MSG_TYPE_DOLOGIN Type: %d To: %s From: %s Msg: %s", (int) msg.getID(), msg.getTo(),msg.getFrom(), msg.getMessage());
+                _TRACE("MSG_TYPE_DOLOGIN Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(),msg.getFrom(), msg.getPayload());
                 // we should not get this message
                 //assert(!"Miss directed message, this should go from cef renderer directly to the broadcast plugin");
                 break;
             }
             case MSG_TYPE_LOGIN_DENY:
             {
-                _TRACE("MSG_TYPE_LOGIN_DENY Type: %d To: %s From: %s Msg: %s", (int) msg.getID(), msg.getTo(),
-                        msg.getFrom(), msg.getMessage());
+                /*
+                _TRACE("MSG_TYPE_LOGIN_DENY Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(),
+                        msg.getFrom(), msg.getPayload());
                 // todo:  Wrap CefProcessMessage.
                 // message are caught by the renderer process in CMFCCefApp
                 CefRefPtr<CefProcessMessage> cefmsg = CefProcessMessage::Create("login-deny");
                 CefRefPtr<CefListValue> args = cefmsg->GetArgumentList();
                 args->SetString(0, "Login Denied");
-                CefRefPtr<CefBrowser> browser = getBrowser();
-                vector< int64_t > vIds;
+                std::vector< int64_t > vIds;
                 browser->GetFrameIdentifiers(vIds);
                 CefRefPtr<CefFrame> frame = browser->GetFrame(vIds[0]);
                 frame->SendProcessMessage(PID_RENDERER, cefmsg);
+                */
                 break;
             }
 
             case MSG_TYPE_LOGIN_AUTH:
             {
-                _TRACE("MSG_TYPE_LOGIN_AUTH Type: %d To: %s From: %s Msg: %s", (int) msg.getID(), msg.getTo(),msg.getFrom(), msg.getMessage());
-                // todo:  Wrap CefProcessMessage.
+                _TRACE("MSG_TYPE_LOGIN_AUTH Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(),msg.getFrom(), msg.getPayload());
+                /*// todo:  Wrap CefProcessMessage.
                 CefRefPtr<CefProcessMessage> cefmsg = CefProcessMessage::Create("login-approved");
                 CefRefPtr<CefListValue> args = cefmsg->GetArgumentList();
                 args->SetString(0, "Login Authorized");
@@ -152,34 +278,29 @@ int CIPCWorkerThread::Process()
                 browser->GetFrameIdentifiers(vIds);
                 CefRefPtr<CefFrame> frame = browser->GetFrame(vIds[0]);
                 frame->SendProcessMessage(PID_RENDERER, cefmsg);
+                */
                 break;
             }
             default:
-                _TRACE("unhandled message Type: %d To: %s From: %s Msg: %s", (int) msg.getID(), msg.getTo(),msg.getFrom(), msg.getMessage());
+                _TRACE("unhandled message Type: %d To: %s From: %s Msg: %s", (int) msg.getType(), msg.getTo(),msg.getFrom(), msg.getPayload());
                 break;
-            }
-        }
-#ifdef _DEBUG_UNIT_TEST
-        boost::posix_time::ptime tNow = boost::posix_time::second_clock::local_time();
-        boost::posix_time::time_duration diff = tNow - tPing;
-        static int nPingTime = 200;
-        if (diff.total_seconds() > nPingTime)
-        {
-            nSendCnt++;
-            getSharedMemManager().sendMessage(PARTNER_ADDRESS, MYADDRESS, MSG_TYPE_PING, "Ping %d fcsLogin",
-                                              nPingCnt++);
-            nSendCnt = getSharedMemManager().dump(PARTNER_ADDRESS);
-            nSendCnt = 0;
-            _TRACE("Total Sent: %d Total Recieved %d", nSendCnt, nRecCnt);
-            tPing = boost::posix_time::second_clock::local_time();
-        }
-#endif
+            
+         } // end switch
+     }); // end lambda
+
+    //CEvent start(MSG_TYPE_START,ADDR_OBS_BROADCAST_Plugin,MYADDRESS,EVT_GENERIC,boost::posix_time::seconds(360),"%u",_getpid());
+    //start.update();
+
+    boost::posix_time::ptime tPing = boost::posix_time::second_clock::local_time();
+    while (!isStopFlag())
+    {
+        int nCnt = 0;
         _TRACE("***start timer");
         nSleepInterval = 600;
         boost::posix_time::ptime t1 =
                 boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds(nSleepInterval);
-        bool bResult = getSharedMemManager().getClientMutex()->timed_lock(t1);
-        _TRACE("*** End Timer bResult=%s", (bResult ? "true" : "false"));
+        g_semaClient.timed_wait(nSleepInterval);
+
     }
 
     return 0;
@@ -214,7 +335,8 @@ bool CIPCWorkerThread::Stop()
 {
     _TRACE("Stopping worker thread");
     setStopFlag(true);
-    getSharedMemManager().getClientMutex()->unlock();
+    g_semaClient.post();
+    //getSharedMemManager().getClientMutex()->unlock();
     return true;
 }
 
@@ -226,8 +348,31 @@ bool CIPCWorkerThread::End()
 {
     _TRACE("Ending worker thread");
     setStopFlag(true);
-    getSharedMemManager().getClientMutex()->unlock();
+    g_semaClient.post();
+    //clientMutex.unlock();
     m_pThread->join();
 
     return true;
 }
+
+void CIPCWorkerThread::closeAllBrowsers()
+{
+    boost::lock_guard lock(*m_spMutexApp);
+    m_App.getHandler()->CloseAllBrowsers(false);
+}
+
+bool CIPCWorkerThread::isStopFlag()
+{
+      boost::lock_guard lock(*m_spMutexFlags);
+      bool b = m_bStop;
+      return b;
+}
+
+void CIPCWorkerThread::setStopFlag(bool b)
+{
+    boost::lock_guard lock(*m_spMutexFlags);
+    m_bStop = b;
+}
+
+
+#endif

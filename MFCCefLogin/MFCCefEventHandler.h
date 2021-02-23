@@ -30,4 +30,5 @@ public:
                                   CefRefPtr<CefFrame> frame,
                                   CefProcessId source_process,
                                   CefRefPtr<CefProcessMessage> message) OVERRIDE;
+
 };

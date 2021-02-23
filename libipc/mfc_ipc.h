@@ -13,10 +13,20 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef _USE_OLD_MEMMANAGER
-#ifdef _WIN32
-//#include <malloc.h>
-#endif
 
-#include "IPCShared.h"
-#endif
+#pragma once
+
+
+#include "../libfcs/Log.h"
+
+#include "../libipc/IPCUtil.h"
+#include "EvtDefines.h"
+
+#include "IPCEvent.h"
+#include "ProcessRecord.h"
+#include "IPCEventHandler.h"
+#include "Router.h"
+
+
+
+

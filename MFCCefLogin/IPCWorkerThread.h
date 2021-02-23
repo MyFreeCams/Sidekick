@@ -18,8 +18,16 @@
 #include <thread>
 #include "MFCCefEventHandler.h"
 
-typedef CMFCCefApp<CMFCCefEventHandler> MFC_LOGIN_APP;
+#include "mfc_ipc.h"
 
+namespace boost {
+class mutex;
+class condition_variable;
+}
+class CSemaphore;
+
+typedef CMFCCefApp<CMFCCefEventHandler> MFC_LOGIN_APP;
+#ifdef _USE_OLD_MEMMANAGER
 class CIPCWorkerThread
 {
 public:
@@ -34,16 +42,45 @@ public:
     bool End();
     bool Stop();
 
-    bool isStopFlag() { return m_bStop;  }
-    void setStopFlag(bool b) { m_bStop = b; }
+    bool isStopFlag() ;
+    void setStopFlag(bool b);
 
     CefRefPtr<CefBrowser> getBrowser();
 
-    MFC_Shared_Mem::CMessageManager& getSharedMemManager() { return m_msgManager;  }
+   // MFC_Shared_Mem::CMessageManager& getSharedMemManager() { return m_msgManager;  }
     MFC_LOGIN_APP &getCefApp() { return m_App; }
+    void closeAllBrowsers();
+
 private:
     std::thread* m_pThread;
+    std::unique_ptr<boost::mutex> m_spMutexFlags;
+    std::unique_ptr<boost::mutex> m_spMutexApp;
+    std::unique_ptr<CSemaphore>m_spSemaClient;
     MFC_LOGIN_APP& m_App;
     bool m_bStop;
-    MFC_Shared_Mem::CMessageManager m_msgManager;
+  // MFC_Shared_Mem::CMessageManager m_msgManager;
+};
+#endif
+
+class CIPCWorkerEventHandler : public MFCIPC::CSimpleEventHandler
+{
+    friend class CRouter;
+    typedef CSimpleEventHandler _myBase;
+public:
+    CIPCWorkerEventHandler(const char *pm, CMFCCefApp<CMFCCefEventHandler> &);
+    ~CIPCWorkerEventHandler();
+
+    CefRefPtr<CefBrowser>getBrowser();
+    MFC_LOGIN_APP &getCefApp() { return m_App; }
+    void closeAllBrowsers();
+
+    virtual void onIncoming(MFCIPC::CIPCEvent &);
+    virtual void onAttachProcess(MFCIPC::CProcessRecord &);
+    virtual void onDetachProcess(MFCIPC::CProcessRecord &);
+protected:
+    
+private:
+    MFC_LOGIN_APP& m_App;
+    std::unique_ptr<boost::mutex> m_spMutexFlags;
+    std::unique_ptr<boost::mutex> m_spMutexApp;
 };

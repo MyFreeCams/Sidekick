@@ -70,19 +70,29 @@ SET_VARIABLES() # variables located in cmake/variables.cmake
 #------------------------------------------------------------------------
 # Boost
 #
-set(Boost_USE_DEBUG_LIBS OFF)
-set(Boost_USE_RELEASE_LIBS ON)
-# set(Boost_USE_STATIC_LIBS ON)
-set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_DEBUG_RUNTIME OFF)
-# set(BOOST_NO_EXCEPTIONS ON)
+if (APPLE)
+	set(Boost_USE_STATIC_LIBS ON)
+	set(Boost_USE_DEBUG_LIBS OFF)
+	set(Boost_USE_RELEASE_LIBS ON)
+	# set(Boost_USE_STATIC_LIBS ON)
+	set(Boost_USE_MULTITHREADED ON)
+	set(Boost_USE_DEBUG_RUNTIME OFF)
+	set(BOOST_NO_EXCEPTIONS ON)
+else()
+	set(Boost_USE_DEBUG_LIBS OFF)
+	set(Boost_USE_RELEASE_LIBS ON)
+	set(Boost_USE_MULTITHREADED ON)
+	set(Boost_USE_DEBUG_RUNTIME OFF)
+endif()
+
 if(APPLE)
-	find_package(Boost 1.69 COMPONENTS date_time thread-mt QUIET)
+	find_package(Boost 1.69 COMPONENTS program_options date_time thread-mt system filesystem QUIET)
 	if(NOT Boost_FOUND)
-		find_package(Boost 1.74 COMPONENTS date_time thread system REQUIRED)
+		#program_options date_time chrono thread filesystem
+		find_package(Boost 1.74 COMPONENTS program_options date_time thread system filesystem chrono REQUIRED)
 	endif()
 else()
-	find_package(Boost 1.69 COMPONENTS date_time thread REQUIRED)
+	find_package(Boost 1.69 COMPONENTS program_options date_time system chrono thread  filesystem REQUIRED)
 endif()
 PRINT(Boost)
 
@@ -153,10 +163,12 @@ include_directories(
 #------------------------------------------------------------------------
 # Subdirectories
 #
+add_subdirectory(libipc)
 add_subdirectory(libfcs)
 add_subdirectory(libPlugins)
 add_subdirectory(websocket-client)
 add_subdirectory(ObsBroadcast)
+#add_subdirectory(shmspy)
 
 #------------------------------------------------------------------------
 # CEF Login App and/or Browser Panel

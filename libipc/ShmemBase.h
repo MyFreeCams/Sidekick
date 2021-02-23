@@ -13,10 +13,17 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef _USE_OLD_MEMMANAGER
-#ifdef _WIN32
-//#include <malloc.h>
-#endif
 
-#include "IPCShared.h"
-#endif
+#pragma once
+
+namespace MFCIPC
+{
+struct SHMEM_BASE
+{
+    uint64_t m_nKey;
+    boost::posix_time::ptime m_tmCreateDate;
+    boost::posix_time::ptime m_tmUpdateTime;
+    bool m_bIsInUse;
+};
+}
+

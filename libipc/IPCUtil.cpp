@@ -13,10 +13,25 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef _USE_OLD_MEMMANAGER
-#ifdef _WIN32
-//#include <malloc.h>
-#endif
 
-#include "IPCShared.h"
-#endif
+
+#include <mfc_ipc.h>
+
+#include <boost/algorithm/string.hpp>
+
+namespace MFCIPC
+{
+//---------------------------------------------------------------------
+// isEqualk
+//
+// don't want to have to include string.hpp because of namespace
+// issues.  Keep the include file isolated. 
+bool IPCUtil::isEqual(std::string &s, std::string &s2)
+{
+    boost::algorithm::to_lower(s);
+    boost::algorithm::to_lower(s2);
+    return s == s2;
+}
+
+
+}
