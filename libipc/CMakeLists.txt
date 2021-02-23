@@ -84,7 +84,6 @@ target_link_libraries(${MyTarget}
 
 if(APPLE)
 	list(REMOVE_ITEM CMAKE_CXX_FLAGS -fno-exceptions -fno-rtti -Werror -funwind-tables -fno-asynchronous-unwind-tables)
-#	target_compile_options(${MyTarget} PUBLIC -fexceptions -Wno-error -Weverything -Wno-unused-parameter -Wno-unused-variable -fvisibility=hidden -fvisibility-inlines-hidden)
 	# everything in libipc is in the namespace MFCIPC so no need to hide functions. Leave visibility as is.
 	target_compile_options(${MyTarget} PUBLIC -fexceptions -Wno-error -Wno-unused-parameter -Wno-unused-variable)
 elseif(WIN32)
