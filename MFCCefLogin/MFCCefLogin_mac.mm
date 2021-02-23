@@ -1,5 +1,10 @@
 /*
  * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013 The Chromium Embedded Framework Authors.
+ * Portions copyright (c) 2010 The Chromium Authors. All rights reserved.
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,6 +25,7 @@
 
 // CEF includes
 #include <include/cef_application_mac.h>
+#include <include/cef_command_line.h>
 #include <include/wrapper/cef_helpers.h>
 #include <include/wrapper/cef_library_loader.h>
 
@@ -34,12 +40,18 @@
 #include "MFCJsExtensions.h"
 #include "build_number.h"
 
-const char *__progname = "MFCCefLogin";
+const char* __progname = "MFCCefLogin";
 
 // Receives notifications from the application.
 @interface fcsLoginAppDelegate : NSObject <NSApplicationDelegate>
+{
+@private
+    bool with_chrome_runtime_;
+}
+
+- (id)initWithChromeRuntime:(bool)with_chrome_runtime;
 - (void)createApplication:(id)object;
-- (void)tryToTerminateApplication:(NSApplication *)app;
+- (void)tryToTerminateApplication:(NSApplication*)app;
 @end
 
 // Provide the CefAppProtocol implementation required by CEF.
@@ -51,15 +63,18 @@ const char *__progname = "MFCCefLogin";
 @end
 
 @implementation fcsLoginApplication
-- (BOOL)isHandlingSendEvent {
+- (BOOL)isHandlingSendEvent
+{
     return handlingSendEvent_;
 }
 
-- (void)setHandlingSendEvent:(BOOL)handlingSendEvent {
+- (void)setHandlingSendEvent:(BOOL)handlingSendEvent
+{
     handlingSendEvent_ = handlingSendEvent;
 }
 
-- (void)sendEvent:(NSEvent *)event {
+- (void)sendEvent:(NSEvent*)event
+{
     CefScopedSendingEvent sendingEventScoper;
     [super sendEvent:event];
 }
@@ -101,35 +116,49 @@ const char *__progname = "MFCCefLogin";
 //
 // The standard |-applicationShouldTerminate:| is not supported, and code paths
 // leading to it must be redirected.
-- (void)terminate:(id)sender {
-    fcsLoginAppDelegate *delegate =
-            static_cast<fcsLoginAppDelegate *>([NSApp delegate]);
+- (void)terminate:(id)sender
+{
+    fcsLoginAppDelegate* delegate = static_cast<fcsLoginAppDelegate*>([NSApp delegate]);
     [delegate tryToTerminateApplication:self];
     // Return, don't exit. The application is responsible for exiting on its own.
 }
 @end
 
 @implementation fcsLoginAppDelegate
+- (id)initWithChromeRuntime:(bool)with_chrome_runtime
+{
+    if (self = [super init])
+        with_chrome_runtime_ = with_chrome_runtime;
+
+    return self;
+}
 
 // Create the application on the UI thread.
-- (void)createApplication:(id)object {
-    [NSApplication sharedApplication];
-    [[NSBundle mainBundle] loadNibNamed:@"MainMenu"
-                                  owner:NSApp
-                        topLevelObjects:nil];
+- (void)createApplication:(id)object
+{
+    if (!with_chrome_runtime_)
+    {
+        // Chrome will create the top-level menu programmatically in
+        // chrome/browser/ui/cocoa/main_menu_builder.h
+        // TODO(chrome-runtime): Expose a way to customize this menu.
+        [[NSBundle mainBundle] loadNibNamed:@"MainMenu"
+                                      owner:NSApp
+                            topLevelObjects:nil];
+    }
 
     // Set the delegate for application events.
     [[NSApplication sharedApplication] setDelegate:self];
 }
 
-- (void)tryToTerminateApplication:(NSApplication *)app {
-    cefEventHandler *handler = cefEventHandler::getInstance();
+- (void)tryToTerminateApplication:(NSApplication*)app
+{
+    cefEventHandler* handler = cefEventHandler::GetInstance();
     if (handler && !handler->IsClosing())
         handler->CloseAllBrowsers(false);
 }
 
-- (NSApplicationTerminateReply)applicationShouldTerminate:
-        (NSApplication *)sender {
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication*)sender
+{
     return NSTerminateNow;
 }
 @end
@@ -138,9 +167,9 @@ const char *__progname = "MFCCefLogin";
 // Entry point function for the browser process.
 int main(int argc, char *argv[])
 {
-    struct passwd *pw = getpwuid(getuid());
-    std::string sLogPath = pw->pw_dir;//"/users/toddanderson/Logs/";
-    sLogPath += "/Logs";
+    struct passwd* pw = getpwuid(getuid());
+    std::string sLogPath = pw->pw_dir;
+    sLogPath += "/Logs";  // /Users/username/Logs/
     Log::Setup(sLogPath);
     Log::AddOutputMask(MFC_LOG_LEVEL, MFC_LOG_OUTPUT_MASK);
     _TRACE("Startup build # %d", MFC_BUILD_NUMBER);
@@ -154,19 +183,33 @@ int main(int argc, char *argv[])
     // Provide CEF with command-line arguments.
     CefMainArgs main_args(argc, argv);
 
-    // Initialize the AutoRelease pool.
-    // NSAutoreleasePool *autopool = [[NSAutoreleasePool alloc] init];
-
     // Using ARC (automatic reference counting)
-    @autoreleasepool {
+    @autoreleasepool
+    {
         // Initialize the fcsLoginApplication instance.
         [fcsLoginApplication sharedApplication];
+
+        // If there was an invocation to NSApp prior to this method, then the NSApp
+        // will not be a fcsLoginApplication, but will instead be an NSApplication.
+        // This is undesirable and we must enforce that this doesn't happen.
+        CHECK([NSApp isKindOfClass:[fcsLoginApplication class]]);
+
+        // Parse command-line arguments for use in this method.
+        CefRefPtr<CefCommandLine> command_line = CefCommandLine::CreateCommandLine();
+        command_line->InitFromArgv(argc, argv);
 
         // Specify CEF global settings here.
         CefSettings settings;
 
-        _TRACE("Debugging engaged. To attach chrome go to: http://localhost:8080");
-        // To attach the chrome debug tools: http://localhost:8080
+        const bool with_chrome_runtime = command_line->HasSwitch("enable-chrome-runtime");
+
+        if (with_chrome_runtime)
+        {
+            // Enable experimental Chrome runtime. See issue #2969 for details.
+            settings.chrome_runtime = true;
+        }
+
+        _TRACE("Debugging engaged. To attach the chrome debug tools: http://localhost:8080");
         settings.remote_debugging_port = 8080;
 
         // When generating projects with CMake the CEF_USE_SANDBOX value will be
@@ -179,7 +222,7 @@ int main(int argc, char *argv[])
         // fcsLoginApp implements application-level callbacks for the browser process.
         // It will create the first browser instance in OnContextInitialized() after
         // CEF has initialized.
-        CefRefPtr<CMFCCefApp<CMFCCefEventHandler> > app(new CMFCCefApp<CMFCCefEventHandler>);
+        CefRefPtr< CMFCCefApp<CMFCCefEventHandler> > app(new CMFCCefApp<CMFCCefEventHandler>);
 
         std::string s = MFC_CEF_LOGIN_URL;
         app->setURL(MFC_CEF_LOGIN_URL);
@@ -189,7 +232,7 @@ int main(int argc, char *argv[])
         CefInitialize(main_args, settings, app.get(), NULL);
 
         // Create the application delegate.
-        NSObject *delegate = [[fcsLoginAppDelegate alloc] init];
+        NSObject* delegate = [[fcsLoginAppDelegate alloc] initWithChromeRuntime:with_chrome_runtime];
         [delegate performSelectorOnMainThread:@selector(createApplication:)
                                    withObject:nil
                                 waitUntilDone:NO];
@@ -197,13 +240,13 @@ int main(int argc, char *argv[])
         CIPCWorkerThread myThread(*app);
         if (1 == 1 || myThread.init())
         {
-            // Run the CEF message loop. This will block until CefQuitMessageLoop()
-            // is called.
+            // Run the CEF message loop. This will block until CefQuitMessageLoop() is called.
             CefRunMessageLoop();
         }
         // Shut down CEF.
         CefShutdown();
 
+        // Release the delegate.
 #if !__has_feature(objc_arc)
         [delegate release];
 #endif
@@ -211,12 +254,5 @@ int main(int argc, char *argv[])
 
     }  // @autoreleasepool
 
-        // Release the AutoRelease pool.
-        // [autopool release];
     return 0;
 }
-
-// Copyright (c) 2013 The Chromium Embedded Framework Authors.
-// Portions copyright (c) 2010 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.

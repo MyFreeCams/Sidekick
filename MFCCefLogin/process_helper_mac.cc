@@ -62,4 +62,5 @@ int main(int argc, char* argv[])
     // Execute the sub-process.
     int n = CefExecuteProcess(main_args, app, nullptr);
     _TRACE("CefExecuteProcess returned %d",n);
+    return n;
 }

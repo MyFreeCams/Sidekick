@@ -10,17 +10,19 @@ readonly _RESET_OBS=1
 readonly _OBS_TAG=26.1.2
 readonly _QT_VERSION=5.15.2
 readonly _VLC_VERSION=3.0.8
-readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+# readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 # readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
-readonly MACOS_CEF_BUILD_VERSION=3770
+readonly _CEF_VERSION=88.2.9+g5c8711a+chromium-88.0.4324.182
+# readonly MACOS_CEF_BUILD_VERSION=3770
 # readonly MACOS_CEF_BUILD_VERSION=4183
+readonly MACOS_CEF_BUILD_VERSION=4324
 
 readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
   -Wno-typedef-redefinition -Wno-enum-conversion -Wno-deprecated \
   -Wno-unused-private-field -Wno-sign-compare -Wno-vla"
-readonly _CXXFLAGS="${CFLAGS} -Wno-pragmas"
+readonly _CXXFLAGS="${CFLAGS} -Wno-pragmas -Wno-deprecated-declarations"
 
-#declare -xr MACOSX_DEPLOYMENT_TARGET=10.12
+declare -xr MACOSX_DEPLOYMENT_TARGET=10.13
 #declare -xr CMAKE_OSX_ARCHITECTURES=arm64;x86_64
 declare -xr CMAKE_OSX_ARCHITECTURES=x86_64
 declare -xr CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE}}
@@ -44,6 +46,7 @@ declare -xr QT_VERSION=${QT_VERSION:-${_QT_VERSION}}
 declare -xr VLC_VERSION=${VLC_VERSION:-${_VLC_VERSION}}
 declare -xr CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
 declare -xr CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
+declare -r LEGACY_BROWSER="$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "ON" || echo "OFF")"
 REFRESH_OBS=${REFRESH_OBS:=${_RESET_OBS}}
 declare -xr RESET_OBS=${RESET_OBS:=${REFRESH_OBS}}
 
@@ -210,6 +213,8 @@ cmake_generate() {
   fi
   mkdir -p "${BUILD_DIR}"
   cd "${BUILD_DIR}"
+  export CFLAGS="${CFLAGS} ${_CFLAGS}"
+  export CXXFLAGS=${_CXXFLAGS}
   cmake \
     -G "${GENERATOR}" \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
@@ -233,7 +238,8 @@ cmake_generate() {
     -DWEBRTC_ROOT_DIR="${WEBRTC_ROOT_DIR}" \
     -DBUILD_BROWSER="${BUILD_BROWSER}" \
     -DBROWSER_DEPLOY="${BUILD_BROWSER}" \
-    -DBROWSER_LEGACY="$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "ON" || echo "OFF")" \
+    -DBROWSER_LEGACY="${LEGACY_BROWSER}" \
+    -DENABLE_VLC=ON \
     -DWITH_RTMPS=ON \
     -DDISABLE_PYTHON="${DISABLE_PYTHON}" \
     -DENABLE_SCRIPTING="${ENABLE_SCRIPTING}" \

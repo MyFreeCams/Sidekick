@@ -55,6 +55,8 @@ public:
 	std::string script;
 	CefRefPtr<CefRequestContext> rqc;
 	QTimer timer;
+	QPointer<QWindow> window;
+	QPointer<QWidget> container;
 	bool allowAllPopups_ = false;
 
 	virtual void resizeEvent(QResizeEvent *event) override;
@@ -65,6 +67,7 @@ public:
 	virtual void setStartupScript(const std::string &script) override;
 	virtual void allowAllPopups(bool allow) override;
 	virtual void closeBrowser() override;
+	virtual void reloadPage() override;
 
 	void Resize();
 

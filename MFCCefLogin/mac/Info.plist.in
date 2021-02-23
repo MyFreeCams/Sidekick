@@ -22,37 +22,19 @@
 	<string>@SIDEKICK_VERSION@</string>
 	<key>CFBundleShortVersionString</key>
 	<string>@SIDEKICK_VERSION@</string>
-	<key>CFBundleSupportedPlatforms</key>
-	<array>
-		<string>MacOSX</string>
-	</array>
-	<key>DTCompiler</key>
-	<string>com.apple.compilers.llvm.clang.1_0</string>
-	<key>DTSDKBuild</key>
-	<string>10.13</string>
-	<key>DTSDKName</key>
-	<string>macosx10.13</string>
 	<key>LSEnvironment</key>
 	<dict>
 		<key>MallocNanoZone</key>
 		<string>0</string>
 	</dict>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.12.6</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
+	<string>10.13.0</string>
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
-	<string>BrowserCrApplication</string>
+	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
-	<key>NSSupportsAutomaticTermination</key>
-	<false/>
-	<key>NSSupportsSuddenTermination</key>
-	<false/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright (C) 2019-@SIDEKICK_BUILD_YEAR@ MyFreeCams. All rights reserved</string>
 </dict>
