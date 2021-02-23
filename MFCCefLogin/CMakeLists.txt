@@ -183,12 +183,10 @@ if(OS_MACOSX)
 		libipc
 	)
 	target_include_directories(${CEF_TARGET} PUBLIC
-			../libfcs
-			../libipc
+
 			)
 	target_include_directories(${CEF_HELPER_TARGET} PUBLIC
-			../libfcs
-			../libipc
+
 			)
 
 	set_target_properties(${CEF_TARGET} PROPERTIES

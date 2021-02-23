@@ -18,7 +18,7 @@
 #include <thread>
 #include "MFCCefEventHandler.h"
 
-#include "mfc_ipc.h"
+#include "../libipc/mfc_ipc.h"
 
 namespace boost {
 class mutex;

@@ -20,8 +20,8 @@
 #include <stdio.h>
 #endif
 
-#include <Log.h>
-#include <fcslib_string.h>
+#include "../libfcs/Log.h"
+//#include <fcslib_string.h>
 #include "Router.h"
 #include "ShmemManager.h"
 

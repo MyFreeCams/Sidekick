@@ -1,4 +1,4 @@
-#include "Log.h"
+#include "../libfcs/Log.h"
 #include "fcslib_string.h"
 
 #include "mfc_ipc.h"
