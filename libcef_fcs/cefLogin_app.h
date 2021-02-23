@@ -143,7 +143,7 @@ public:
         m_spHandler = handler;
     }
 
-    CefRefPtr<cefEventHandler>getHandler()
+    CefRefPtr<cefEventHandler> getHandler()
     {
         // base::AutoLock lock_scope(lock_);
         std::lock_guard<std::recursive_mutex> lock(m_Mutex);
@@ -305,6 +305,15 @@ public:
             CefBrowserHost::CreateBrowser(window_info, handler, url, browser_settings, nullptr, nullptr);
         }
     }
+
+#if 0
+    // CefBrowserProcessHandler method
+    CefRefPtr<CefClient> GetDefaultClient() OVERRIDE
+    {
+        // Called when a new browser window is created via the Chrome runtime UI.
+        return cefEventHandler::getInstance();
+    }
+#endif
 
     // Create default event handler. This method can be overridden.
     virtual CefRefPtr<cefEventHandler> createEventHandler(const bool useViews)
