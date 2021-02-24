@@ -11,9 +11,11 @@ readonly _OBS_TAG=26.1.2
 readonly _QT_VERSION=5.15.2
 readonly _VLC_VERSION=3.0.8
 # readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
-readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
+# readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
+readonly _CEF_VERSION=88.2.9+g5c8711a+chromium-88.0.4324.182
 # readonly MACOS_CEF_BUILD_VERSION=3770
-readonly MACOS_CEF_BUILD_VERSION=4183
+# readonly MACOS_CEF_BUILD_VERSION=4183
+readonly MACOS_CEF_BUILD_VERSION=4324
 
 readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
   -Wno-typedef-redefinition -Wno-enum-conversion -Wno-deprecated \

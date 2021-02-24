@@ -15,7 +15,7 @@
 # Target executable names.
 set(CEF_TARGET "MFCCefLogin")
 
-if(OS_MACOSX)
+if(OS_MAC)
 	set(CEF_HELPER_TARGET "MFCCefLoginHelper")
 	set(CEF_HELPER_OUTPUT_NAME "MFCCefLogin Helper")
 else()
@@ -59,7 +59,7 @@ set(MFC_CEF_LOGIN_SRCS
 	MFCJsExtensions.h
 	MFCJsExtensions.cpp
 )
-set(MFC_CEF_LOGIN_SRCS_MACOSX
+set(MFC_CEF_LOGIN_SRCS_MAC
 	MFCCefLogin_mac.mm
 )
 set(MFC_CEF_LOGIN_SRCS_WINDOWS
@@ -84,7 +84,7 @@ set(MFC_CEF_LOGIN_SRCS
 )
 
 # MFCCefLogin helper sources.
-set(MFC_CEF_LOGIN_HELPER_SRCS_MACOSX
+set(MFC_CEF_LOGIN_HELPER_SRCS_MAC
 	IPCWorkerThread.h
 	IPCWorkerThread.cpp
 	MFCCefEventHandler.h
@@ -97,14 +97,14 @@ APPEND_PLATFORM_SOURCES(MFC_CEF_LOGIN_HELPER_SRCS)
 source_group(MFCCefLogin FILES ${MFC_CEF_LOGIN_HELPER_SRCS})
 
 # MFCCefLogin resources.
-set(MFC_CEF_LOGIN_RESOURCES_MAC_SRCS_MACOSX
+set(MFC_CEF_LOGIN_RESOURCES_MAC_SRCS_MAC
 	${CMAKE_CURRENT_BINARY_DIR}/mac/Info.plist
 	mac/MFCCefLogin.icns
 )
 APPEND_PLATFORM_SOURCES(MFC_CEF_LOGIN_RESOURCES_MAC_SRCS)
 source_group(MFCCefLogin\\\\mac_src FILES ${MFC_CEF_LOGIN_RESOURCES_MAC_SRCS})
 
-set(MFC_CEF_LOGIN_RESOURCES_MAC_ENGLISH_LPROJ_SRCS_MACOSX
+set(MFC_CEF_LOGIN_RESOURCES_MAC_ENGLISH_LPROJ_SRCS_MAC
 	${CMAKE_CURRENT_BINARY_DIR}/mac/English.lproj/InfoPlist.strings
 	mac/English.lproj/MainMenu.xib
 )
@@ -119,7 +119,7 @@ set(MFC_CEF_LOGIN_RESOURCES_SRCS
 #
 # macOS configuration.
 #
-if(OS_MACOSX)
+if(OS_MAC)
 	option(OPTION_USE_ARC "Build with ARC (automatic Reference Counting) on macOS." ON)
 	if(OPTION_USE_ARC)
 		message(STATUS "ARC (automatic reference counting) enabled")
@@ -203,7 +203,7 @@ if(OS_MACOSX)
 	# directive but that doesn't properly handle nested resource directories.
 	# Remove these prefixes from input file paths.
 	set(PREFIXES "mac/")
-	COPY_MACOSX_RESOURCES(
+	COPY_MAC_RESOURCES(
 		"${MFC_CEF_LOGIN_RESOURCES_SRCS}"
 		"${PREFIXES}"
 		"${CEF_TARGET}"
@@ -251,7 +251,7 @@ message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
 #
 # Post Build.
 #
-if(OS_MACOSX)
+if(OS_MAC)
 	# Copy boost libs into temp directory
 	# file(MAKE_DIRECTORY boost)
 	# foreach(_lib ${Boost_LIBRARIES})
