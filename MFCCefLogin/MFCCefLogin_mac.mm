@@ -152,7 +152,7 @@ const char* __progname = "MFCCefLogin";
 
 - (void)tryToTerminateApplication:(NSApplication*)app
 {
-    cefEventHandler* handler = cefEventHandler::getInstance();
+    cefEventHandler* handler = cefEventHandler::GetInstance();
     if (handler && !handler->IsClosing())
         handler->CloseAllBrowsers(false);
 }

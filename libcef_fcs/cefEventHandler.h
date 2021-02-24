@@ -15,10 +15,13 @@
  */
 #pragma once
 
-#include <list>
-#include <string>
+#ifndef CEF_EVENT_HANDLER_H_
+#define CEF_EVENT_HANDLER_H_
 
 #include "include/cef_client.h"
+
+#include <list>
+#include <string>
 
 #ifdef _WIN32
 #include "include/internal/cef_types.h"
@@ -37,7 +40,7 @@ public:
     explicit cefEventHandler(bool use_views);
     ~cefEventHandler() OVERRIDE;
 
-    static cefEventHandler* getInstance();
+    static cefEventHandler* GetInstance();
 
     // CefClient methods:
     CefRefPtr<CefDisplayHandler> GetDisplayHandler() OVERRIDE { return this; }
@@ -128,3 +131,5 @@ private:
     // Include the default reference counting implementation.
     IMPLEMENT_REFCOUNTING(cefEventHandler);
 };
+
+#endif  // CEF_EVENT_HANDLER_H_

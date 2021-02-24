@@ -185,6 +185,8 @@ public:
 
         CefRefPtr<CefCommandLine> command_line = CefCommandLine::GetGlobalCommandLine();
 
+        const bool enable_chrome_runtime = command_line->HasSwitch("enable-chrome-runtime");
+
 #if defined(OS_WIN) || defined(OS_LINUX)
         // Create the browser using the Views framework if "--use-views" is specified
         // via the command-line. Otherwise, create the browser using the native
@@ -249,7 +251,7 @@ public:
         if (url.empty())
             url = getURL();
 #endif
-        if (use_views)
+        if (use_views && !enable_chrome_runtime)
         {
             // Create the BrowserView.
             CefRefPtr<CefBrowserView> browser_view =
@@ -311,7 +313,7 @@ public:
     CefRefPtr<CefClient> GetDefaultClient() OVERRIDE
     {
         // Called when a new browser window is created via the Chrome runtime UI.
-        return cefEventHandler::getInstance();
+        return cefEventHandler::GetInstance();
     }
 #endif
 
