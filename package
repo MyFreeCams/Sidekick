@@ -4,10 +4,10 @@ set -e # exit if something fails
 
 readonly _BUILD_DIR=xAuto
 readonly _BUILD_TYPE=Release
-readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
-# readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
-readonly MACOS_CEF_BUILD_VERSION=3770
-# readonly MACOS_CEF_BUILD_VERSION=4183
+# readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
+# readonly MACOS_CEF_BUILD_VERSION=3770
+readonly MACOS_CEF_BUILD_VERSION=4183
 
 readonly _SIDEKICK_ROOT=$(pwd)
 export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
@@ -242,10 +242,12 @@ codesign_app() {
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "${cef_path}"
     fi
     if ! [ "${MACOS_CEF_BUILD_VERSION}" -le 3770 ]; then
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper.app"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (GPU).app"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Plugin).app"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Renderer).app"
+      if [ -d "./$1.app/Contents/Frameworks/OBS Helper.app" ]; then
+        codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper.app"
+        codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (GPU).app"
+        codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Plugin).app"
+        codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Renderer).app"
+      fi
     fi
     if [ -d "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin" ]; then
       codesign --force --options runtime --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"

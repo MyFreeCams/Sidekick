@@ -4,11 +4,11 @@ set -e # exit if something fails
 
 readonly _VLC_VERSION=3.0.8
 readonly _QT_VERSION=5.15.2
-readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
+# readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 # readonly _CEF_VERSION=85.0.0+g93b66a0+chromium-85.0.4183.121
-# readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
-readonly MACOS_CEF_BUILD_VERSION=3770
-# readonly MACOS_CEF_BUILD_VERSION=4183
+readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
+# readonly MACOS_CEF_BUILD_VERSION=3770
+readonly MACOS_CEF_BUILD_VERSION=4183
 readonly _BOOST_VERSION=1.69.0
 readonly _OPENSSL_VERSION=1.1.1
 
