@@ -214,20 +214,6 @@ build_obs_bundle() {
   plutil -insert SUPublicDSAKeyFile -string OBSPublicDSAKey.pem ./OBS.app/Contents/Info.plist
 }
 
-fix_dependencies_mfcbroadcast() {
-  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" ]; then
-    install_name_tool -change \
-      @executable_path/../Frameworks/websocketclient.dylib \
-      @loader_path/websocketclient.dylib \
-      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so"
-  fi
-  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib" ]; then
-    install_name_tool -id \
-      @rpath/websocketclient.dylib \
-      "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
-  fi
-}
-
 # Example: codesign_app appNameNoExtension /full/path/to/containing/directory
 codesign_app() {
     hr "Code-signing $1.app"
@@ -278,17 +264,10 @@ prepare_files_for_package() {
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libx264"* "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libssl"* "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libcrypto"* "${BUILD_ROOT}/MFCBroadcast/bin/"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
 
-  for f in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
-    install_name_tool -change \
-      "@executable_path/../Frameworks/${f##*/}" \
-      "@loader_path/${f##*/}" \
-      "${BUILD_ROOT}/MFCBroadcast/bin/MFCBroadcast.so"
-    install_name_tool -change \
-      "@executable_path/../Frameworks/${f##*/}" \
-      "@loader_path/${f##*/}" \
-      "${BUILD_ROOT}/MFCBroadcast/bin/websocketclient.dylib"
-    for g in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
+  for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
+    for g in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
       install_name_tool -change \
         "@executable_path/../Frameworks/${f##*/}" \
         "@loader_path/${f##*/}" \
@@ -398,7 +377,6 @@ main() {
   rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"
   cp -pfR "${BUILD_ROOT}/OBS.app" "${BUILD_ROOT}/OBS-Sidekick.app"
 
-  fix_dependencies_mfcbroadcast
   prepare_files_for_package
   codesign_apps
 
