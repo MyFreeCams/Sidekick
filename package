@@ -276,7 +276,9 @@ prepare_files_for_package() {
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libx264"* "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libssl"* "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libcrypto"* "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" ]; then
+    cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  fi
 
   for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
     for g in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
