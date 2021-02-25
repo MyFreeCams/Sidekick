@@ -230,12 +230,24 @@ codesign_app() {
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "${cef_path}"
     fi
     if ! [ "${MACOS_CEF_BUILD_VERSION}" -le 3770 ]; then
-      if [ -d "./$1.app/Contents/Frameworks/OBS Helper.app" ]; then
-        codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper.app"
-        codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (GPU).app"
-        codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Plugin).app"
-        codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Renderer).app"
-      fi
+      for f in "./$1.app/Contents/Frameworks/"*Helper.app; do
+        codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "$f"
+      done
+      for f in "./$1.app/Contents/Frameworks/"*Helper*GPU*.app; do
+        codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+      done
+      for f in "./$1.app/Contents/Frameworks/"*Helper*Plugin*.app; do
+        codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+      done
+      for f in "./$1.app/Contents/Frameworks/"*Helper*Renderer*.app; do
+        codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+      done
+      # if [ -d "./$1.app/Contents/Frameworks/OBS Helper.app" ]; then
+      #   codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper.app"
+      #   codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (GPU).app"
+      #   codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Plugin).app"
+      #   codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app/Contents/Frameworks/OBS Helper (Renderer).app"
+      # fi
     fi
     if [ -d "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin" ]; then
       codesign --force --options runtime --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"
@@ -366,7 +378,7 @@ main() {
   (cd "${SIDEKICK_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
 
   hr "Building MFC CEF Login app bundle"
-  ${DYLIBBUNDLER} -b -f -cd -of -q -a "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin/MFCCefLogin.app"
+  ${DYLIBBUNDLER} -f -q -cd -of -a "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin/MFCCefLogin.app"
 
   hr "Building OBS app bundle"
   (build_obs_bundle)
