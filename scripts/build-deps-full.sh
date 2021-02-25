@@ -785,7 +785,15 @@ install_cef() {
     cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64"
     rm -rf tests
     # sed -i '' 's/\"10.9\"/\"10.11\"/' ./cmake/cef_variables.cmake
-    sed -i '' 's/"'$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "10.9" || echo "10.10")'"/"'$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "10.11" || echo "${MACOSX_DEPLOYMENT_TARGET}")'"/' ./cmake/cef_variables.cmake
+    local old_ver=10.10
+    local new_ver=$MACOSX_DEPLOYMENT_TARGET
+    if [ $MACOS_CEF_BUILD_VERSION -le 3770 ]; then
+      old_ver=10.9
+      new_ver=10.11
+    elif [ $MACOS_CEF_BUILD_VERSION -ge 4324 ]; then
+      old_ver=10.11
+    fi
+    sed -i '' 's/"'$old_ver'"/"'$new_ver'"/' ./cmake/cef_variables.cmake
     mkdir -p build && cd ./build
     cmake -DCMAKE_CXX_FLAGS="-std=c++11 -stdlib=libc++ -Wno-deprecated-declarations" \
       -DCMAKE_EXE_LINKER_FLAGS="-std=c++11 -stdlib=libc++" \
