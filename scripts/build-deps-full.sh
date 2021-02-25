@@ -783,7 +783,7 @@ install_cef() {
     tar -xf "cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
     rm "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
     cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64"
-    rm -rf tests
+    # rm -rf tests
     # sed -i '' 's/\"10.9\"/\"10.11\"/' ./cmake/cef_variables.cmake
     local old_ver=10.10
     local new_ver=$MACOSX_DEPLOYMENT_TARGET

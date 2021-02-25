@@ -135,31 +135,12 @@ if(OS_MAC)
 	message(STATUS "CEF_HELPER_APP: ${CEF_HELPER_APP}")
 
 	# Variables referenced from the main Info.plist file.
+	set(EXECUTABLE_NAME "${CEF_TARGET}")
 	set(PRODUCT_NAME "${CEF_TARGET}")
 	set(PRODUCT_VERSION ${SIDEKICK_VERSION_STR})
 
-	# Helper executable target.
-	add_executable(${CEF_HELPER_TARGET} MACOSX_BUNDLE ${MFC_CEF_LOGIN_HELPER_SRCS})
-	SET_EXECUTABLE_TARGET_PROPERTIES(${CEF_HELPER_TARGET})
-	#add_dependencies(${CEF_HELPER_TARGET} libcef_dll_wrapper)
-	target_link_libraries(${CEF_HELPER_TARGET}
-		libcef_dll_wrapper
-		${CEF_STANDARD_LIBS}
-		MFCLibCef
-	)
-	set_target_properties(${CEF_HELPER_TARGET} PROPERTIES
-		MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/mac/helper-Info.plist
-		OUTPUT_NAME ${CEF_HELPER_OUTPUT_NAME}
-	)
-	target_compile_definitions(${CEF_HELPER_TARGET}
-		PUBLIC MFC_LOG_LEVEL=${MFC_LOG_LEVEL}
-		PUBLIC MFC_LOG_OUTPUT_MASK=${MFC_LOG_OUTPUT_MASK}
-	)
-	MFCDefines(${CEF_HELPER_TARGET})
-
 	if(USE_SANDBOX)
 		ADD_LOGICAL_TARGET("cef_sandbox_lib" "${CEF_SANDBOX_LIB_DEBUG}" "${CEF_SANDBOX_LIB_RELEASE}")
-		target_link_libraries(${CEF_HELPER_TARGET} cef_sandbox_lib)
 	endif()
 
 	# Main executable target.
@@ -169,9 +150,8 @@ if(OS_MAC)
 	)
 	SET_EXECUTABLE_TARGET_PROPERTIES(${CEF_TARGET})
 	add_dependencies(${CEF_TARGET}
-		#libcef_dll_wrapper
+		libcef_dll_wrapper
 		${CEF_HELPER_TARGET}
-		#MFCLibCef
 	)
 	target_link_libraries(${CEF_TARGET}
 		libcef_dll_wrapper
@@ -187,7 +167,7 @@ if(OS_MAC)
 		# MACOSX_BUNDLE_INFO_STRING "${CEF_TARGET} v${PRODUCT_VERSION}"
 		# MACOSX_BUNDLE_SHORT_VERSION_STRING ${PRODUCT_VERSION}
 		# MACOSX_BUNDLE_GUI_IDENTIFIER "com.myfreecams.sidekick-login"
-		# MACOSX_BUNDLE_COPYRIGHT "(C) 2020 MyFreeCams"
+		# MACOSX_BUNDLE_COPYRIGHT "(C) 2021 MyFreeCams"
 		MACOSX_RPATH TRUE
 		# OUTPUT_NAME ${CEF_TARGET}
 		RESOURCE "${MFC_CEF_LOGIN_RESOURCES_SRCS}"
@@ -197,6 +177,88 @@ if(OS_MAC)
 		XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/../Frameworks"
 	)
 	MFCDefines(${CEF_TARGET})
+
+	# Copy the CEF framework into the Frameworks directory.
+	add_custom_command(TARGET ${CEF_TARGET}
+		POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+			"${CEF_BINARY_DIR}/Chromium Embedded Framework.framework"
+			"${CEF_APP}/Contents/Frameworks/Chromium Embedded Framework.framework"
+		VERBATIM
+	)
+
+	# Create the multiple Helper app bundle targets.
+	foreach(_suffix_list ${CEF_HELPER_APP_SUFFIXES})
+		# Convert to a list and extract the suffix values.
+		string(REPLACE ":" ";" _suffix_list ${_suffix_list})
+		list(GET _suffix_list 0 _name_suffix)
+		list(GET _suffix_list 1 _target_suffix)
+		list(GET _suffix_list 2 _plist_suffix)
+
+		# Define Helper target and output names.
+		set(_helper_target "${CEF_HELPER_TARGET}${_target_suffix}")
+		set(_helper_output_name "${CEF_HELPER_OUTPUT_NAME}${_name_suffix}")
+
+		# Create Helper-specific variants of the helper-Info.plist file. Do this
+		# manually because the configure_file command (which is executed as part of
+		# MACOSX_BUNDLE_INFO_PLIST) uses global env variables and would insert the
+		# wrong values with multiple targets.
+		set(_helper_info_plist "${CMAKE_CURRENT_BINARY_DIR}/helper-Info${_target_suffix}.plist")
+		file(READ "${CMAKE_CURRENT_SOURCE_DIR}/mac/helper-Info.plist" _plist_contents)
+		string(REPLACE "\${EXECUTABLE_NAME}" "${_helper_output_name}" _plist_contents ${_plist_contents})
+		string(REPLACE "\${PRODUCT_NAME}" "${_helper_output_name}" _plist_contents ${_plist_contents})
+		string(REPLACE "\${BUNDLE_ID_SUFFIX}" "${_plist_suffix}" _plist_contents ${_plist_contents})
+		file(WRITE ${_helper_info_plist} ${_plist_contents})
+
+		# Create Helper executable target.
+		add_executable(${_helper_target} MACOSX_BUNDLE ${MFC_CEF_LOGIN_HELPER_SRCS})
+		SET_EXECUTABLE_TARGET_PROPERTIES(${_helper_target})
+		add_dependencies(${_helper_target} libcef_dll_wrapper)
+		target_link_libraries(${_helper_target}
+			libcef_dll_wrapper
+			${CEF_STANDARD_LIBS}
+			MFCLibCef
+			${Boost_LIBRARIES}
+			libipc
+		)
+		set_target_properties(${_helper_target} PROPERTIES
+			MACOSX_BUNDLE_INFO_PLIST ${_helper_info_plist}
+			OUTPUT_NAME ${_helper_output_name}
+		)
+		# target_compile_options(${_helper_target} PUBLIC
+		# 	-fexceptions
+		# 	-Wno-error
+		# 	-Wno-unused-parameter
+		# 	-Wno-unused-variable
+		# 	-fvisibility=hidden
+		# 	-fvisibility-inlines-hidden
+		# )
+		target_compile_definitions(${_helper_target} PUBLIC
+			MFC_LOG_LEVEL=${MFC_LOG_LEVEL}
+			MFC_LOG_OUTPUT_MASK=${MFC_LOG_OUTPUT_MASK}
+		)
+		MFCDefines(${_helper_target})
+
+		if(USE_SANDBOX)
+			target_link_libraries(${_helper_target} cef_sandbox_lib)
+		endif()
+
+		# Add the Helper as a dependency of the main executable target.
+		add_dependencies(${CEF_TARGET} "${_helper_target}")
+
+		# Copy the Helper app bundle into the Frameworks directory.
+		add_custom_command(TARGET ${CEF_TARGET}
+			POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy_directory
+				"${CEF_TARGET_OUT_DIR}/${_helper_output_name}.app"
+				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app"
+			# Copy libipc
+			COMMAND ${CMAKE_COMMAND} -E copy
+				"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
+				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/libipc.dylib"
+			VERBATIM
+		)
+	endforeach()
 
 	# Manually process and copy over resource files.
 	# The Xcode generator can support this via the set_target_properties RESOURCE
@@ -210,6 +272,9 @@ if(OS_MAC)
 		"${CMAKE_CURRENT_SOURCE_DIR}"
 		"${CEF_APP}"
 	)
+	# list(REMOVE_ITEM CMAKE_CXX_FLAGS -fno-exceptions -fno-rtti -Werror -funwind-tables -fno-asynchronous-unwind-tables)
+	# target_compile_options(${CEF_TARGET} PUBLIC -fexceptions -Wno-error -Wno-unused-parameter -Wno-unused-variable -fvisibility=hidden -fvisibility-inlines-hidden)
+	# target_compile_options(${CEF_HELPER_TARGET} PUBLIC -fexceptions -Wno-error -Wno-unused-parameter -Wno-unused-variable -fvisibility=hidden -fvisibility-inlines-hidden)
 endif()
 
 #
@@ -278,15 +343,9 @@ if(OS_MAC)
 	add_custom_command(TARGET ${CEF_TARGET}
 		POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E echo "** Building Sidekick Login app bundle **"
-		# Copy the helper app bundle into the Frameworks subdirectory.
-		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CEF_HELPER_APP}"
-			"${CEF_APP}/Contents/Frameworks/${CEF_HELPER_OUTPUT_NAME}.app"
-		# Copy the CEF framework into the Frameworks subdirectory.
-		COMMAND ${CMAKE_COMMAND} -E copy_directory
-			"${CEF_BINARY_DIR}/Chromium Embedded Framework.framework"
-			"${CEF_APP}/Contents/Frameworks/Chromium Embedded Framework.framework"
-		# Copy boost libs into the Frameworks subdirectory
-		# COMMAND ${CMAKE_COMMAND} -E copy_directory "boost/" "${CEF_APP}/Contents/Frameworks/"
+		COMMAND ${CMAKE_COMMAND} -E copy
+			"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
+			"${CEF_APP}/Contents/MacOS/libipc.dylib"
 		VERBATIM
 	)
 
@@ -295,10 +354,12 @@ if(OS_MAC)
 		POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E make_directory "${MFC_OBS_CEF_LOGIN_BIN_PATH}"
 		# Install MFCCefLogin.app in /Library/Application Support/obs-studio/sidekick
-		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CEF_APP}"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+			"${CEF_APP}"
 			"${MFC_OBS_CEF_LOGIN_BIN_PATH}/${CEF_TARGET}.app"
 		# Copy to configuration independent location for packaging script
-		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CEF_APP}"
+		COMMAND ${CMAKE_COMMAND} -E copy_directory
+			"${CEF_APP}"
 			"${CMAKE_BINARY_DIR}/plugins/MyFreeCams/Sidekick/MFCCefLogin/${CEF_TARGET}.app"
 	)
 endif()
