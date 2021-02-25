@@ -5,15 +5,15 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>MFCCefLogin Helper</string>
+	<string>${EXECUTABLE_NAME}</string>
 	<key>CFBundleExecutable</key>
-	<string>MFCCefLogin Helper</string>
+	<string>${EXECUTABLE_NAME}</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.myfreecams.sidekick-login.helper</string>
+	<string>com.myfreecams.sidekick-login.helper${BUNDLE_ID_SUFFIX}</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>MFCCefLogin Helper</string>
+	<string>${PRODUCT_NAME}</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleSignature</key>
@@ -24,9 +24,9 @@
 		<string>0</string>
 	</dict>
 	<key>LSFileQuarantineEnabled</key>
-	<false/>
+	<true/>
 	<key>LSMinimumSystemVersion</key>
-	<string>10.12.6</string>
+	<string>10.13.0</string>
 	<key>LSUIElement</key>
 	<string>1</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
