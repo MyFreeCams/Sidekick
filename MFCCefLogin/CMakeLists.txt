@@ -173,7 +173,7 @@ if(OS_MAC)
 		MACOSX_RPATH TRUE
 		# OUTPUT_NAME ${CEF_TARGET}
 		RESOURCE "${MFC_CEF_LOGIN_RESOURCES_SRCS}"
-		XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY ""
+		# XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY ""
 		# XCODE_ATTRIBUTE_ENABLE_HARDENED_RUNTIME TRUE
 		# XCODE_ATTRIBUTE_EXECUTABLE_NAME ${CEF_TARGET}
 		XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/../Frameworks"
@@ -260,14 +260,14 @@ if(OS_MAC)
 			# Copy libipc
 			COMMAND ${CMAKE_COMMAND} -E copy
 				"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
-				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/Frameworks/libipc.dylib"
-			COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id
-				"@executable_path/../Frameworks/libipc.dylib"
-				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/Frameworks/libipc.dylib"
-			COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change
-				"@rpath/libipc.dylib"
-				"@executable_path/../Frameworks/libipc.dylib"
-				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/${_helper_output_name}"
+				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/libipc.dylib"
+			# COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id
+			# 	"@executable_path/../Frameworks/libipc.dylib"
+			# 	"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/Frameworks/libipc.dylib"
+			# COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change
+			# 	"@rpath/libipc.dylib"
+			# 	"@executable_path/../Frameworks/libipc.dylib"
+			# 	"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/${_helper_output_name}"
 			VERBATIM
 		)
 	endforeach()
@@ -358,14 +358,14 @@ if(OS_MAC)
 		COMMAND ${CMAKE_COMMAND} -E echo "** Building Sidekick Login app bundle **"
 		COMMAND ${CMAKE_COMMAND} -E copy
 			"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
-			"${CEF_APP}/Contents/Frameworks/libipc.dylib"
-		COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id
-			"@executable_path/../Frameworks/libipc.dylib"
-			"${CEF_APP}/Contents/Frameworks/libipc.dylib"
-		COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change
-			"@rpath/libipc.dylib"
-			"@executable_path/../Frameworks/libipc.dylib"
-			"${CEF_APP}/Contents/MacOS/${EXECUTABLE_NAME}"
+			"${CEF_APP}/Contents/MacOS/libipc.dylib"
+		# COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id
+		# 	"@executable_path/../Frameworks/libipc.dylib"
+		# 	"${CEF_APP}/Contents/Frameworks/libipc.dylib"
+		# COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change
+		# 	"@rpath/libipc.dylib"
+		# 	"@executable_path/../Frameworks/libipc.dylib"
+		# 	"${CEF_APP}/Contents/MacOS/${EXECUTABLE_NAME}"
 		VERBATIM
 	)
 
