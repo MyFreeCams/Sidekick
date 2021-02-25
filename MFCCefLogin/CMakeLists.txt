@@ -152,6 +152,7 @@ if(OS_MAC)
 	add_dependencies(${CEF_TARGET}
 		libcef_dll_wrapper
 		${CEF_HELPER_TARGET}
+		libipc
 	)
 	target_link_libraries(${CEF_TARGET}
 		libcef_dll_wrapper
@@ -213,7 +214,10 @@ if(OS_MAC)
 		# Create Helper executable target.
 		add_executable(${_helper_target} MACOSX_BUNDLE ${MFC_CEF_LOGIN_HELPER_SRCS})
 		SET_EXECUTABLE_TARGET_PROPERTIES(${_helper_target})
-		add_dependencies(${_helper_target} libcef_dll_wrapper)
+		add_dependencies(${_helper_target}
+			libcef_dll_wrapper
+			libipc
+		)
 		target_link_libraries(${_helper_target}
 			libcef_dll_wrapper
 			${CEF_STANDARD_LIBS}
@@ -255,7 +259,14 @@ if(OS_MAC)
 			# Copy libipc
 			COMMAND ${CMAKE_COMMAND} -E copy
 				"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
-				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/libipc.dylib"
+				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/Frameworks/libipc.dylib"
+			COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id
+				"@executable_path/../Frameworks/libipc.dylib"
+				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/Frameworks/libipc.dylib"
+			COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change
+				"@rpath/libipc.dylib"
+				"@executable_path/../Frameworks/libipc.dylib"
+				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/${_helper_output_name}"
 			VERBATIM
 		)
 	endforeach()
@@ -345,7 +356,14 @@ if(OS_MAC)
 		COMMAND ${CMAKE_COMMAND} -E echo "** Building Sidekick Login app bundle **"
 		COMMAND ${CMAKE_COMMAND} -E copy
 			"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
-			"${CEF_APP}/Contents/MacOS/libipc.dylib"
+			"${CEF_APP}/Contents/Frameworks/libipc.dylib"
+		COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id
+			"@executable_path/../Frameworks/libipc.dylib"
+			"${CEF_APP}/Contents/Frameworks/libipc.dylib"
+		COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change
+			"@rpath/libipc.dylib"
+			"@executable_path/../Frameworks/libipc.dylib"
+			"${CEF_APP}/Contents/MacOS/${EXECUTABLE_NAME}"
 		VERBATIM
 	)
 
