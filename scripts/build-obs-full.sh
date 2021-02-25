@@ -23,8 +23,10 @@ readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
 readonly _CXXFLAGS="${CFLAGS} -Wno-pragmas -Wno-deprecated-declarations"
 
 declare -xr MACOSX_DEPLOYMENT_TARGET=10.13
-#declare -xr CMAKE_OSX_ARCHITECTURES=arm64;x86_64
-declare -xr CMAKE_OSX_ARCHITECTURES=x86_64
+#declare -xr CMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+readonly _MACOS_ARCHITECTURES=x86_64
+readonly MACOS_ARCHITECTURES=${MACOS_ARCHITECTURES:-${_MACOS_ARCHITECTURES}}
+declare -xr CMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES:-${MACOS_ARCHITECTURES}}
 declare -xr CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE}}
 declare -xr BUILD_TYPE=${CMAKE_BUILD_TYPE}
 readonly _NUM_CORES=$(sysctl -n hw.ncpu)
@@ -47,8 +49,8 @@ declare -xr VLC_VERSION=${VLC_VERSION:-${_VLC_VERSION}}
 declare -xr CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
 declare -xr CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
 declare -r LEGACY_BROWSER="$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "ON" || echo "OFF")"
-REFRESH_OBS=${REFRESH_OBS:=${_RESET_OBS}}
-declare -xr RESET_OBS=${RESET_OBS:=${REFRESH_OBS}}
+REFRESH_OBS=${REFRESH_OBS:-${_RESET_OBS}}
+declare -xr RESET_OBS=${RESET_OBS:-${REFRESH_OBS}}
 
 readonly _SIDEKICK_ROOT="$(pwd)"
 declare -xr SIDEKICK_ROOT=${_SIDEKICK_ROOT}
@@ -183,6 +185,7 @@ reset_obs() {
     echo "-- obs-studio hard reset - done"
   else
     echo "-- obs-studio hard reset - skipping"
+    cd "${OBS_ROOT}"
   fi
 }
 

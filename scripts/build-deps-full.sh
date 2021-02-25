@@ -37,6 +37,10 @@ readonly RNNOISE_COMMIT=90ec41ef659fd82cfec2103e9bb7fc235e9ea66c
 
 readonly _MACOSX_DEPLOYMENT_TARGET=10.13
 export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-${_MACOSX_DEPLOYMENT_TARGET}}
+#declare -xr CMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+readonly _MACOS_ARCHITECTURES=x86_64
+readonly MACOS_ARCHITECTURES=${MACOS_ARCHITECTURES:-${_MACOS_ARCHITECTURES}}
+declare -xr CMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES:-${MACOS_ARCHITECTURES}}
 readonly _BUILD_TYPE=Release
 declare -xr CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE}}
 declare -xr BUILD_TYPE=${CMAKE_BUILD_TYPE}
@@ -770,37 +774,44 @@ install_vlc() {
 }
 
 install_cef() {
-  if [ -f "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64/cmake/FindCEF.cmake" ]; then
-    hr "CEF ${CEF_VERSION} already installed"
-  else
-    hr "Installing CEF ${CEF_VERSION}"
-    cd "${DEV_DIR}"
-    rm -rf "cef_binary_${CEF_BUILD_VERSION}_macosx64"
-    if [ "${BUILD_TYPE}" = "Debug" ]; then CEF_BUILD_TYPE=Debug; else CEF_BUILD_TYPE=Release; fi
-    CEF_VERSION_ENCODED=${CEF_BUILD_VERSION//+/%2B}
-    curl -fkRL -o "cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2" \
-      "https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION_ENCODED}_macosx64.tar.bz2"
-    tar -xf "cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
-    rm "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
-    cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64"
-    # rm -rf tests
-    # sed -i '' 's/\"10.9\"/\"10.11\"/' ./cmake/cef_variables.cmake
-    local old_ver=10.10
-    local new_ver=$MACOSX_DEPLOYMENT_TARGET
-    if [ $MACOS_CEF_BUILD_VERSION -le 3770 ]; then
-      old_ver=10.9
-      new_ver=10.11
-    elif [ $MACOS_CEF_BUILD_VERSION -ge 4324 ]; then
-      old_ver=10.11
+  for a in x64 arm64; do
+    if [ -f "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${a}/cmake/FindCEF.cmake" ]; then
+      hr "CEF(${a}) ${CEF_VERSION} already installed"
+    else
+      hr "Installing CEF(${a}) ${CEF_VERSION}"
+      cd "${DEV_DIR}"
+      rm -rf "cef_binary_${CEF_BUILD_VERSION}_macos${a}"
+      if [ "${BUILD_TYPE}" = "Debug" ]; then CEF_BUILD_TYPE=Debug; else CEF_BUILD_TYPE=Release; fi
+      CEF_VERSION_ENCODED=${CEF_BUILD_VERSION//+/%2B}
+      curl -fkRL -o "cef_binary_${CEF_BUILD_VERSION}_macos${a}.tar.bz2" \
+        "https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION_ENCODED}_macos${a}.tar.bz2"
+      tar -xf "cef_binary_${CEF_BUILD_VERSION}_macos${a}.tar.bz2"
+      rm "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${a}.tar.bz2"
+      cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${a}"
+      # rm -rf tests
+      # sed -i '' 's/\"10.9\"/\"10.11\"/' ./cmake/cef_variables.cmake
+      local old_ver=10.10
+      local new_ver=$MACOSX_DEPLOYMENT_TARGET
+      local arch=x86_64
+      if [ "$a" = "arm64" ]; then
+        arch=arm64;
+        sed -i '' 's/x86_64/arm64/' ./cmake/cef_variables.cmake
+      fi
+      if [ $MACOS_CEF_BUILD_VERSION -le 3770 ]; then
+        old_ver=10.9
+        new_ver=10.11
+      elif [ $MACOS_CEF_BUILD_VERSION -ge 4324 ]; then
+        old_ver=10.11
+      fi
+      sed -i '' 's/"'$old_ver'"/"'$new_ver'"/' ./cmake/cef_variables.cmake
+      mkdir -p build && cd ./build
+      cmake -DCMAKE_CXX_FLAGS="-std=c++11 -stdlib=libc++ -Wno-deprecated-declarations" \
+        -DCMAKE_EXE_LINKER_FLAGS="-std=c++11 -stdlib=libc++" -DCMAKE_OSX_ARCHITECTURES="$arch" \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" -DCMAKE_BUILD_TYPE=${CEF_BUILD_TYPE} ..
+      make -j ${NUM_CORES}
+      mkdir -p libcef_dll
     fi
-    sed -i '' 's/"'$old_ver'"/"'$new_ver'"/' ./cmake/cef_variables.cmake
-    mkdir -p build && cd ./build
-    cmake -DCMAKE_CXX_FLAGS="-std=c++11 -stdlib=libc++ -Wno-deprecated-declarations" \
-      -DCMAKE_EXE_LINKER_FLAGS="-std=c++11 -stdlib=libc++" \
-      -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" -DCMAKE_BUILD_TYPE=${CEF_BUILD_TYPE} ..
-    make -j ${NUM_CORES}
-    mkdir -p libcef_dll
-  fi
+  done
 }
 
 build_webrtc() {
