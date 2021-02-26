@@ -788,7 +788,7 @@ install_cef() {
       tar -xf "cef_binary_${CEF_BUILD_VERSION}_macos${a}.tar.bz2"
       rm "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${a}.tar.bz2"
       cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${a}"
-      # rm -rf tests
+      rm -rf tests
       # sed -i '' 's/\"10.9\"/\"10.11\"/' ./cmake/cef_variables.cmake
       local old_ver=10.10
       local new_ver=$MACOSX_DEPLOYMENT_TARGET
@@ -860,18 +860,18 @@ main() {
   install_build_tools
   create_work_dirs
   install_core_obs_deps
-  build_ffmpeg_deps
-  build_ffmpeg
-  build_swig
-  build_speexdsp
-  build_jansson
-  build_luajit
-  build_freetype
-  build_rnnoise
-  install_qt
-  install_boost
-  install_packages_app
-  install_vlc
+  #build_ffmpeg_deps
+  #build_ffmpeg
+  #build_swig
+  #build_speexdsp
+  #build_jansson
+  #build_luajit
+  #build_freetype
+  #build_rnnoise
+  #install_qt
+  #install_boost
+  #install_packages_app
+  #install_vlc
   install_cef
   install_or_upgrade akeru-inc/tap/xcnotary
   restore_brews

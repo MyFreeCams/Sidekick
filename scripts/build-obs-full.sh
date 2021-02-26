@@ -23,8 +23,8 @@ readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
 readonly _CXXFLAGS="${CFLAGS} -Wno-pragmas -Wno-deprecated-declarations"
 
 declare -xr MACOSX_DEPLOYMENT_TARGET=10.13
-#declare -xr CMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-readonly _MACOS_ARCHITECTURES=x86_64
+declare -r _MACOS_ARCHITECTURES="arm64;x86_64"
+# readonly _MACOS_ARCHITECTURES=x86_64
 readonly MACOS_ARCHITECTURES=${MACOS_ARCHITECTURES:-${_MACOS_ARCHITECTURES}}
 declare -xr CMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES:-${MACOS_ARCHITECTURES}}
 declare -xr CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE}}
@@ -40,7 +40,7 @@ export NINJA_PATH="${DEV_DIR}/depot_tools/ninja"
 
 declare -xr BUILD_BROWSER=${BROWSER:-ON}
 declare -xr BROWSER=${BUILD_BROWSER}
-declare -xr ENABLE_SCRIPTING=${SCRIPTING:-ON}
+declare -xr ENABLE_SCRIPTING=${SCRIPTING:-OFF}
 declare -xr DISABLE_PYTHON=${DISABLE_PYTHON:-ON}
 
 export OBS_TAG=${OBS_TAG:-${_OBS_TAG}}
@@ -66,20 +66,24 @@ declare -xr BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
 
 declare -xr OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
 declare -xr DepsPath="${OBSDEPS}"
-declare -xr X264_INCLUDE_DIR="${X264_INCLUDE_DIR:-${OBSDEPS}/include}"
+# declare -xr X264_INCLUDE_DIR="${X264_INCLUDE_DIR:-${OBSDEPS}/include}"
+declare -xr X264_INCLUDE_DIR="${X264_INCLUDE_DIR:-/opt/homebrew/opt/x264/include}"
 # declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-/usr/include}"
-# declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-/usr/local/opt/curl-openssl/include}"
+declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-/opt/homebrew/opt/curl/include}"
 declare -xr VLCPath="${DEV_DIR}/vlc-${VLC_VERSION}"
-# declare -xr QTDIR="${QTDIR:-/usr/local/opt/qt}"
-declare -xr QTDIR="${QTDIR:-${OBSDEPS}}"
-readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64}"
+declare -xr QTDIR="${QTDIR:-/opt/homebrew/opt/qt}"
+# declare -xr QTDIR="${QTDIR:-${OBSDEPS}}"
+# readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosarm64}"
+readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos}"
 declare -xr CEF_ROOT="${CEF_ROOT:-${_CEF_DIR}}"
 declare -xr CEF_ROOT_DIR="${CEF_ROOT_DIR:-${CEF_ROOT}}"
-declare -xr BOOST_ROOT="${BOOST_ROOT:-/usr/local/opt/boost}"
-readonly _OPENSSL_DIR="${OPENSSL:-/usr/local/opt/openssl@1.1}"
+declare -xr BOOST_ROOT="${BOOST_ROOT:-/opt/homebrew/opt/boost}"
+readonly _OPENSSL_DIR="${OPENSSL:-/opt/homebrew/opt/openssl@1.1}"
 declare -xr OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
 readonly _WEBRTC_DIR="${WEBRTC:-${DEV_DIR}/webrtc}"
 declare -xr WEBRTC_ROOT_DIR="${WEBRTC_ROOT_DIR:-${_WEBRTC_DIR}}"
+# declare -xr SWIG_DIR="${SWIG_DIR:-${OBSDEPS}}"
+declare -xr SWIG_DIR="${SWIG_DIR:-/opt/homebrew/opt/swig}"
 
 export CFLAGS="-I${OBSDEPS}/include"
 export LDFLAGS="-L${OBSDEPS}/lib"
@@ -227,7 +231,6 @@ cmake_generate() {
     -DDepsPath="${OBSDEPS}" \
     -DSWIGDIR="${OBSDEPS}" \
     -DX264_INCLUDE_DIR="${X264_INCLUDE_DIR}" \
-    -DVLCPath="${VLCPath}" \
     -DQTDIR="${QTDIR}" \
     -DQt5Core_DIR="${QTDIR}/lib/cmake/Qt5Core" \
     -DQt5Gui_DIR="${QTDIR}/lib/cmake/Qt5Gui" \
@@ -237,12 +240,13 @@ cmake_generate() {
     -DCEF_ROOT="${CEF_ROOT}" \
     -DCEF_ROOT_DIR="${CEF_ROOT_DIR}" \
     -DBOOST_ROOT="${BOOST_ROOT}" \
+    -DCURL_INCLUDE_DIR="${CURL_INCLUDE_DIR}" \
     -DOPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR}" \
     -DWEBRTC_ROOT_DIR="${WEBRTC_ROOT_DIR}" \
     -DBUILD_BROWSER="${BUILD_BROWSER}" \
     -DBROWSER_DEPLOY="${BUILD_BROWSER}" \
     -DBROWSER_LEGACY="${LEGACY_BROWSER}" \
-    -DENABLE_VLC=ON \
+    -DENABLE_VLC=OFF \
     -DWITH_RTMPS=ON \
     -DDISABLE_PYTHON="${DISABLE_PYTHON}" \
     -DENABLE_SCRIPTING="${ENABLE_SCRIPTING}" \
