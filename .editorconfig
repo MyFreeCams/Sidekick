@@ -17,7 +17,7 @@ indent_size = 4
 indent_style = tab
 indent_size = 4
 
-[*.{cmd,ps1,sh,bat,rb,js,manifest}]
+[{*.{cmd,ps1,sh,bat,rb,js,manifest},package,build,build-deps}]
 indent_style = space
 indent_size = 2
 

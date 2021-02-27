@@ -45,7 +45,7 @@ fi
 export CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
 export CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
 
-readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64}"
+readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosarm64}"
 export CEF_ROOT_DIR="${CEF_ROOT_DIR:-${_CEF_DIR}}"
 export CEF_ROOT="${CEF_ROOT:-${CEF_ROOT_DIR}}"
 
@@ -97,11 +97,12 @@ fetch_git_tags() {
 }
 
 find_codesign_ident() {
+  CODESIGN=0
   readonly CODESIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Application')
   readonly _CODESIGN_IDENT=$(security find-identity -p codesigning -v | grep 'Developer ID Application' | grep -Eoe '\s\w+\s"' | grep -Eoe '\w+')
-  if [ -z "${CODESIGN_IDENT}" ]; then CODESIGN=1; fi
+  if ! [ -z "${CODESIGN_IDENT}" ]; then CODESIGN=1; fi
   export CODESIGN_IDENT=${CODESIGN_IDENT:-${_CODESIGN_IDENT}}
-  if [ -z "${CODESIGN_IDENT_FULL}" ] && [ "${CODESIGN}" -ne 1 ]; then NO_CODESIGN=1; fi
+  if [[ "${CODESIGN_IDENT_FULL}" != "" ]]; then CODESIGN=1; fi
   readonly PRODUCTSIGN_IDENT_FULL=$(security find-identity -v | grep 'Developer ID Installer')
   readonly _PRODUCTSIGN_IDENT_=$(security find-identity -v | grep 'Developer ID Installer' | grep -Eoe '\s\w+\s"' | grep -Eoe '\w+')
   readonly _PRODUCTSIGN_IDENT=${_PRODUCTSIGN_IDENT_:-${DEFAULT_PRODUCTSIGN_IDENT}}
@@ -134,10 +135,12 @@ print_env() {
   echo "BUILD_ROOT:            ${BUILD_ROOT}"
   echo "OBS_ROOT:              ${OBS_ROOT}"
   echo "DEV_DIR:               ${DEV_DIR}"
-  echo "CODESIGN_IDENT_FULL:   ${CODESIGN_IDENT_FULL}"
-  echo "PRODUCTSIGN_IDENT_FULL:${PRODUCTSIGN_IDENT_FULL}"
-  echo "CODESIGN_IDENT:        ${CODESIGN_IDENT}"
-  echo "PRODUCTSIGN_IDENT:     ${PRODUCTSIGN_IDENT}"
+  if [ "${CODESIGN}" -eq 1 ]; then
+    echo "CODESIGN_IDENT_FULL:   ${CODESIGN_IDENT_FULL}"
+    echo "PRODUCTSIGN_IDENT_FULL:${PRODUCTSIGN_IDENT_FULL}"
+    echo "CODESIGN_IDENT:        ${CODESIGN_IDENT}"
+    echo "PRODUCTSIGN_IDENT:     ${PRODUCTSIGN_IDENT}"
+  fi
 }
 
 build_obs_bundle() {
@@ -148,7 +151,8 @@ build_obs_bundle() {
   mkdir -p ./OBS.app/Contents/Resources
   mkdir -p ./OBS.app/Contents/Frameworks
 
-  cp -R ./rundir/${BUILD_TYPE}/bin/ ./OBS.app/Contents/MacOS/
+  find ./rundir/${BUILD_TYPE}/bin -d 1 -type f -exec cp \{\} ./OBS.app/Contents/MacOS/ \;
+  find ./rundir/${BUILD_TYPE}/bin -iname \*.app -exec cp -R \{\} ./OBS.app/Contents/Frameworks/ \;
   cp -R ./rundir/${BUILD_TYPE}/data ./OBS.app/Contents/Resources/
   cp -R ./rundir/${BUILD_TYPE}/obs-plugins/ ./OBS.app/Contents/Plugins/
 
@@ -257,11 +261,12 @@ codesign_app() {
 }
 
 codesign_apps() {
-  if [ -z "${NO_CODESIGN}" ]; then
+  if [ "${CODESIGN}" -eq 1 ]; then
     codesign_app MFCCefLogin "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin"
     # codesign_app OBS "${BUILD_ROOT}"
-    # codesign_app OBS-Sidekick "${BUILD_ROOT}"
+    codesign_app OBS-Sidekick "${BUILD_ROOT}"
 
+    hr "Code-signing MFCBroadcast Plugin"
     for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
     done
@@ -276,7 +281,9 @@ prepare_files_for_package() {
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libx264"* "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libssl"* "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libcrypto"* "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" ]; then
+    cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  fi
 
   for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
     for g in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
@@ -318,7 +325,7 @@ notarize_package() {
 }
 
 codesign_package() {
-  if [ -z "${NO_CODESIGN}" ]; then
+  if [ "${CODESIGN}" -eq 1 ]; then
     hr "Code-signing package"
     mv "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/Sidekick-unsigned.pkg"
     productsign --sign "${PRODUCTSIGN_IDENT:--}" "${BUILD_ROOT}/Sidekick-unsigned.pkg" "${BUILD_ROOT}/Sidekick.pkg"

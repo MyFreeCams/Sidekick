@@ -68,7 +68,8 @@ declare -xr BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
 declare -xr BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
 
 declare -xr OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
-declare -xr DepsPath="${OBSDEPS}"
+# declare -xr DepsPath="${OBSDEPS}"
+declare -xr DepsPath="/opt/homebrew/opt"
 # declare -xr X264_INCLUDE_DIR="${X264_INCLUDE_DIR:-${OBSDEPS}/include}"
 declare -xr X264_INCLUDE_DIR="${X264_INCLUDE_DIR:-/opt/homebrew/opt/x264/include}"
 # declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-/usr/include}"
@@ -91,7 +92,8 @@ declare -xr SWIG_DIR="${SWIG_DIR:-/opt/homebrew/opt/swig}"
 
 export CFLAGS="-I${OBSDEPS}/include"
 export LDFLAGS="-L${OBSDEPS}/lib"
-export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
+# export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
+export PKG_CONFIG_PATH="/opt/homebrew/lib/pkgconfig"
 
 declare start
 declare end

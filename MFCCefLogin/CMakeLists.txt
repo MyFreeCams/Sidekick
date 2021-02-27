@@ -152,7 +152,6 @@ if(OS_MAC)
 	add_dependencies(${CEF_TARGET}
 		libcef_dll_wrapper
 		${CEF_HELPER_TARGET}
-		#libipc
 	)
 	target_link_libraries(${CEF_TARGET}
 		libcef_dll_wrapper
@@ -216,14 +215,13 @@ if(OS_MAC)
 		SET_EXECUTABLE_TARGET_PROPERTIES(${_helper_target})
 		add_dependencies(${_helper_target}
 			libcef_dll_wrapper
-			#libipc
 		)
 		target_link_libraries(${_helper_target}
 			libcef_dll_wrapper
 			${CEF_STANDARD_LIBS}
 			MFCLibCef
-			${Boost_LIBRARIES}
-			#libipc
+			Boost::boost
+			# ${Boost_LIBRARIES}
 		)
 		set_target_properties(${_helper_target} PROPERTIES
 			MACOSX_BUNDLE_INFO_PLIST ${_helper_info_plist}
@@ -256,10 +254,6 @@ if(OS_MAC)
 			COMMAND ${CMAKE_COMMAND} -E copy_directory
 				"${CEF_TARGET_OUT_DIR}/${_helper_output_name}.app"
 				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app"
-			# Copy libipc
-			# COMMAND ${CMAKE_COMMAND} -E copy
-			# 	"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
-			# 	"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/libipc.dylib"
 			VERBATIM
 		)
 	endforeach()
