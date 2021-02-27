@@ -143,8 +143,6 @@ if(OS_MAC)
 		ADD_LOGICAL_TARGET("cef_sandbox_lib" "${CEF_SANDBOX_LIB_DEBUG}" "${CEF_SANDBOX_LIB_RELEASE}")
 	endif()
 
-	find_library(COCOA_LIBRARY Cocoa)
-
 	# Main executable target.
 	add_executable(${CEF_TARGET} MACOSX_BUNDLE
 		${MFC_CEF_LOGIN_RESOURCES_SRCS}
@@ -154,16 +152,13 @@ if(OS_MAC)
 	add_dependencies(${CEF_TARGET}
 		libcef_dll_wrapper
 		${CEF_HELPER_TARGET}
-		libipc
+		#libipc
 	)
 	target_link_libraries(${CEF_TARGET}
 		libcef_dll_wrapper
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
 		# ${Boost_LIBRARIES}
-		Boost::boost
-		libipc
-		${COCOA_LIBRARY}
 	)
 	set_target_properties(${CEF_TARGET} PROPERTIES
 		MACOSX_BUNDLE TRUE
@@ -221,15 +216,14 @@ if(OS_MAC)
 		SET_EXECUTABLE_TARGET_PROPERTIES(${_helper_target})
 		add_dependencies(${_helper_target}
 			libcef_dll_wrapper
-			libipc
+			#libipc
 		)
 		target_link_libraries(${_helper_target}
 			libcef_dll_wrapper
 			${CEF_STANDARD_LIBS}
 			MFCLibCef
-			# ${Boost_LIBRARIES}
-			Boost::boost
-			libipc
+			${Boost_LIBRARIES}
+			#libipc
 		)
 		set_target_properties(${_helper_target} PROPERTIES
 			MACOSX_BUNDLE_INFO_PLIST ${_helper_info_plist}
@@ -263,16 +257,9 @@ if(OS_MAC)
 				"${CEF_TARGET_OUT_DIR}/${_helper_output_name}.app"
 				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app"
 			# Copy libipc
-			COMMAND ${CMAKE_COMMAND} -E copy
-				"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
-				"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/libipc.dylib"
-			# COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id
-			# 	"@executable_path/../Frameworks/libipc.dylib"
-			# 	"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/Frameworks/libipc.dylib"
-			# COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change
-			# 	"@rpath/libipc.dylib"
-			# 	"@executable_path/../Frameworks/libipc.dylib"
-			# 	"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/${_helper_output_name}"
+			# COMMAND ${CMAKE_COMMAND} -E copy
+			# 	"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
+			# 	"${CEF_APP}/Contents/Frameworks/${_helper_output_name}.app/Contents/MacOS/libipc.dylib"
 			VERBATIM
 		)
 	endforeach()
@@ -309,7 +296,6 @@ if(OS_WINDOWS)
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
 		${Boost_LIBRARIES}
-		libipc
 	)
 	# Turn on RTTI & disable warnings as errors
 	target_compile_options(${CEF_TARGET} PUBLIC /MT /GR /WX-)
@@ -358,21 +344,14 @@ if(OS_MAC)
 	# endforeach()
 
 	# Copy dependencies into the main app bundle.
-	add_custom_command(TARGET ${CEF_TARGET}
-		POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E echo "** Building Sidekick Login app bundle **"
-		COMMAND ${CMAKE_COMMAND} -E copy
-			"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
-			"${CEF_APP}/Contents/MacOS/libipc.dylib"
-		# COMMAND ${CMAKE_INSTALL_NAME_TOOL} -id
-		# 	"@executable_path/../Frameworks/libipc.dylib"
-		# 	"${CEF_APP}/Contents/Frameworks/libipc.dylib"
-		# COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change
-		# 	"@rpath/libipc.dylib"
-		# 	"@executable_path/../Frameworks/libipc.dylib"
-		# 	"${CEF_APP}/Contents/MacOS/${EXECUTABLE_NAME}"
-		VERBATIM
-	)
+	# add_custom_command(TARGET ${CEF_TARGET}
+	# 	POST_BUILD
+	# 	COMMAND ${CMAKE_COMMAND} -E echo "** Building Sidekick Login app bundle **"
+	# 	COMMAND ${CMAKE_COMMAND} -E copy
+	# 		"${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
+	# 		"${CEF_APP}/Contents/MacOS/libipc.dylib"
+	# 	VERBATIM
+	# )
 
 	# Copy main app bundle to destination
 	add_custom_command(TARGET ${CEF_TARGET}

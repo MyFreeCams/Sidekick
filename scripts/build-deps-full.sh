@@ -19,7 +19,8 @@ readonly OPUS_VERSION=1.3.1
 readonly OGG_VERSION=68ca3841567247ac1f7850801a164f58738d8df9
 readonly VORBIS_VERSION=1.3.6
 readonly VPX_VERSION=1.9.0
-readonly X264_COMMIT=origin/stable
+# readonly X264_COMMIT=origin/stable
+readonly X264_COMMIT=origin/master
 readonly FFMPEG_VERSION=4.2.3
 readonly PNG_VERSION=1.6.37
 readonly THEORA_VERSION=1.1.1
@@ -111,9 +112,6 @@ init() {
   start=$(date '+%Y-%m-%d %H:%M:%S')
   start_ts=$(date +%s)
   hr "Building dependencies in: ${DEV_DIR}" "Started ${start}"
-}
-
-create_work_dirs() {
   mkdir -p "${DEV_DIR}"
   mkdir -p "${WORK_DIR}"
   mkdir -p "${OBSDEPS}/bin"
@@ -122,17 +120,9 @@ create_work_dirs() {
   mkdir -p "${OBSDEPS}/share"
 }
 
-delete_work_dirs() {
-  # rm -rf "${OBSDEPS}/lib/pkgconfig"
-  # rm -rf "${OBSDEPS}/share"
+cleanup() {
   rm -rf "${WORK_DIR}"
 }
-
-# cleanup() {
-#   # rm "${OBSDEPS}/bin/x264"
-#   # rm "${OBSDEPS}"/lib/*.la
-#   # rm "${OBSDEPS}"/lib/*.a
-# }
 
 uninstall_homebrew() {
   hr "Uninstalling homebrew"
@@ -187,10 +177,10 @@ install_build_tools() {
     install_or_upgrade automake
     install_or_upgrade pcre
     install_or_upgrade cmake
-    # install_or_upgrade freetype
+    install_or_upgrade freetype
     install_or_upgrade nasm
     install_or_upgrade pkg-config
-    install_or_upgrade cmocka
+    # install_or_upgrade cmocka
   fi
 }
 
@@ -205,9 +195,9 @@ install_core_obs_deps() {
     brew uninstall python@2.7.17
     brew untap local/python2
   fi
-  install_or_upgrade curl-openssl
+  install_or_upgrade curl
   install_or_upgrade openssl@1.1
-  # install_or_upgrade speexdsp
+  install_or_upgrade speexdsp
   install_or_upgrade fdk-aac
   brew tap akeru-inc/tap
   install_or_upgrade akeru-inc/tap/xcnotary
@@ -287,6 +277,26 @@ build_vorbis() {
   fi
 }
 
+build_vpx() {
+  if [ -f "${OBSDEPS}/lib/libvpx.a" ]; then
+    hr "vpx already installed"
+  else
+    hr "Building vpx ${VPX_VERSION} (FFmpeg dependency)"
+    cd "${WORK_DIR}"
+    rm -rf libvpx-v${VPX_VERSION}
+    curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
+    mkdir -p ./libvpx-v${VPX_VERSION}
+    tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
+    cd ./libvpx-v${VPX_VERSION}
+    mkdir -p build
+    cd ./build
+    ../configure --disable-shared  --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
+      --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
+    make -j ${NUM_CORES}
+    make install
+  fi
+}
+
 # build_vpx() {
 #   if [ -f "${OBSDEPS}/lib/libvpx.a" ]; then
 #     hr "vpx already installed"
@@ -294,84 +304,31 @@ build_vorbis() {
 #     hr "Building vpx ${VPX_VERSION} (FFmpeg dependency)"
 #     cd "${WORK_DIR}"
 #     rm -rf libvpx-v${VPX_VERSION}
-#     curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
-#     mkdir -p ./libvpx-v${VPX_VERSION}
-#     tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
-#     cd ./libvpx-v${VPX_VERSION}
-#     mkdir -p build
-#     cd ./build
+#     git clone https://chromium.googlesource.com/webm/libvpx.git
+#     cd ./libvpx
 #     if [ $(echo "${MACOSX_DEPLOYMENT_TARGET}" | cut -d "." -f 1) -lt 11 ]; then
 #       VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 2)+4))"
 #     else
 #       VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 1)+9))"
 #     fi
-#     ../configure --disable-shared  --target=x86_64-darwin${VPX_TARGET}-gcc --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
+#     mkdir -p build-arm64
+#     cd ./build-arm64
+#     ../configure --disable-shared --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" --target=arm64-darwin-gcc \
 #       --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
-#     make -j ${NUM_CORES}
+#     make -j "${NUM_CORES}"
 #     make install
+#     mv ${OBSDEPS}/lib/libvpx.a ${OBSDEPS}/lib/libvpx-arm64.a
+#     cd ..
+#     mkdir -p build-x86_64
+#     cd ./build-x86_64
+#     ../configure --disable-shared --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" --target=x86_64-darwin${VPX_TARGET}-gcc \
+#       --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
+#     make -j "${NUM_CORES}"
+#     make install
+#     mv ${OBSDEPS}/lib/libvpx.a ${OBSDEPS}/lib/libvpx-x86_64.a
+#     lipo -create ${OBSDEPS}/lib/libvpx-arm64.a ${OBSDEPS}/lib/libvpx-x86_64.a -output ${OBSDEPS}/lib/libvpx.a
 #   fi
 # }
-
-build_vpx() {
-  hr "Building libvpx (FFmpeg dependency)"
-  set -e
-  cd "${WORK_DIR}"
-  rm -rf libvpx-v${VPX_VERSION}
-  # curl -fkRL -O https://github.com/webmproject/libvpx/archive/v${VPX_VERSION}.tar.gz
-  curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
-  git clone https://chromium.googlesource.com/webm/libvpx.git
-  # mkdir -p ./libvpx-v${VPX_VERSION}
-  # tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
-  # cd ./libvpx-v${VPX_VERSION}
-  cd ./libvpx
-  mkdir -p macbuild-arm64
-  cd ./macbuild-arm64
-  ../configure --disable-shared --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" --target=arm64-darwin-gcc \
-    --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
-  make -j "${NUM_CORES}"
-  make install
-  mv ${OBSDEPS}/lib/libvpx.a ${OBSDEPS}/lib/libvpx-arm64.a
-  cd ..
-  mkdir -p macbuild-x86_64
-  cd ./macbuild-x86_64
-  ../configure --disable-shared --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" --target=x86_64-darwin20-gcc \
-    --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
-  make -j "${NUM_CORES}"
-  make install
-  mv ${OBSDEPS}/lib/libvpx.a ${OBSDEPS}/lib/libvpx-x86_64.a
-  lipo -create ${OBSDEPS}/lib/libvpx-arm64.a ${OBSDEPS}/lib/libvpx-x86_64.a -output ${OBSDEPS}/lib/libvpx.a
-  set +e
-}
-
-build_x264() {
-  if [ -f "${OBSDEPS}/lib/libx264.dylib" ]; then
-    hr "x264 already installed"
-  else
-    hr "Building x264"
-    cd "${WORK_DIR}"
-    rm -rf x264
-    git clone https://code.videolan.org/videolan/x264.git
-    cd ./x264
-    git config advice.detachedHead false
-    git checkout -f ${X264_COMMIT} --
-    mkdir -p build
-    cd ./build
-    ../configure --enable-static --prefix="${OBSDEPS}" --includedir="${OBSDEPS}/include" \
-      --disable-lsmash --disable-swscale --disable-ffms --enable-strip \
-      --extra-ldflags="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
-    make -j ${NUM_CORES}
-    make install
-    ../configure --enable-shared --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
-      --disable-lsmash --disable-swscale --disable-ffms --enable-strip \
-      --extra-ldflags="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
-    make -j ${NUM_CORES}
-    ln -f -s libx264.*.dylib libx264.dylib
-    find . -name \*.dylib -exec cp -a \{\} "${OBSDEPS}/lib/" \;
-    mkdir -p "${OBSDEPS}/include"
-    rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../* "${OBSDEPS}/include/"
-    rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./* "${OBSDEPS}/include/"
-  fi
-}
 
 build_theora() {
   if [ -f "${OBSDEPS}/lib/libtheora.a" ]; then
@@ -415,44 +372,44 @@ create_mbedtls_pkgconfig() {
 prefix=${OBSDEPS}
 libdir=\${prefix}/lib
 includedir=\${prefix}/include
- 
+
 Name: mbedcrypto
 Description: lightweight crypto and SSL/TLS library.
 Version: ${MBEDTLS_VERSION}
- 
+
 Libs: -L\${libdir} -lmbedcrypto
 Cflags: -I\${includedir}
- 
+
 EOF
 
   cat <<EOF > ${OBSDEPS}/lib/pkgconfig/mbedtls.pc
 prefix=${OBSDEPS}
 libdir=\${prefix}/lib
 includedir=\${prefix}/include
- 
+
 Name: mbedtls
 Description: lightweight crypto and SSL/TLS library.
 Version: ${MBEDTLS_VERSION}
- 
+
 Libs: -L\${libdir} -lmbedtls
 Cflags: -I\${includedir}
 Requires.private: mbedx509
- 
+
 EOF
 
   cat <<EOF > ${OBSDEPS}/lib/pkgconfig/mbedx509.pc
 prefix=${OBSDEPS}
 libdir=\${prefix}/lib
 includedir=\${prefix}/include
- 
+
 Name: mbedx509
 Description: The mbedTLS X.509 library
 Version: ${MBEDTLS_VERSION}
- 
+
 Libs: -L\${libdir} -lmbedx509
 Cflags: -I\${includedir}
 Requires.private: mbedcrypto
- 
+
 EOF
 }
 
@@ -503,6 +460,36 @@ build_srt() {
   fi
 }
 
+build_x264() {
+  if [ -f "${OBSDEPS}/lib/libx264.dylib" ]; then
+    hr "x264 already installed"
+  else
+    hr "Building x264"
+    cd "${WORK_DIR}"
+    rm -rf x264
+    git clone https://code.videolan.org/videolan/x264.git
+    cd ./x264
+    git config advice.detachedHead false
+    git checkout -f ${X264_COMMIT} --
+    mkdir -p build
+    cd ./build
+    ../configure --enable-static --prefix="${OBSDEPS}" --includedir="${OBSDEPS}/include" \
+      --disable-lsmash --disable-swscale --disable-ffms --enable-strip \
+      --extra-ldflags="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+    make -j ${NUM_CORES}
+    make install
+    ../configure --enable-shared --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
+      --disable-lsmash --disable-swscale --disable-ffms --enable-strip \
+      --extra-ldflags="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+    make -j ${NUM_CORES}
+    ln -f -s libx264.*.dylib libx264.dylib
+    find . -name \*.dylib -exec cp -a \{\} "${OBSDEPS}/lib/" \;
+    mkdir -p "${OBSDEPS}/include"
+    rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ../* "${OBSDEPS}/include/"
+    rsync -avh --prune-empty-dirs --include="*/" --include="*.h" --exclude="*" ./* "${OBSDEPS}/include/"
+  fi
+}
+
 build_ffmpeg() {
   if [ -f "${OBSDEPS}/lib/libavcodec.dylib" ]; then
     hr "FFmpeg already installed"
@@ -510,10 +497,10 @@ build_ffmpeg() {
     hr "Building FFmpeg ${FFMPEG_VERSION}"
     if [ -d /usr/local/opt/xz ]; then brew unlink xz; fi
     if [ -d /usr/local/opt/sdl2 ]; then brew unlink sdl2; fi
-    export LD_LIBRARY_PATH="${OBSDEPS}/lib"
-    export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
+    export LD_LIBRARY_PATH="/opt/homebrew/lib"
+    export PKG_CONFIG_PATH="/opt//homebrew/lib/pkgconfig"
     export LDFLAGS="-L${LD_LIBRARY_PATH}"
-    export CFLAGS="-I${OBSDEPS}/include"
+    # export CFLAGS="-I${OBSDEPS}/include"
     cd "${WORK_DIR}"
     rm -rf FFmpeg-n${FFMPEG_VERSION}
     curl -fkRL -O "https://github.com/FFmpeg/FFmpeg/archive/n${FFMPEG_VERSION}.zip"
@@ -857,13 +844,12 @@ build_webrtc() {
 }
 
 print_summary() {
-  end=$(date '+%Y-%m-%d %H:%M:%S')
-  end_ts=$(date +%s)
+  local end=$(date '+%Y-%m-%d %H:%M:%S')
+  local end_ts=$(date +%s)
   declare -i runtime=$((end_ts-start_ts))
   declare -i hours=$((runtime / 3600))
   declare -i minutes=$(( (runtime % 3600) / 60 ))
   declare -i seconds=$(( (runtime % 3600) % 60 ))
-
   if [ "$1" != "skip_build_tools" ]; then
     hr \
       "Start:    ${start}" \
@@ -879,38 +865,44 @@ build_ffmpeg_deps() {
   build_ogg
   build_vorbis
   build_vpx
-  build_x264
   build_theora
   build_lame
   build_mbedtls
   build_srt
+  build_x264
 }
 
 main() {
   init
   install_homebrew "$@"
   install_build_tools
-  create_work_dirs
   install_core_obs_deps
   #build_ffmpeg_deps
-  build_vpx
   #build_ffmpeg
   #build_swig
   #build_speexdsp
   #build_jansson
   #build_luajit
   #build_freetype
-  #build_rnnoise
+  build_rnnoise
   #install_qt
+  install_or_upgrade jansson
+  install_or_upgrade swig
+  install_or_upgrade speexdsp
+  install_or_upgrade mbedtls
+  install_or_upgrade srt
+  install_or_upgrade x264
+  install_or_upgrade ffmpeg
+  install_or_upgrade boost
+  install_or_upgrade qt
   #install_boost
-  #install_packages_app
   install_vlc
   install_cef
+  install_packages_app
   install_or_upgrade akeru-inc/tap/xcnotary
   restore_brews
-  delete_work_dirs
-  # cleanup
   build_webrtc "$@"
+  cleanup
   print_summary "$@"
 }
 

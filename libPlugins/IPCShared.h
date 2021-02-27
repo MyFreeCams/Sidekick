@@ -42,7 +42,6 @@
 #define BUF_SIZE                        1024
 #define ADDR_BUF_SIZE                   32
 
-#ifdef _USE_OLD_MEMMANAGER
 // names of shared memory objects.
 #define SHARED_MEMNAME                  "MFCSharedMemoryYYXX"
 #define CONTAINER_NAME                  "MyBoostList"
@@ -50,19 +49,26 @@
 #define MFC_CLIENT_MUTEX_NAME           "fcsClientMutex"
 #define MFC_SERVER_MUTEX_NAME           "fcsServerMutex"
 #define MAX_QUE_SIZE                    20
-#endif
 
 #define ADDR_FCSLOGIN                   "fcsLoginCEF"
 #define ADDR_OBS_BROADCAST_Plugin       "obsBPlugin"
 #define ADDR_CEF_JSEXTENSION            "CefJSExtension"
 
+#define MSG_TYPE_PING                   1
+#define MSG_TYPE_START                  2
+#define MSG_TYPE_SHUTDOWN               3
+#define MSG_TYPE_DOLOGIN                4
+#define MSG_TYPE_LOGIN_DENY             5
+#define MSG_TYPE_LOGIN_AUTH             6
+#define MSG_TYPE_SET_MSK                7
+#define MSG_TYPE_DOCREDENTIALS          8
+#define MSG_TYPE_LOG                    9
 
 using namespace boost::interprocess;
 using std::make_unique;
 using std::string;
 using std::unique_ptr;
 
-#ifdef _USE_OLD_MEMMANAGER
 namespace MFC_Shared_Mem {
 
 // helper class so the mutex doesn't get stuck
@@ -445,6 +451,5 @@ private:
 };
 
 };  // namespace MFC_Shared_Mem
-#endif
 
 #endif  // IPC_SHARED_H_

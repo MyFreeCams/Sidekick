@@ -16,15 +16,13 @@
 
 // MyFreeCams JavaScript extensions.
 
-#include "cefJSExtensions.h"
-
-#include "libfcs/Log.h"
-
-#include <map>
+// system includes
 #include <string>
-#include <utility>
-#include <vector>
+#include <map>
 
+// solution includes
+#include "cefJSExtensions.h"
+#include <libfcs/Log.h>
 
 bool cefJSExtensionBase::Execute(const CefString& name,
                                  CefRefPtr<CefV8Value> object,
@@ -47,7 +45,7 @@ void cefJSExtensionBase::addExtension(CefRefPtr<CefBrowser> browser,
     CefRefPtr<CefV8Value> pParent = global->GetValue(sParent.c_str());
     if (pParent->IsUndefined())
     {
-        pParent = CefV8Value::CreateObject(nullptr, nullptr);
+        pParent = CefV8Value::CreateObject(NULL, NULL);
         global->SetValue(sParent.c_str(), pParent, V8_PROPERTY_ATTRIBUTE_NONE);
 
     }
@@ -154,7 +152,7 @@ void cefJSExtensionBase::CefListValue2V8Array(CefRefPtr<CefListValue> source, Ce
             case VTYPE_DICTIONARY:
             {
                 CefRefPtr<CefDictionaryValue> dictionary = source->GetDictionary(i);
-                new_value = CefV8Value::CreateObject(nullptr, nullptr);
+                new_value = CefV8Value::CreateObject(NULL,NULL);
                 CefDictionaryValue2V8JsonObject(dictionary, new_value);
                 break;
             }
@@ -259,7 +257,7 @@ void cefJSExtensionBase::CefDictionaryValue2V8JsonObject(CefRefPtr<CefDictionary
             case VTYPE_DICTIONARY:
             {
                 CefRefPtr<CefDictionaryValue> dictionary = source->GetDictionary(key);
-                new_value = CefV8Value::CreateObject(nullptr, nullptr);
+                new_value = CefV8Value::CreateObject(NULL,NULL);
                 CefDictionaryValue2V8JsonObject(dictionary, new_value);
                 break;
             }
@@ -350,7 +348,7 @@ bool CObsJSLoginCallback::executeCallBack(CefRefPtr<CefBrowser> browser,
             arguments.push_back(args);
             _TRACE("Executing call back");
             // Execute the callback.
-            callback->ExecuteFunction(nullptr, arguments);
+            callback->ExecuteFunction(NULL, arguments);
             // Exit the context.
             context->Exit();
         }
@@ -447,7 +445,7 @@ void JSObject::addObject(CefRefPtr<CefBrowser> browser,
                          CefRefPtr<CefV8Context> context)
 {
     auto global = context->GetGlobal();
-    auto MyJsObject = CefV8Value::CreateObject(nullptr, nullptr);
+    auto MyJsObject = CefV8Value::CreateObject(NULL, NULL);
     global->SetValue(getName().c_str(), MyJsObject, V8_PROPERTY_ATTRIBUTE_NONE);
 
     for (mapFunctions::iterator itr = getObjectMap().begin(); itr != getObjectMap().end(); ++itr)

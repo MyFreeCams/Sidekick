@@ -58,7 +58,6 @@ set(OBS_CEF_LOGINSRCS_WINDOWS
 # source_group(libcef_fcs\\cef\\win FILES ${OBS_CEF_LOGINSRCS_WINDOWS})
 
 if(APPLE)
-	find_library(COCOA_LIBRARY Cocoa)
 	add_library(${CEF_TARGET}
 		${LIBCEF_FCS_SRCS}
 		${LIBCEF_FCS_CEF_SRCS}
@@ -78,7 +77,6 @@ if(APPLE)
 	list(REMOVE_ITEM CMAKE_CXX_FLAGS -fno-exceptions -fno-rtti -funwind-tables -fno-asynchronous-unwind-tables)
 	# Turn on RTTI.
 	target_compile_options(${CEF_TARGET} PUBLIC -fexceptions -frtti -Wno-unused-variable -Wno-unused-parameter -Wno-error)
-	target_link_libraries(${CEF_TARGET} PUBLIC ${COCOA_LIBRARY})
 elseif(WIN32)
 	# Turn on RTTI. Disable warnings as errors.
 	target_compile_options(${CEF_TARGET} PUBLIC /GR /WX-)
@@ -88,7 +86,7 @@ endif()
 set_target_properties(${CEF_TARGET} PROPERTIES PREFIX "")
 
 target_compile_definitions(${CEF_TARGET} PUBLIC
-	# BOOST_ALL_NO_LIB
+	BOOST_ALL_NO_LIB
 )
 
 MFCDefines(${CEF_TARGET})

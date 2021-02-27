@@ -70,39 +70,37 @@ APPLY_PATCHES() # apply patches to obs-studio
 BUILD_INFO()    # generate build version & time
 SET_VARIABLES() # variables located in cmake/variables.cmake
 
-# set(THREADS_PREFER_PTHREAD_FLAG TRUE)
-# set(CMAKE_THREAD_PREFER_PTHREAD true)
-# find_package(Threads REQUIRED)
-
-# if(CMAKE_USE_PTHREADS_INIT)
-# 	set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-pthread")
-# endif()
-
 #------------------------------------------------------------------------
 # Boost
 #
-if (APPLE)
-	set(Boost_USE_STATIC_LIBS ON)
-	set(Boost_USE_DEBUG_LIBS OFF)
-	set(Boost_USE_RELEASE_LIBS ON)
-	set(Boost_USE_MULTITHREADED ON)
-	set(Boost_USE_DEBUG_RUNTIME OFF)
-	set(BOOST_NO_EXCEPTIONS ON)
-else()
-	set(Boost_USE_DEBUG_LIBS OFF)
-	set(Boost_USE_RELEASE_LIBS ON)
-	set(Boost_USE_MULTITHREADED ON)
-	set(Boost_USE_DEBUG_RUNTIME OFF)
-endif()
+set(Boost_USE_DEBUG_LIBS OFF)
+set(Boost_USE_RELEASE_LIBS ON)
+# set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_DEBUG_RUNTIME OFF)
+# set(BOOST_NO_EXCEPTIONS ON)
+
+# if (APPLE)
+# 	set(Boost_USE_STATIC_LIBS ON)
+# 	set(Boost_USE_DEBUG_LIBS OFF)
+# 	set(Boost_USE_RELEASE_LIBS ON)
+# 	set(Boost_USE_MULTITHREADED ON)
+# 	set(Boost_USE_DEBUG_RUNTIME OFF)
+# 	set(BOOST_NO_EXCEPTIONS ON)
+# else()
+# 	set(Boost_USE_DEBUG_LIBS OFF)
+# 	set(Boost_USE_RELEASE_LIBS ON)
+# 	set(Boost_USE_MULTITHREADED ON)
+# 	set(Boost_USE_DEBUG_RUNTIME OFF)
+# endif()
 
 if(APPLE)
-	find_package(Boost 1.69 COMPONENTS program_options date_time thread-mt system filesystem QUIET)
+	find_package(Boost 1.69 COMPONENTS date_time thread-mt QUIET)
 	if(NOT Boost_FOUND)
-		#program_options date_time chrono thread filesystem
-		find_package(Boost 1.74 COMPONENTS program_options date_time thread system filesystem chrono REQUIRED)
+		find_package(Boost 1.74 COMPONENTS date_time thread system REQUIRED)
 	endif()
 else()
-	find_package(Boost 1.69 COMPONENTS program_options date_time system chrono thread filesystem REQUIRED)
+	find_package(Boost 1.69 COMPONENTS date_time thread REQUIRED)
 endif()
 PRINT(Boost)
 
@@ -178,12 +176,10 @@ include_directories(
 #------------------------------------------------------------------------
 # Subdirectories
 #
-add_subdirectory(libipc)
 add_subdirectory(libfcs)
 add_subdirectory(libPlugins)
 add_subdirectory(websocket-client)
 add_subdirectory(ObsBroadcast)
-#add_subdirectory(shmspy)
 
 #------------------------------------------------------------------------
 # CEF Login App and/or Browser Panel
@@ -216,7 +212,6 @@ if(MFC_DO_CEF_BUILD)
 	find_package(CEF REQUIRED)
 
 	set(CEF_BINARY_DIR $<IF:$<CONFIG:Debug>,${CEF_BINARY_DIR_DEBUG},${CEF_BINARY_DIR_RELEASE}>)
-
 
 	if(APPLE)
 		# enable RTTI, disable warnings as errors

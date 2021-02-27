@@ -13,7 +13,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
 #pragma once
 
 #ifndef CEF_EVENT_HANDLER_H_
@@ -22,11 +21,11 @@
 #include "include/cef_client.h"
 
 #include <list>
+#include <string>
 
 #ifdef _WIN32
 #include "include/internal/cef_types.h"
 #include "libfcs/MfcJson.h"
-#include <string>
 
 const char* _MapTid(void);
 void fcs_strReplaceAll(std::string& source, const std::string& from, const std::string& to);

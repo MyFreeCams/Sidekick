@@ -33,12 +33,8 @@
 // project includes
 #include "MFCJsExtensions.h"
 
-// libipc includes
-#include "../libipc/mfc_ipc.h"
-#ifdef USE_OLD_MEMMANAGER
 #ifdef _DIRECT_TO_BROADCAST
 MFC_Shared_Mem::CMessageManager g_RenderMemManager;
-#endif
 #endif
 
 //----------------------------------------------------------------------------
@@ -66,26 +62,33 @@ bool CMFCJsCredentials::execute(CefRefPtr<CefV8Value> object,
     {
         // parameter 1 is a json package of login credentials.
         std::string sJson = arguments[0]->GetStringValue();
+#ifdef _DIRECT_TO_BROADCAST
+        // This caused all kinds of issues and would crash.  Better to use
+        // the existing cef internal message system to talk with the plugin
+        if (!g_RenderMemManager.isInitialized())
+            g_RenderMemManager.init(false);
 
+        // send message directly to the broadcast plugin,
+        std::string buf = stdprintf("%s,%s", sName.c_str(), sPwd.c_str());
+        _TRACE("Login attempt %s", sName.c_str());
+
+        g_RenderMemManager.sendMessage(MFC_Shared_Mem::CSharedMemMsg(ADDR_OBS_BROADCAST_Plugin, ADDR_CEF_JSEXTENSION, MSG_TYPE_DOLOGIN, buf.c_str()));
+#else
         // send via the existing cef internal ipc message system.
-        MFCIPC::CRouter *pRTR = MFCIPC::CRouter::getInstance();
 
-        MfcJsonObj js;
-        int n = js.Deserialize(sJson);
-        pRTR->sendEvent("doCredentials",ADDR_OBS_BROADCAST_Plugin,ADDR_CEF_JSEXTENSION,MSG_TYPE_DOCREDENTIALS,"%s",sJson.c_str());
-        bool closeWin = false;
-        if (js.objectGetBool("closeWindow", closeWin) && closeWin)
-        {
-            CefRefPtr<CefProcessMessage> msg = CefProcessMessage::Create("CloseWindows");
-            CefRefPtr<CefV8Context> context = CefV8Context::GetCurrentContext();
-            context->GetFrame()->SendProcessMessage(PID_BROWSER, msg);
-        }
+        // send the name of the extension and the json package.
+        // send message to browser plugin!
+        CefRefPtr<CefProcessMessage> msg = CefProcessMessage::Create("doCredentials");
+        CefRefPtr<CefListValue> args = msg->GetArgumentList();
+        args->SetString(0, sJson);
+        CefRefPtr<CefV8Context> context = CefV8Context::GetCurrentContext();
+        context->GetFrame()->SendProcessMessage(PID_BROWSER, msg);
+#endif
     }
     else
     {
-      assert(!"invalid number of parameters");
-      return false;
+        assert(!"invalid number of parameters");
+        return false;
     }
     return true;
-
 }

@@ -13,7 +13,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-
 #include "cefEventHandler.h"
 
 #include <sstream>
@@ -41,9 +40,7 @@ cefEventHandler* g_pEvent = NULL;
 #include <libPlugins/IPCShared.h>
 
 cefEventHandler* cefEventHandler::sm_pThis = NULL;
-#ifdef USE_OLD_MEMMANAGER
 extern MFC_Shared_Mem::CMessageManager g_LocalRenderMemManager;
-#endif
 #endif
 
 // Returns a data: URI with the specified contents.
@@ -81,7 +78,6 @@ cefEventHandler::~cefEventHandler()
 #ifndef _WIN32
     g_pEvent = NULL;
 #else
-#ifdef USE_OLD_MEMMANAGER
     if (!g_LocalRenderMemManager.isInitialized())
         g_LocalRenderMemManager.init(false);
 
@@ -90,10 +86,9 @@ cefEventHandler::~cefEventHandler()
                                       MSG_TYPE_SHUTDOWN,
                                       stdprintf("%u", _getpid()).c_str());
     g_LocalRenderMemManager.sendMessage(msg);
-#endif
+
     if (sm_pThis == this)
         sm_pThis = NULL;
-
 #endif
 }
 

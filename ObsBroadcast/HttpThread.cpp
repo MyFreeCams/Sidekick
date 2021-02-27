@@ -23,7 +23,6 @@
 #endif
 
 #include <boost/date_time/posix_time/posix_time_types.hpp>
-
 #include <curl/curl.h>
 
 // obs includes
@@ -36,26 +35,7 @@
 
 // solution includes
 #include <libPlugins/HttpRequest.h>
-//#include <libPlugins/IPCShared.h>
-
-#ifdef _USE_OLD_MEMMANAGER
-#define BUF_SIZE                        1024
-#define ADDR_BUF_SIZE                   32
-
-// names of shared memory objects.
-#define SHARED_MEMNAME                  "MFCSharedMemoryYYXX"
-#define CONTAINER_NAME                  "MyBoostList"
-#define MFC_SEMA_NAME                   "fcsSEMA"
-#define MFC_CLIENT_MUTEX_NAME           "fcsClientMutex"
-#define MFC_SERVER_MUTEX_NAME           "fcsServerMutex"
-#define MAX_QUE_SIZE                    20
-
-#endif
-
-#define ADDR_FCSLOGIN                   "fcsLoginCEF"
-#define ADDR_OBS_BROADCAST_Plugin       "obsBPlugin"
-#define ADDR_CEF_JSEXTENSION            "CefJSExtension"
-
+#include <libPlugins/IPCShared.h>
 #include <libPlugins/MFCConfigConstants.h>
 #include <libPlugins/MFCPluginAPI.h>
 #include <libPlugins/ObsUtil.h>
@@ -66,20 +46,12 @@
 #include "HttpThread.h"
 #include "ObsBroadcast.h"
 
-// libipc includes
-#include "../libipc/mfc_ipc.h"
-#include "../libipc/IPCSemaphore.h"
-#include "../libipc/IPCEvent.h"
-
 using std::string;
 
 // https://stackoverflow.com/questions/27314485/use-of-deleted-function-error-with-stdatomic-int
 std::atomic< uint32_t >         CHttpThread::sm_dwThreadCmd = { THREADCMD_NONE };
-#ifdef USE_OLD_MEMMANAGER
-//pthread_mutex_t                 CHttpThread::sm_mutexTimed;
-//MFC_Shared_Mem::CMessageManager CHttpThread::sm_mem;
-//CSemaphore                      g_semaBroadcastPlugin;
-#endif
+pthread_mutex_t                 CHttpThread::sm_mutexTimed;
+MFC_Shared_Mem::CMessageManager CHttpThread::sm_mem;
 
 extern CBroadcastCtx g_ctx; // part of MFCLibPlugins.lib::MfcPluginAPI.obj
 
@@ -126,18 +98,19 @@ int stopBroadcasterCallback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
 //
 // Http thread.
 CHttpThread::CHttpThread()
-: m_pSema(new MFCIPC::CSemaphore)
 {
     // create exit timed mutex
     pthread_mutexattr_t attrTimed;
     pthread_mutexattr_init(&attrTimed);
     pthread_mutexattr_settype(&attrTimed, PTHREAD_MUTEX_NORMAL);
+    pthread_mutex_init(&sm_mutexTimed, &attrTimed);
     setCmd(THREADCMD_NONE);
 }
 
 
 CHttpThread::~CHttpThread()
 {
+    pthread_mutex_destroy(&sm_mutexTimed);
 }
 
 
@@ -161,14 +134,18 @@ void* CHttpThread::startProcessThread(void* pCtx)
 bool CHttpThread::Start()
 {
     // hold mutex locked unless work is needed
-//    pthread_mutex_lock(&sm_mutexTimed);
-    MFCIPC::CRouter::setRouterID("MFCBroadcast");
-    MFCIPC::CRouter::getInstance()->start(10);
+    pthread_mutex_lock(&sm_mutexTimed);
 
-    setCmd(THREADCMD_NONE);
-    pthread_create(&m_thread, nullptr, CHttpThread::startProcessThread, this);
-    return true;
-
+    bool bInitSharedMem = sm_mem.init(true);
+    if (bInitSharedMem)
+    {
+        assert(sm_mem.getBroadcastPluginMutex());
+        sm_mem.getBroadcastPluginMutex()->lock();
+        setCmd(THREADCMD_NONE);
+        pthread_create(&m_thread, nullptr, CHttpThread::startProcessThread, this);
+        return true;
+    }
+    else _TRACE("Failed to init shared memory!");
 
     return false;
 }
@@ -183,9 +160,8 @@ bool CHttpThread::Stop(int nTimeout)
     UNUSED_PARAMETER(nTimeout);
     setCmd(THREADCMD_SHUTDOWN);
     // clear the mutex and this will wake the thread
-    //sm_mem.getBroadcastPluginMutex()->unlock();
+    sm_mem.getBroadcastPluginMutex()->unlock();
     // pthread_mutex_unlock(&sm_mutexTimed);
-  //  m_pSema->post();
     pthread_join(m_thread, nullptr);
     return true;
 }
@@ -246,108 +222,13 @@ void CHttpThread::Process()
     nWakeTm     = boost::posix_time::second_clock::universal_time();
     nLastPingTm = boost::posix_time::second_clock::local_time() - boost::posix_time::seconds((CHttpThread::PING_MSG_INTERVAL - 5));
 
-    /******************************************************************
-    * IPC Event call back lambda
-    * 
-    */
-    MFCIPC::CSimpleEventHandler ipcEventHandler(ADDR_OBS_BROADCAST_Plugin);
-    ipcEventHandler.setIncomingFunc([this](MFCIPC::CIPCEvent &msg){
-
-
-        std::string sMsg( msg.getPayload() );
-        std::string sFrom( msg.getFrom() );
-        std::string sTo( msg.getTo() );
-
-        switch (msg.getType())
-        {
-            case MSG_TYPE_PING:
-                _TRACE("MSG_TYPE_PING  To:%s From:%s Type:%d Msg: %s\n", sTo.c_str(), msg.getFrom(), msg.getType(), sMsg.c_str());
-                break;
-
-            case MSG_TYPE_LOG:
-                _TRACE("MSG_TYPE_LOG To:%s From:%s Type:%d Msg:\r\n%s\n", sTo.c_str(), msg.getFrom(), msg.getType(), sMsg.c_str());
-                break;
-
-            case MSG_TYPE_START:
-            {
-                int nPid = atoi( sMsg.c_str() );
-                if (nPid > 0)
-                {
-                    m_workerPids.insert(nPid);
-                }
-                break;
-            }
-
-        case MSG_TYPE_SHUTDOWN:
-        {
-            if (sFrom == ADDR_CEF_JSEXTENSION || sFrom == ADDR_FCSLOGIN)
-            {
-                int nPid = atoi( sMsg.c_str() );
-                if (nPid > 0)
-                {
-                    m_workerPids.erase(nPid);
-                    // _TRACE("MSG_TYPE_SHUTDOWN  To:%s From:%s Type:%d process id %d (%zu total running)\n", sTo.c_str(), sFrom.c_str(), msg.getID(), nPid, m_workerPids.size());
-                }
-                else
-                {
-                    _TRACE("MSG_TYPE_SHUTDOWN  To:%s From:%s Type:%d: Invalid process id: '%s'\n",
-                            sTo.c_str(), sFrom.c_str(), msg.getType(), sMsg.c_str() );
-                }
-            }
-            else
-            {
-                _TRACE("MSG_TYPE_SHUTDOWN  To:%s From:%s Type:%d: Invalid From field; expected JSEXtension or FCSLOGIN; pid: '%s'\n",
-                        sTo.c_str(), sFrom.c_str(), msg.getType(), sMsg.c_str() );
-            }
-            break;
-        }
-
-        case MSG_TYPE_DOCREDENTIALS:
-        {
-          auto lk = g_ctx.sharedLock();
-          CBroadcastCtx ctx = g_ctx;
-
-
-            MfcJsonObj js;
-            int n = js.Deserialize(sMsg);
-
-
-            if (ctx.cfg.Deserialize(sMsg))
-            {
-                MfcJsonObj js;
-                ctx.cfg.Serialize(js);
-                ctx.cfg.writePluginConfig();
-
-                // Send ctx data back to main thread after we updated it
-                g_ctx = ctx;
-                g_ctx.agentPolling = true;
-
-            }
-            else
-            {
-                _TRACE("failed to read data from do credentials msg: %s", sMsg.c_str());
-
-            }
-        }
-            break;
-
-        default:
-            _TRACE("Unknown Message Type: To:%s From:%s Type:%d Msg: %s\n", sTo.c_str(), msg.getFrom(), msg.getType(), sMsg.c_str());
-            break;
-        }
-    });
-
-
     while (!bDone)
     {
-
+        // Collect current ctx data from main thread
+        ctx = g_ctx;
 
         if (boost::posix_time::second_clock::universal_time() >= nWakeTm)
         {
-            // Collect current ctx data from main thread
-            auto lk = ctx.sharedLock();
-            ctx = g_ctx;
-
             bConnected = false;
             if (ctx.agentPolling)
             {
@@ -401,24 +282,16 @@ void CHttpThread::Process()
         if (diffTm.total_seconds() > CHttpThread::PING_MSG_INTERVAL)
         {
             if (!m_workerPids.empty())
-            {
-                MFCIPC::CRouter::getInstance()->sendEvent("Ping",ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_PING, "Ping %d obsBroadcast", nPingCx++);
-#ifdef _USE_OLD_MEMMANAGER \
-            sm_mem.sendMessage(ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_PING, "Ping %d obsBroadcast", nPingCx++);
-#endif
-            }
+                sm_mem.sendMessage(ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_PING, "Ping %d obsBroadcast", nPingCx++);
+
             nLastPingTm = boost::posix_time::second_clock::local_time();
         }
 
         // Sleep for at most 1 second (if we aren't woken up by acquisition of lock) before we timeout and
         // check for threadcmd events and loop starting block over and potentially sending a heartbeat API
         //
-#ifdef _USE_OLD_MEMMANAGER
         boost::posix_time::ptime t1 = boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds( 1 );
         sm_mem.getBroadcastPluginMutex()->timed_lock( t1 );
-#endif
-        // wait 1 second for the semaphore to triggerr
-        m_pSema->timed_wait(1000);
 
         // If we woke up from a thread cmd being set, collect threadCmd and take action,
         // otherwise return to top of loop and check for heatbeat/ping times before sleeping
@@ -433,9 +306,7 @@ void CHttpThread::Process()
                 g_ctx.stopPolling();
                 if ( ! bDone )
                 {
-                    MFCIPC::CRouter::getInstance()->sendEvent("Shutdown",ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_SHUTDOWN, "Shutdown!");
-
-//                    sm_mem.sendMessage(ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_SHUTDOWN, "Shutdown!");
+                    sm_mem.sendMessage(ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_SHUTDOWN, "Shutdown!");
                     bDone = true;
                 }
                 break;
@@ -491,17 +362,15 @@ void CHttpThread::Process()
             setCmd(THREADCMD_NONE);
         }
         // Check for any shared mem messages for us before looping
-#ifdef _USE_OLD_MEMMANAGER
-      //  if (!bDone)
-       //     readSharedMsg(ctx);
-#endif
+        if (!bDone)
+            readSharedMsg(ctx);
     }
 }
 
-#ifdef _USE_OLD_MEMMANAGER
+
 void CHttpThread::readSharedMsg(CBroadcastCtx& ctx)
 {
-/*    MFC_Shared_Mem::CSharedMemMsg msg;
+    MFC_Shared_Mem::CSharedMemMsg msg;
 
     while (sm_mem.getNextMessage(&msg, ADDR_OBS_BROADCAST_Plugin))
     {
@@ -596,6 +465,4 @@ void CHttpThread::readSharedMsg(CBroadcastCtx& ctx)
             break;
         }
     }
-    */
 }
-#endif

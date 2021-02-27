@@ -37,26 +37,62 @@ CMFCCefEventHandler::CMFCCefEventHandler(const bool use_views)
         : myBaseClass(use_views)
 {
 }
-#ifdef USE_OLD_MEMMANAGER
-//MFC_Shared_Mem::CMessageManager g_LocalRenderMemManager;
-#endif
+
+MFC_Shared_Mem::CMessageManager g_LocalRenderMemManager;
 
 //---------------------------------------------------------------------
 // OnPRocessMessageRecieved
 //
+// call back when a CEF IPC message is sent to this process from the
+// the helper app.
 //
-// the extensions want the login window to close!
+// On MAC the helper process can't access the boost shared memory
+// so we use the cef IPC and then relay the message to MFCBroadcast.
+
 bool CMFCCefEventHandler::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
                                                    CefRefPtr<CefFrame> frame,
                                                    CefProcessId source_process,
                                                    CefRefPtr<CefProcessMessage> message)
 {
+    string msgName, sData;
+    bool closeWin = false;
+    MfcJsonObj js;
 
-    std::string msgName = message->GetName();
+    msgName = message->GetName();
 
-    if (msgName == "CloseWindows")
+    if (!g_LocalRenderMemManager.isInitialized())
+        g_LocalRenderMemManager.init(false);
+
+    if (msgName == "doCredentials")
     {
-      CloseAllBrowsers(false);
+        CefRefPtr<CefListValue> args = message->GetArgumentList();
+        sData = args->GetString(0);
+
+        if (js.Deserialize(sData))
+        {
+            // send message directly to the broadcast plugin,
+            MFC_Shared_Mem::CSharedMemMsg msg(ADDR_OBS_BROADCAST_Plugin, ADDR_CEF_JSEXTENSION, MSG_TYPE_DOCREDENTIALS, sData.c_str());
+            g_LocalRenderMemManager.sendMessage(msg);
+            if (js.objectGetBool("closeWindow", closeWin) && closeWin)
+                CloseAllBrowsers(false);
+        }
     }
+    else if (msgName == "doLogin")
+    {
+        CefRefPtr<CefListValue> args = message->GetArgumentList();
+        string sName = args->GetString(0);
+        string sPwd = args->GetString(1);
+        // send message directly to the broadcast plugin,
+        string buf = stdprintf("%s,%s", sName.c_str(), sPwd.c_str());
+        g_LocalRenderMemManager.sendMessage( MFC_Shared_Mem::CSharedMemMsg(ADDR_OBS_BROADCAST_Plugin, ADDR_CEF_JSEXTENSION, MSG_TYPE_DOLOGIN, buf.c_str()) );
+    }
+    else if (msgName == "setModelStreamingKey")
+    {
+        CefRefPtr<CefListValue> args = message->GetArgumentList();
+        string sMSK = args->GetString(0);
+        // send message directly to the broadcast plugin,
+        g_LocalRenderMemManager.sendMessage( MFC_Shared_Mem::CSharedMemMsg(ADDR_OBS_BROADCAST_Plugin, ADDR_CEF_JSEXTENSION, MSG_TYPE_SET_MSK, sMSK.c_str()) );
+    }
+
     return false;
 }
