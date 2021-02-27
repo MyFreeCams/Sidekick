@@ -16,9 +16,11 @@
 
 #pragma once
 
+#ifndef ROUTER_H_
+#define ROUTER_H_
 
 // local files
-#include "../libipc/mfc_ipc.h"
+#include "mfc_ipc.h"
 
 namespace MFCIPC
 {
@@ -28,7 +30,6 @@ class CIPCEventList;
 class CProcessRecord;
 class CIPCEventHandlerBase;
 
-
 //---------------------------------------------------------------------
 // CRouter
 //
@@ -36,19 +37,18 @@ class CIPCEventHandlerBase;
 // object.
 class CRouter
 {
-
 protected:
     CRouter();
     virtual ~CRouter();
 
 public:
     // singleton, no compiler generated assignments.
-    CRouter(CRouter &) = delete;
-    CRouter(const CRouter &) = delete;
-    const CRouter &operator=(const CRouter &) = delete;
+    CRouter(CRouter&) = delete;
+    CRouter(const CRouter&) = delete;
+    const CRouter& operator=(const CRouter&) = delete;
 
     // singleton Router Factory
-    static CRouter *getInstance();
+    static CRouter* getInstance();
 
 
     //*****************************************************************
@@ -71,8 +71,8 @@ public:
     //*****************************************************************
     // CLient functions.
     //*****************************************************************
-    void registerEvtHandler(CIPCEventHandlerBase *);
-    void deregisterEvtHandler(CIPCEventHandlerBase *);
+    void registerEvtHandler(CIPCEventHandlerBase*);
+    void deregisterEvtHandler(CIPCEventHandlerBase*);
 
     //---------------------------------------------------------------------
     // isStarted
@@ -99,38 +99,37 @@ public:
     // getEvetnAsString
     //
     // get the list of events as a list of std::strings.
-    int getEventsAsString(bool bAll,StringListList &lstRows);
-    int getProcessesAsString(bool bAll,StringListList &lstRows);
+    int getEventsAsString(bool bAll, StringListList& lstRows);
+    int getProcessesAsString(bool bAll, StringListList& lstRows);
     void getAllEvents(CIPCEventList &);
 
     //---------------------------------------------------------------------
     // sendEvent
     //
     // add an event to the shared memory pool
-    void sendEvent(const char *pTopic, const char *pTo, const char *pFrom,  int nType, boost::posix_time::ptime timeExpiration, const char *pFormat, ...);
-    void sendEvent(const char *pTopic, const char *pTo, const char *pFrom,  int nType, const char *pFormat, ...);
-    
-    void sendEvent(CIPCEvent &msg, bool bTrigger = true);
+    void sendEvent(const char* pTopic, const char* pTo, const char* pFrom,  int nType, boost::posix_time::ptime timeExpiration, const char* pFormat, ...);
+    void sendEvent(const char* pTopic, const char* pTo, const char* pFrom,  int nType, const char* pFormat, ...);
+    void sendEvent(CIPCEvent& msg, bool bTrigger = true);
 
     //---------------------------------------------------------------------
     // update_event
     //
     // update existing event.
-    void update_event(CIPCEvent &sc);
+    void update_event(CIPCEvent& sc);
 
     //---------------------------------------------------------------------
     // remove_event
     //
     // mark event records as unused.
-    void remove_event(CIPCEvent &sc);
+    void remove_event(CIPCEvent& sc);
     void remove_events(std::list<CIPCEvent>&);
 
     //---------------------------------------------------------------------
     // ID
     //
     // access member for router id, which is really the process id.
-    static void setRouterID(const char *p);
-    const std::string &getID();
+    static void setRouterID(const char* p);
+    const std::string& getID();
 
     //---------------------------------------------------------------------
     // debugging function used to manually trigger operations.
@@ -151,7 +150,7 @@ public:
     // getProcessRecord
     //
     // get this events process record.
-    bool getProcessRecord(std::string sID, CProcessRecord &r);
+    bool getProcessRecord(std::string sID, CProcessRecord& r);
     CProcessRecord getProcessRecord();
 
     //--------------------------------------------------------------------
@@ -173,14 +172,11 @@ public:
     bool isReady() ;
     void isReady(bool b);
 
-
-  //  ShmemVector<CIPCEvent>&getEventsVectors();
+    //ShmemVector<CIPCEvent>&getEventsVectors();
     //ShmemVector<CProcessRecord>&getProcessVectors() { return m_processes; }
 
 protected:
-
-    //boost::recursive_mutex &getReadyMutex() { return m_mutexFlags;}
-
+    //boost::recursive_mutex& getReadyMutex() { return m_mutexFlags;}
 
     //---------------------------------------------------------------------
     // processEventsForLocalClients
@@ -200,7 +196,7 @@ protected:
     // look for any new processes that have been added
     void performProcessCheck(std::list<uint64_t>&);
 
-    static void *startProcessThread(void* pCtx);
+    static void* startProcessThread(void* pCtx);
 
     //---------------------------------------------------------------------
     // Process
@@ -212,27 +208,23 @@ protected:
     bool isMaintenaceProcess();
 
 private:
-
-
-    std::list<CIPCEventHandlerBase *>m_lstMyEvtHandlers;
-   static std::string m_sID;
+    std::list<CIPCEventHandlerBase*>m_lstMyEvtHandlers;
+    static std::string m_sID;
 
     std::string m_sSemaName;                    // name for the shared memory semaphore used to trigger.
 
     static CRouter* m_pMsgEngineInstance;       // our instance
     int m_nMaintenanceBid;                      // maintenanc ebid.
-      
-      bool m_bProcessLocal = false;
-      bool m_bManMaintenance = false;
-      bool m_bIsReady = false;
-      bool m_bExit = false;
-      bool m_bIsStarted = false;
 
-
-
+    bool m_bProcessLocal = false;
+    bool m_bManMaintenance = false;
+    bool m_bIsReady = false;
+    bool m_bExit = false;
+    bool m_bIsStarted = false;
 };
 
 typedef boost::shared_ptr<CRouter> CMsgQueEngine_ptr;
 
 }
 
+#endif  // ROUTER_H_

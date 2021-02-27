@@ -14,13 +14,13 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <list>
+#include "EventList.h"
 
 #ifdef _WIN32
 #include <stdio.h>
 #endif
 
-#include "../libfcs/Log.h"
+#include "libfcs/Log.h"
 //#include <fcslib_string.h>
 #include "Router.h"
 #include "ShmemManager.h"
@@ -29,9 +29,9 @@ namespace MFCIPC
 {
 
 
-const CIPCEventList &CIPCEventList::operator=(const CIPCEventList &src)
+const CIPCEventList& CIPCEventList::operator=(const CIPCEventList& src)
 {
-    for(auto e : src)
+    for (auto e : src)
     {
         push_back(e);
     }
@@ -43,7 +43,7 @@ const CIPCEventList &CIPCEventList::operator=(const CIPCEventList &src)
 // check
 //
 // determine if this events should be added to the list.
-bool CFilter::check(CIPCEvent &evt)
+bool CFilter::check(CIPCEvent& evt)
 {
     std::string sClientID = this->getID();
     if (m_key.check(evt.getKey()) >= 0
@@ -71,7 +71,7 @@ bool CFilter::check(CIPCEvent &evt)
     {
         erase(begin(), end());
     }
- 
+
     CShmemManager &mman = CShmemManager::getInstance();
     mman.getEventsVectors().for_each([this](CIPCEvent &sc)
         {

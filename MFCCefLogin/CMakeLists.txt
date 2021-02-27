@@ -143,6 +143,8 @@ if(OS_MAC)
 		ADD_LOGICAL_TARGET("cef_sandbox_lib" "${CEF_SANDBOX_LIB_DEBUG}" "${CEF_SANDBOX_LIB_RELEASE}")
 	endif()
 
+	find_library(COCOA_LIBRARY Cocoa)
+
 	# Main executable target.
 	add_executable(${CEF_TARGET} MACOSX_BUNDLE
 		${MFC_CEF_LOGIN_RESOURCES_SRCS}
@@ -158,8 +160,10 @@ if(OS_MAC)
 		libcef_dll_wrapper
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
-		${Boost_LIBRARIES}
+		# ${Boost_LIBRARIES}
+		Boost::boost
 		libipc
+		${COCOA_LIBRARY}
 	)
 	set_target_properties(${CEF_TARGET} PROPERTIES
 		MACOSX_BUNDLE TRUE
@@ -223,7 +227,8 @@ if(OS_MAC)
 			libcef_dll_wrapper
 			${CEF_STANDARD_LIBS}
 			MFCLibCef
-			${Boost_LIBRARIES}
+			# ${Boost_LIBRARIES}
+			Boost::boost
 			libipc
 		)
 		set_target_properties(${_helper_target} PROPERTIES

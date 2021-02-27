@@ -16,6 +16,9 @@
 
 #pragma once
 
+#ifndef EVT_DEFINES_H_
+#define EVT_DEFINES_H_
+
 #include <list>
 #include <string>
 // used for the spy program various grid displays.
@@ -28,25 +31,24 @@ typedef std::list<StringList> StringListList;
 #define MFC_IPC_SHMEMFILE_NAME "MFCSharedMemory.mem"
 #endif
 
-
 #ifndef SHARED_MEMNAME
-#define SHARED_MEMNAME					"MFCSharedMemory.mem"
+#define SHARED_MEMNAME "MFCSharedMemory.mem"
 #endif
 
 #ifndef CONTAINER_NAME
-#define CONTAINER_NAME					"MyBoostMsgList"
+#define CONTAINER_NAME "MyBoostMsgList"
 #endif
 
 #ifndef CLIENT_CONTAINER_NAME
-#define CLIENT_CONTAINER_NAME           "MyClientList"
+#define CLIENT_CONTAINER_NAME "MyClientList"
 #endif
 
 #ifndef MFC_SEMA_NAME
-#define MFC_SEMA_NAME					"fcsSEMA"
+#define MFC_SEMA_NAME "fcsSEMA"
 #endif
 
 #ifndef MFC_SHMEM_VERSION
-#define MFC_SHMEM_VERSION               "fcsVersion"
+#define MFC_SHMEM_VERSION "fcsVersion"
 #endif
 
 // these are all defined in the cmake file, but give them a default
@@ -100,25 +102,26 @@ typedef std::list<StringList> StringListList;
 #define MFC_SHMEM_EVENT_SUBSCRIBE_MAX 20
 #endif
 
-
-#define MFC_MAINTENANCE_MUTEX           "fcsMaintenanceMutex"
+#ifndef MFC_MAINTENANCE_MUTEX
+#define MFC_MAINTENANCE_MUTEX "fcsMaintenanceMutex"
+#endif
 
 // size of the message payload
 #ifndef EVT_PAYLOAD_SIZE
-#define EVT_PAYLOAD_SIZE						1024
+#define EVT_PAYLOAD_SIZE 1024
 #endif
 
 // size of client id fields.
 #ifndef ADDR_BUF_SIZE
-#define ADDR_BUF_SIZE					32
+#define ADDR_BUF_SIZE 32
 #endif
 
 #ifndef TOPIC_BUF_SIZE
-#define TOPIC_BUF_SIZE                  32
+#define TOPIC_BUF_SIZE 32
 #endif
 
 #ifndef MAX_CLIENTS
-#define MAX_CLIENTS                     10
+#define MAX_CLIENTS 10
 #endif
 
 #ifndef SIZE_OF_TIME_T
@@ -126,7 +129,7 @@ typedef std::list<StringList> StringListList;
 #endif
 
 #ifndef READ_BY_BUFFER_SIZE
-#define READ_BY_BUFFER_SIZE              ( (ADDR_BUF_SIZE + SIZE_OF_TIME_T) * MAX_CLIENTS)
+#define READ_BY_BUFFER_SIZE ((ADDR_BUF_SIZE + SIZE_OF_TIME_T) * MAX_CLIENTS)
 #endif
 
 #ifndef MAINT_TO
@@ -145,7 +148,6 @@ typedef std::list<StringList> StringListList;
 #define MAINT_STATUS "Maint Status"
 #endif
 
-
 #ifndef SHMEM_STATUS_TOPIC
 #define SHMEM_STATUS_TOPIC "Shmem Status"
 #endif
@@ -162,19 +164,19 @@ typedef std::list<StringList> StringListList;
 #endif
 
 typedef enum {
-  EVT_NOT_IN_USE = 0
+    EVT_NOT_IN_USE = 0
   , EVT_GENERIC
   , EVT_TIMED
   , EVT_POST_IT
-  ,MSG_TYPE_PING
-  ,MSG_TYPE_START
-  ,MSG_TYPE_SHUTDOWN
-  ,MSG_TYPE_DOLOGIN
-  ,MSG_TYPE_LOGIN_DENY
-  ,MSG_TYPE_LOGIN_AUTH
-  ,MSG_TYPE_SET_MSK
-  ,MSG_TYPE_DOCREDENTIALS
-  ,MSG_TYPE_LOG
+  , MSG_TYPE_PING
+  , MSG_TYPE_START
+  , MSG_TYPE_SHUTDOWN
+  , MSG_TYPE_DOLOGIN
+  , MSG_TYPE_LOGIN_DENY
+  , MSG_TYPE_LOGIN_AUTH
+  , MSG_TYPE_SET_MSK
+  , MSG_TYPE_DOCREDENTIALS
+  , MSG_TYPE_LOG
   , EVT_SYSTEM = 9000
   , EVT_MAINTENANCE_START
   , EVT_MAINTENANCE_END
@@ -193,8 +195,6 @@ typedef enum {
 } EVT_READ_FREQ;
 
 std::string getMessageTypeName(int n);
-
-
 
 #define LOG_EVT(msg, evt) \
 _TRACE("EVENT: %s Key: %3d Topic: %-10s From: %-10s To: %-10s Type: %-10s Topic: %-10s Read: %1s  Expired: %1s ReadBy: %s expire: %-8s Payload %s"\
@@ -223,4 +223,6 @@ _TRACE("PROCESS: %s Key: %d ID: %s Checkin %s Update: %s Register: %s MutexName:
 , evt.getMutexName()\
 )
 
-}
+}  // namespace
+
+#endif  // EVT_DEFINES_H_

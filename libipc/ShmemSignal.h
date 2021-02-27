@@ -16,13 +16,18 @@
 
 #pragma once
 
+#ifndef SHMEM_SIGNAL_H_
+#define SHMEM_SIGNAL_H_
+
 #include "IPCUtil.h"
 #include "ShmemDefines.h"
 #include "ShmemVector.h"
 #include "ShmemSimpleType.h"
 #include "ShmemContainer.h"
 
-#include <boost/thread/mutex.hpp>
+#include <boost/date_time/time_clock.hpp>
+#include <boost/date_time/microsec_time_clock.hpp>
+#include <boost/date_time/posix_time/posix_time_types.hpp>
 
 namespace MFCIPC
 {
@@ -35,11 +40,11 @@ template <typename T>
 class ShmemSignal
 {
 public:
-    ShmemSignal(const char *pContainer)
+    ShmemSignal(const char* pContainer)
             : m_sContainerName(pContainer)
     {
     }
-    ShmemSignal(const std::string &s)
+    ShmemSignal(const std::string& s)
             : m_sContainerName(s)
     {}
 
@@ -47,12 +52,12 @@ public:
     // setContainerName
     //
     // named of the shared memory block.
-    void setContainerName(const char *p)
+    void setContainerName(const char* p)
     {
         m_sContainerName = p;
     }
 
-    void setContainerName(const std::string &s)
+    void setContainerName(const std::string& s)
     {
         m_sContainerName = s;
     }
@@ -61,7 +66,7 @@ public:
     // operator->
     //
     // not sure this works, but I never implemented the access operator.
-    T *operator->()
+    T* operator->()
     {
         return get();
     }
@@ -70,18 +75,17 @@ public:
     // get
     //
     // access shared memory object.
-    T * get()
+    T* get()
     {
         assert(m_sContainerName.size() > 0);
         assert(getShmemManager());
-        T *pV = getShmemManager()->template find<T>(m_sContainerName.c_str()).first;
+        T* pV = getShmemManager()->template find<T>(m_sContainerName.c_str()).first;
         if (nullptr == pV)
         {
             pV = getShmemManager()->template construct<T>(m_sContainerName.c_str())();
         }
         assert(pV);
         return pV;
-
     }
 
     int allocSize()
@@ -90,12 +94,12 @@ public:
     }
 
     // helper function to return the boost shared memory manager.
-    boost::interprocess::managed_shared_memory *getShmemManager() { return getShmemManagerInstance(); }
+    boost::interprocess::managed_shared_memory* getShmemManager() { return getShmemManagerInstance(); }
 
 private:
     std::string m_sContainerName;
-
 };
+
 
 //---------------------------------------------------------------------
 // ShmemSignal
@@ -106,20 +110,20 @@ template<>
 class ShmemSignal <ShmemSemaphore>
 {
 public:
-    ShmemSignal(const char *pContainer)
-            : m_sContainerName(pContainer)
+    ShmemSignal(const char* pContainer)
+        : m_sContainerName(pContainer)
     {
     }
-    ShmemSignal(const std::string &s)
-            : m_sContainerName(s)
+    ShmemSignal(const std::string& s)
+        : m_sContainerName(s)
     {}
 
-    void setContainerName(const char *p)
+    void setContainerName(const char* p)
     {
         m_sContainerName = p;
     }
 
-    void setContainerName(const std::string &s)
+    void setContainerName(const std::string& s)
     {
         m_sContainerName = s;
     }
@@ -132,7 +136,7 @@ public:
     {
         assert(m_sContainerName.size() > 0);
         assert(getShmemManager());
-        ShmemSemaphore *pV = getShmemManager()->template find<ShmemSemaphore>(m_sContainerName.c_str()).first;
+        ShmemSemaphore* pV = getShmemManager()->template find<ShmemSemaphore>(m_sContainerName.c_str()).first;
         if (nullptr == pV)
         {
             pV = getShmemManager()->template construct<ShmemSemaphore>(m_sContainerName.c_str())(0);
@@ -148,11 +152,17 @@ public:
     // wait for signal or timeout.
     bool timed_wait(int nSeconds)
     {
+        ShmemSemaphore* p = get();
+        assert(p);
+
+#if defined(BOOST_DATE_TIME_HAS_HIGH_PRECISION_CLOCK)
+        auto system_time = boost::date_time::microsec_clock<boost::posix_time::ptime>::universal_time();
+#else
+        auto system_time = boost::date_time::second_clock<boost::posix_time::ptime>::universal_time();
+#endif
         boost::posix_time::time_duration td = boost::posix_time::seconds(nSeconds);
 
-        ShmemSemaphore *p = get();
-        assert(p);
-        bool b = p->timed_wait(boost::get_system_time() + td);
+        bool b = p->timed_wait(system_time + td);
         m_nMyCnt--;
         return b;
     }
@@ -163,7 +173,7 @@ public:
     // just try to lock teh semaphone, but if it's locked don't wait.
     bool try_wait()
     {
-        ShmemSemaphore *p = get();
+        ShmemSemaphore* p = get();
         assert(p);
         bool b = p->try_wait();
         m_nMyCnt--;
@@ -176,7 +186,7 @@ public:
     // wait for a signal
     void wait()
     {
-        auto *p = get();
+        auto* p = get();
         assert(p);
         p->wait();
         m_nMyCnt--;
@@ -190,15 +200,18 @@ public:
     {
         m_nMyCnt++;
         _TRACE("Posting semaphore");
-        auto *p = get();
+        auto* p = get();
         assert(p);
         p->post();
     }
 
-    boost::interprocess::managed_shared_memory *getShmemManager() { return getShmemManagerInstance(); }
+    boost::interprocess::managed_shared_memory* getShmemManager() { return getShmemManagerInstance(); }
 
 private:
     std::string m_sContainerName;
     int m_nMyCnt = 0;
 };
-}
+
+}  // namespace MFCIPC
+
+#endif  // SHMEM_SIGNAL_H_

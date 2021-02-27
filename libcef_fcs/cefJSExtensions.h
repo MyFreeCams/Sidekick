@@ -17,10 +17,14 @@
 
 #pragma once
 
-// cef includes
+#ifndef CEF_JS_EXTENSIONS_H_
+#define CEF_JS_EXTENSIONS_H_
+
 #include "include/cef_app.h"
 #include "include/cef_v8.h"
 #include "include/views/cef_browser_view.h"
+
+#include <string>
 
 class cefJSExtensionBase : public CefV8Handler
 {
@@ -90,7 +94,7 @@ public:
                          CefProcessId source_process,
                          CefRefPtr<CefProcessMessage> message) OVERRIDE;
 
-    CallbackMap &getCallbackMap() { return m_mapCallback; }
+    CallbackMap& getCallbackMap() { return m_mapCallback; }
 
 private:
     CallbackMap m_mapCallback;
@@ -171,3 +175,5 @@ private:
 };
 
 #endif
+
+#endif  // CEF_JS_EXTENSIONS_H_

@@ -7,6 +7,7 @@
 #######################################
 #  Subdirectory      Target           #
 #  ---------------------------------  #
+#  libipc            libipc           #
 #  libcef_fcs        MFCLibCef        #
 #  libfcs            MFClibfcs        #
 #  libPlugins        MFCLibPlugins    #
@@ -39,7 +40,9 @@ set(CMAKE_CXX_EXTENSIONS NO)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-	set(PROJECT_ARCH "x86_64")
+	# set(PROJECT_ARCH "x86_64")
+	# set(PROJECT_ARCH "x86_64;arm64")
+	set(PROJECT_ARCH "arm64")
 	set(_bin_suffix 64)
 	set(_lib_suffix 64)
 else()
@@ -67,6 +70,14 @@ APPLY_PATCHES() # apply patches to obs-studio
 BUILD_INFO()    # generate build version & time
 SET_VARIABLES() # variables located in cmake/variables.cmake
 
+# set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+# set(CMAKE_THREAD_PREFER_PTHREAD true)
+# find_package(Threads REQUIRED)
+
+# if(CMAKE_USE_PTHREADS_INIT)
+# 	set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} "-pthread")
+# endif()
+
 #------------------------------------------------------------------------
 # Boost
 #
@@ -74,7 +85,6 @@ if (APPLE)
 	set(Boost_USE_STATIC_LIBS ON)
 	set(Boost_USE_DEBUG_LIBS OFF)
 	set(Boost_USE_RELEASE_LIBS ON)
-	# set(Boost_USE_STATIC_LIBS ON)
 	set(Boost_USE_MULTITHREADED ON)
 	set(Boost_USE_DEBUG_RUNTIME OFF)
 	set(BOOST_NO_EXCEPTIONS ON)
@@ -92,7 +102,7 @@ if(APPLE)
 		find_package(Boost 1.74 COMPONENTS program_options date_time thread system filesystem chrono REQUIRED)
 	endif()
 else()
-	find_package(Boost 1.69 COMPONENTS program_options date_time system chrono thread  filesystem REQUIRED)
+	find_package(Boost 1.69 COMPONENTS program_options date_time system chrono thread filesystem REQUIRED)
 endif()
 PRINT(Boost)
 
@@ -116,18 +126,21 @@ PRINT(Qt5)
 #------------------------------------------------------------------------
 # Nlohmann JSON (Modern JSON for C++)
 #
-message(STATUS "Fetching nlohmann json")
-FetchContent_Declare(nlohmannjson GIT_REPOSITORY https://github.com/nlohmann/json)
-FetchContent_GetProperties(nlohmannjson)
-if(NOT nlohmannjson_POPULATED)
-	FetchContent_Populate(nlohmannjson)
-endif()
+# message(STATUS "Fetching nlohmann json")
+# FetchContent_Declare(nlohmannjson GIT_REPOSITORY https://github.com/nlohmann/json)
+# FetchContent_GetProperties(nlohmannjson)
+# if(NOT nlohmannjson_POPULATED)
+# 	FetchContent_Populate(nlohmannjson)
+# endif()
+set(nlohmannjson_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/deps/nlohmannjson-src)
 
 #------------------------------------------------------------------------
 # WebSocket++ (websocketpp)
 #
 message(STATUS "Fetching websocketpp")
-FetchContent_Declare(websocketpp GIT_REPOSITORY https://github.com/zaphoyd/websocketpp)
+FetchContent_Declare(websocketpp
+	GIT_REPOSITORY https://github.com/zaphoyd/websocketpp
+)
 FetchContent_GetProperties(websocketpp)
 if(NOT websocketpp_POPULATED)
 	FetchContent_Populate(websocketpp)
@@ -137,7 +150,9 @@ endif()
 # Asio C++ Library
 #
 message(STATUS "Fetching ASIO")
-FetchContent_Declare(asio GIT_REPOSITORY https://github.com/chriskohlhoff/asio)
+FetchContent_Declare(asio
+	GIT_REPOSITORY https://github.com/chriskohlhoff/asio
+)
 FetchContent_GetProperties(asio)
 if(NOT asio_POPULATED)
 	FetchContent_Populate(asio)

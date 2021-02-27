@@ -69,8 +69,9 @@ set(MyTarget_WEBRTC_FILES
 )
 source_group(WebRTC FILES ${MyTarget_WEBRTC_FILES})
 if(APPLE)
-
-	set_source_files_properties(${MyTarget_WEBRTC_FILES} PROPERTIES COMPILE_FLAGS " -fvisibility=hidden -fvisibility-inlines-hidden")
+	set_source_files_properties(${MyTarget_WEBRTC_FILES} PROPERTIES
+		COMPILE_FLAGS " -fvisibility=hidden -fvisibility-inlines-hidden"
+	)
 endif()
 
 # add platform sources.
@@ -150,12 +151,10 @@ add_library(${MyTarget} MODULE
 target_include_directories(${MyTarget} PRIVATE
 	${WEBRTC_INCLUDE_DIRS}
 	${LIBX264_INCLUDE_DIRS}
-	../libipc
-	../libfcs
 )
 
 target_compile_definitions(${MyTarget} PUBLIC
-	BOOST_ALL_NO_LIB
+	# BOOST_ALL_NO_LIB
 	#BOOST_LIB_DIAGNOSTIC
 )
 if (APPLE)
@@ -188,7 +187,8 @@ target_link_libraries(${MyTarget} PRIVATE
 	WebRTC::WebRTC
 	${LIBX264_LIBRARIES}
 	${MyTarget_PLATFORM_LIBRARIES}
-	${Boost_LIBRARIES}
+	# ${Boost_LIBRARIES}
+	Boost::boost
 	libipc
 	#/Users/toddanderson/mfc-dev/obs-studio/xAuto/plugins/myfreecams/sidekick/libipc/libipc.a
 )

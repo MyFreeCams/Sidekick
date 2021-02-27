@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "../libfcs/Log.h"
+#include "libfcs/Log.h"
 #include "IPCUtil.h"
 #include "ShmemDefines.h"
 
@@ -411,7 +411,7 @@ public:
     }
 
     boost::interprocess::managed_shared_memory *getShmemManager() { return getShmemManagerInstance(); }
-    
+
 private:
     std::string m_sContainer;
     std::string m_sMutexName;

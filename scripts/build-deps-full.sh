@@ -2,7 +2,7 @@
 
 set -e # exit if something fails
 
-readonly _VLC_VERSION=3.0.8
+readonly _VLC_VERSION=3.0.12
 readonly _QT_VERSION=5.15.2
 # readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 # readonly _CEF_VERSION=85.0.0+g93b66a0+chromium-85.0.4183.121
@@ -35,10 +35,11 @@ readonly FREETYPE_VERSION=2.10.4
 readonly RNNOISE_COMMIT=90ec41ef659fd82cfec2103e9bb7fc235e9ea66c
 # readonly SPARKLE_VERSION=1.23.0
 
-readonly _MACOSX_DEPLOYMENT_TARGET=10.13
+readonly _MACOSX_DEPLOYMENT_TARGET=10.14
 export MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-${_MACOSX_DEPLOYMENT_TARGET}}
 #declare -xr CMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-readonly _MACOS_ARCHITECTURES=x86_64
+# readonly _MACOS_ARCHITECTURES=x86_64
+readonly _MACOS_ARCHITECTURES=arm64
 readonly MACOS_ARCHITECTURES=${MACOS_ARCHITECTURES:-${_MACOS_ARCHITECTURES}}
 declare -xr CMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES:-${MACOS_ARCHITECTURES}}
 readonly _BUILD_TYPE=Release
@@ -286,29 +287,60 @@ build_vorbis() {
   fi
 }
 
+# build_vpx() {
+#   if [ -f "${OBSDEPS}/lib/libvpx.a" ]; then
+#     hr "vpx already installed"
+#   else
+#     hr "Building vpx ${VPX_VERSION} (FFmpeg dependency)"
+#     cd "${WORK_DIR}"
+#     rm -rf libvpx-v${VPX_VERSION}
+#     curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
+#     mkdir -p ./libvpx-v${VPX_VERSION}
+#     tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
+#     cd ./libvpx-v${VPX_VERSION}
+#     mkdir -p build
+#     cd ./build
+#     if [ $(echo "${MACOSX_DEPLOYMENT_TARGET}" | cut -d "." -f 1) -lt 11 ]; then
+#       VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 2)+4))"
+#     else
+#       VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 1)+9))"
+#     fi
+#     ../configure --disable-shared  --target=x86_64-darwin${VPX_TARGET}-gcc --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
+#       --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
+#     make -j ${NUM_CORES}
+#     make install
+#   fi
+# }
+
 build_vpx() {
-  if [ -f "${OBSDEPS}/lib/libvpx.a" ]; then
-    hr "vpx already installed"
-  else
-    hr "Building vpx ${VPX_VERSION} (FFmpeg dependency)"
-    cd "${WORK_DIR}"
-    rm -rf libvpx-v${VPX_VERSION}
-    curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
-    mkdir -p ./libvpx-v${VPX_VERSION}
-    tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
-    cd ./libvpx-v${VPX_VERSION}
-    mkdir -p build
-    cd ./build
-    if [ $(echo "${MACOSX_DEPLOYMENT_TARGET}" | cut -d "." -f 1) -lt 11 ]; then
-      VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 2)+4))"
-    else
-      VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 1)+9))"
-    fi
-    ../configure --disable-shared  --target=x86_64-darwin${VPX_TARGET}-gcc --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
-      --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
-    make -j ${NUM_CORES}
-    make install
-  fi
+  hr "Building libvpx (FFmpeg dependency)"
+  set -e
+  cd "${WORK_DIR}"
+  rm -rf libvpx-v${VPX_VERSION}
+  # curl -fkRL -O https://github.com/webmproject/libvpx/archive/v${VPX_VERSION}.tar.gz
+  curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
+  git clone https://chromium.googlesource.com/webm/libvpx.git
+  # mkdir -p ./libvpx-v${VPX_VERSION}
+  # tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
+  # cd ./libvpx-v${VPX_VERSION}
+  cd ./libvpx
+  mkdir -p macbuild-arm64
+  cd ./macbuild-arm64
+  ../configure --disable-shared --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" --target=arm64-darwin-gcc \
+    --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
+  make -j "${NUM_CORES}"
+  make install
+  mv ${OBSDEPS}/lib/libvpx.a ${OBSDEPS}/lib/libvpx-arm64.a
+  cd ..
+  mkdir -p macbuild-x86_64
+  cd ./macbuild-x86_64
+  ../configure --disable-shared --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" --target=x86_64-darwin20-gcc \
+    --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
+  make -j "${NUM_CORES}"
+  make install
+  mv ${OBSDEPS}/lib/libvpx.a ${OBSDEPS}/lib/libvpx-x86_64.a
+  lipo -create ${OBSDEPS}/lib/libvpx-arm64.a ${OBSDEPS}/lib/libvpx-x86_64.a -output ${OBSDEPS}/lib/libvpx.a
+  set +e
 }
 
 build_x264() {
@@ -795,7 +827,7 @@ install_cef() {
       local arch=x86_64
       if [ "$a" = "arm64" ]; then
         arch=arm64;
-        sed -i '' 's/x86_64/arm64/' ./cmake/cef_variables.cmake
+        # sed -i '' 's/x86_64/arm64/' ./cmake/cef_variables.cmake
       fi
       if [ $MACOS_CEF_BUILD_VERSION -le 3770 ]; then
         old_ver=10.9
@@ -806,7 +838,7 @@ install_cef() {
       sed -i '' 's/"'$old_ver'"/"'$new_ver'"/' ./cmake/cef_variables.cmake
       mkdir -p build && cd ./build
       cmake -DCMAKE_CXX_FLAGS="-std=c++11 -stdlib=libc++ -Wno-deprecated-declarations" \
-        -DCMAKE_EXE_LINKER_FLAGS="-std=c++11 -stdlib=libc++" -DCMAKE_OSX_ARCHITECTURES="$arch" \
+        -DCMAKE_EXE_LINKER_FLAGS="-std=c++11 -stdlib=libc++" -DPROJECT_ARCH="$arch" -DCMAKE_OSX_ARCHITECTURES="$arch" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" -DCMAKE_BUILD_TYPE=${CEF_BUILD_TYPE} ..
       make -j ${NUM_CORES}
       mkdir -p libcef_dll
@@ -861,6 +893,7 @@ main() {
   create_work_dirs
   install_core_obs_deps
   #build_ffmpeg_deps
+  build_vpx
   #build_ffmpeg
   #build_swig
   #build_speexdsp
@@ -871,7 +904,7 @@ main() {
   #install_qt
   #install_boost
   #install_packages_app
-  #install_vlc
+  install_vlc
   install_cef
   install_or_upgrade akeru-inc/tap/xcnotary
   restore_brews

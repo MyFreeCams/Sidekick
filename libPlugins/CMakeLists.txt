@@ -118,7 +118,7 @@ elseif(WIN32)
 endif()
 
 target_compile_definitions(${MyTarget} PUBLIC
-	BOOST_ALL_NO_LIB
+	# BOOST_ALL_NO_LIB
 )
 
 #add_dependencies(${MyTarget} obs)

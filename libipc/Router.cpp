@@ -19,8 +19,8 @@
 #endif
 #include <list>
 
-#include "../libfcs/Log.h"
-#include "../libfcs/fcslib_string.h"
+#include "libfcs/Log.h"
+#include "libfcs/fcslib_string.h"
 
 // local project files
 #include "mfc_ipc.h"
@@ -33,7 +33,6 @@
 
 #include "Router.h"
 
-
 // boost
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
@@ -41,8 +40,6 @@
 #include <nlohmann/json.hpp>
 
 using njson = nlohmann::json;
-// boost
-#include <boost/thread/thread.hpp>
 
 namespace MFCIPC
 {
@@ -194,13 +191,13 @@ int CRouter::getEventsAsString(bool bAll,StringListList &lstRows)
         std::tm * ptm = std::localtime(&t);
         std::strftime(buffer, 32, "%a, %d.%m.%Y %H:%M:%S", ptm);
         std::string sT = buffer; //boost::posix_time::to_simple_string(sc.getCreateDate());
-        
+
         lstCol.push_back(sT);
         time_t tExp = boost::posix_time::to_time_t(sc.getExpirationDate());
         std::tm * ptmExp = std::localtime(&tExp);
         std::strftime(buffer, 32, "%a, %d.%m.%Y %H:%M:%S", ptmExp);
         std::string sTExt = buffer;
-        
+
         lstCol.push_back(sTExt);
         lstCol.push_back(sc.getReadBy());
         lstCol.push_back(sc.getPayload());
@@ -458,7 +455,7 @@ bool CRouter::processEventsForLocalClients()
 
 
     return bRv;
-    
+
 }
 
 //---------------------------------------------------------------------
@@ -473,7 +470,7 @@ void CRouter::performMaintenance()
 
     if (mutMaint->try_lock())  // if it's already locked, then another process is doing maintenance.
     {
-        
+
         // fetch the maintenance events so we can reuse them.
         CIPCEventList lst;
         try
@@ -531,7 +528,7 @@ void CRouter::performMaintenance()
             {
                 eh->postRemoveEvent(fbk);
             }
-            
+
             // actually remove the events.
             for(auto &evt : fbk)
             {
@@ -770,8 +767,8 @@ void CRouter::Process()
 
     boost::posix_time::ptime tmNow, tmLastPing, tmLastHeartbeat, tmLastMaintenance;
     tmNow = tmLastPing = tmLastHeartbeat =  tmLastMaintenance = boost::posix_time::min_date_time;
-  
-    
+
+
     CProcessRecord r(getID().c_str());
     getProcessRecord(getID(), r);
     std::string sMutexName = r.getMutexName();
@@ -791,7 +788,7 @@ void CRouter::Process()
 
         bool b = sema.timed_wait(MFC_IPC_ROUTER_SLEEP_SECS);
 
-        
+
         if (!isExit())
         {
             tmNow = IPCUtil::Now();
@@ -811,7 +808,7 @@ void CRouter::Process()
 
             // check for newly attached or detached processes.
             performProcessCheck(lstActiveProcesses);
- 
+
 
             tmDiff = tmNow - tmLastMaintenance;
             //
@@ -887,14 +884,14 @@ bool CRouter::start(int nMaintenanceBid)
 {
 
     assert(strlen(getID().c_str()) > 0);
-    
+
     CProcessRecord r(getID().c_str());
     getProcessRecord(getID(), r);
     r.setLastCheckinTime(IPCUtil::Now());
     r.setRegisterTime(IPCUtil::Now());
     r.setLastUpdateTime(IPCUtil::Now());
     r.setMaintenanceBid(nMaintenanceBid);
-    
+
     std::string sID = r.getMutexName();
     if (sID.empty())
     {

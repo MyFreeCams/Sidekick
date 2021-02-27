@@ -17,9 +17,9 @@
 #pragma once
 
 
-#include "../libfcs/Log.h"
+#include "libfcs/Log.h"
 
-#include "../libipc/IPCUtil.h"
+#include "IPCUtil.h"
 #include "EvtDefines.h"
 
 #include "IPCEvent.h"
