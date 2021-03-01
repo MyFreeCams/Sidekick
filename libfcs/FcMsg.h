@@ -369,7 +369,15 @@ public:
 
     const char* payload_str(MfcJsonObj& js)
     {
-        return (js.m_dwType != JSON_T_NONE ? js.prettySerialize().c_str() : (dwMsgLen > 0 ? pchMsg : ""));
+        static string s_prettyText;
+
+        if (js.m_dwType != JSON_T_NONE)
+        {
+            s_prettyText = js.prettySerialize();
+        }
+        else s_prettyText = (dwMsgLen > 0 ? pchMsg : "");
+
+        return s_prettyText.c_str();
     }
 
     // Helper for returning string of serialized json object

@@ -62,7 +62,7 @@ public:
 
     bool DeserializeCfg(MfcJsonObj& js, bool triggerHooks);
     void validateActiveState(bool triggerHooks);
-    bool readPluginConfig(bool triggerHooks);
+    bool importProfileConfig(void);
 
     void setConsole(void* pConsole);
     void* getConsole(void);
@@ -89,13 +89,15 @@ public:
 
     static bool startEdgeSock(const std::string& sUser, uint32_t modelId, const std::string& sToken, const std::string& sUrl);
     static bool startEdgeSock(const std::string& sUser, uint32_t modelId, const std::string& sToken);
+    static bool stopEdgeSock(void);
 
     std::string profileName;    // name of current profile, even if it's not an MFC profile
     std::string serverName;     // name of current server, even if not an MFC server
 
-    bool isMfc;                 // set to true if the service is MyFreeCams RTMP or MyFreeCams WebRTC
-    bool isRTMP;                // is true when service type is 'MyFreeCams' (non-webrtc, assumed RTMP)
+    bool isMfc;                 // set to true if the service is 'MyFreeCams', 'MyFreeCams RTMP' or 'MyFreeCams WebRTC'
+    bool isRTMP;                // is true when service type is 'MyFreeCams' or 'MyFreeCams RTMP'
     bool isWebRTC;              // is true when service type is 'MyFreeCams WebRTC'
+    bool isCustom;              // is true when service type is 'Custom'
     bool isLinked;              // is true if user id is non-zero
     bool isLoggedIn;            // is true if session id is non-zero
     bool isStreaming;           // true when current profile is actively streaming

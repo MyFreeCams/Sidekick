@@ -47,6 +47,8 @@
 #include "ObsUtil.h"
 #include "Portable.h"
 
+//#include <ui/obs-app.hpp>
+
 #ifdef _WIN32
 static const char* module_bin[] = { "../../obs-plugins/" BIT_STRING };  // from obs-windows.c
 #else
@@ -768,7 +770,10 @@ unsigned long CObsUtil::ExecProcess(const char* pPath, const char* pFile)
     // CEF apps, or just expect the login process wont ever need hardware acceleration (simple HTML only?)
     // -AM 12-11-19
     snprintf(app, 1023, "open -n \"%s/%s\" --args --disable-gpu", pPath, pFile);
-    int nRet = system(app);
+
+    /*int nRet = */
+    system(app);
+
     return bRv;
 #endif
 }

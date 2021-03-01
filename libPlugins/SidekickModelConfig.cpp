@@ -40,6 +40,7 @@
 #include "ObsServicesJson.h"
 #include "ObsUtil.h"
 #include "SidekickModelConfig.h"
+#include <libPlugins/MFCConfigConstants.h>
 
 bool                        SidekickModelConfig::sm_initialized = false;
 size_t                      SidekickModelConfig::sm_nRefCx = 0;
@@ -111,7 +112,7 @@ void SidekickModelConfig::initializeDefaults(void)
     }
 }
 
-bool SidekickModelConfig::writePluginConfig(void) const
+bool SidekickModelConfig::writeProfileConfig(void) const
 {
     bool retVal = false;
 
@@ -119,6 +120,7 @@ bool SidekickModelConfig::writePluginConfig(void) const
     unique_lock< recursive_mutex >  lk(m_csMutex, std::defer_lock);
     if (isSharedCtx)                lk.lock();
 
+    /*
     std::string sPluginPath = obs_module_config_path("");
 
 #ifdef _WIN32
@@ -134,32 +136,55 @@ bool SidekickModelConfig::writePluginConfig(void) const
 #ifdef _WIN32
 
 #endif
-
+    */
+    string sProfilePath = CObsUtil::getProfilePath() + "/" + SERVICE_JSON_FILE;
+    MfcJsonObj jsProfileData;
     string sData;
-    if (m_jsConfig.Serialize(sData) > 0)
+        
+    if (jsProfileData.loadFromFile(sProfilePath))
     {
-        if (stdSetFileContents(sPluginCfg, sData))
+        jsProfileData.objectAdd("sidekick", m_jsConfig);
+        if (jsProfileData.Serialize(sData, MfcJsonObj::JSOPT_PRETTY) > 0)
         {
-            retVal = true;
+            if (stdSetFileContents(sProfilePath, sData))
+            {
+                _MESG("SVCDBG: wrote %zu bytes to profile config at %s", sData.size(), sProfilePath.c_str());
+                retVal = true;
+            }
+            else _MESG("failed to write %zu bytes of profile config to %s", sData.size(), sProfilePath.c_str());
         }
-        else _MESG("failed to write %zu bytes of plugin config to %s", sData.size(), sPluginCfg.c_str());
+        else _MESG("failed to re-serialize profile data with sidekick added");
     }
-    else _MESG("failed to serialize plugin config; 0 bytes of data");
-
+    else _MESG("SVCDBG: loaded profile data from: %s", sProfilePath.c_str());
 
     return retVal;
 }
 
-bool SidekickModelConfig::readPluginConfig(void)
+bool SidekickModelConfig::readProfileConfig(void)
 {
     bool retVal = false;
 
+    /*
     std::string sPluginCfg = obs_module_config_path("sidekick.json");
     if ( m_jsConfig.loadFromFile( sPluginCfg ) )
     {
         retVal = true;
     }
     else _MESG("config failed to load, unable to open '%s' for reading", sPluginCfg.c_str());
+    */
+
+    string sProfilePath = CObsUtil::getProfilePath() + "/" + SERVICE_JSON_FILE;
+    MfcJsonObj jsProfileData;
+
+    if (jsProfileData.loadFromFile(sProfilePath))
+    {
+        if (jsProfileData.objectGetObject("sidekick", m_jsConfig))
+        {
+            retVal = true;
+        }
+        else _MESG("'sidekick' property missing from profile's service: %s", sProfilePath.c_str());
+    }
+    else _MESG("config failed to load, unable to open '%s' for reading", sProfilePath.c_str());
 
     return retVal;
 }
@@ -175,7 +200,7 @@ bool SidekickModelConfig::Serialize(MfcJsonObj& js)
 bool SidekickModelConfig::Serialize(string& sData)
 {
     unique_lock< recursive_mutex > lk = sharedLock();
-    return m_jsConfig.Serialize(sData);
+    return m_jsConfig.Serialize(sData, MfcJsonObj::JSOPT_PRETTY);
 }
 
 // Reads a json string and deserializes it, loading it into this instance

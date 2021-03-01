@@ -214,8 +214,3 @@ string cefGetInstallPath(void)
 
     return stdprintf("%s\\cef", sRootPath.c_str());
 }
-
-void proxy_blog(int nLevel, const char* pszMsg)
-{
-    // blog(nLevel, "%s", pszMsg);
-}

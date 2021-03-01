@@ -125,7 +125,8 @@ std::string get_os_name(id pInfo, SEL UTF8Str)
 #ifdef __MAC_10_15
     typedef int (*os_func)(id, SEL);
     os_func operatingSystem = (os_func)objc_msgSend;
-    auto os_id = (unsigned long)operatingSystem(pInfo, sel_registerName("operatingSystem"));
+    //auto os_id = (unsigned long)
+    operatingSystem(pInfo, sel_registerName("operatingSystem"));
 
     typedef id (*os_name_func)(id, SEL);
     os_name_func operatingSystemName = (os_name_func)objc_msgSend;

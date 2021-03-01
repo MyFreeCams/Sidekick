@@ -19,7 +19,7 @@
 
 #include <string>
 #include <vector>
-
+    
 using njson = nlohmann::json;
 using std::vector;
 using std::string;
@@ -41,8 +41,14 @@ public:
     void getURLList(strVec* parrNames, strVec* parrURL);
     void setURLList(strVec& arrNames, strVec& arrURL);
 
+ #ifdef _WIN32
+    static time_t convertWindowsTimeToUnixTime(long long int input);
+ #endif
+
+    static time_t getFileModifyTm(const string& sFile);
+
     // helper function for debugging.
-    string prettySerialize() { return m_njson.dump(); }
+    string prettySerialize() { return m_njson.dump(4); }
 
     // true if we successfully loaded json data.
     bool isLoaded() { return m_bLoaded;}
@@ -50,7 +56,7 @@ public:
 
     // true if the json data has been changed and needs saving.
     bool isDirty() { return m_bisDirty;}
-    void setDirty(bool b) { m_bisDirty = b; }
+    bool setDirty(bool b) { m_bisDirty = b; return true; }
 
     bool findRTMPService(njson& arr, njson* pSrv);
     bool findWebRtcService(njson& arr, njson* pSrv);
@@ -78,7 +84,7 @@ protected:
     bool parseFile(const string& sFilename);
 
     bool loadDefaultWebRTCService(njson &);
-    bool loadDefaultRTMPService(njson &);
+    //bool loadDefaultRTMPService(njson &);
 
     njson& getTopLevelJson() { return m_njson; }
 

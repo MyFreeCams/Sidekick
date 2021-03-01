@@ -122,8 +122,8 @@ public:
 
     static void initializeDefaults(void);
 
-    bool readPluginConfig(void);
-    bool writePluginConfig(void) const;
+    bool readProfileConfig(void);
+    bool writeProfileConfig(void) const;
 
     // saves SiekickModelConfig memebr properties to json object
     bool Serialize(MfcJsonObj& js);
