@@ -92,3 +92,7 @@ bool CMFCJsCredentials::execute(CefRefPtr<CefV8Value> object,
     }
     return true;
 }
+
+void proxy_blog(int nLevel, const char* pszMsg)
+{
+}

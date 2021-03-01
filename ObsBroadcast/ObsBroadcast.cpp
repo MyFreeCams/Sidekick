@@ -17,6 +17,7 @@
 #include "ObsBroadcast.h"
 
 #include <util/config-file.h>
+#include <util/platform.h>
 #include <util/threading.h>
 
 #ifndef _WIN32
@@ -27,7 +28,16 @@
 
 #include <libfcs/Log.h>
 
+// external
+void blog(int log_level, const char *format, ...);
+
+
 using std::string;
+
+//#define obs_debug(format, ...) blog(400, format, ##__VA_ARGS__)
+//#define obs_info(format,  ...) blog(300, format, ##__VA_ARGS__)
+//#define obs_warn(format,  ...) blog(200, format, ##__VA_ARGS__)
+//#define obs_error(format, ...) blog(100, format, ##__VA_ARGS__)
 
 
 CBroadcastCtx::CBroadcastCtx(bool isSharedCtx)
@@ -99,6 +109,11 @@ CBroadcastCtx& CBroadcastCtx::copyFrom(const CBroadcastCtx& other)
         tmPollingStamp = other.tmPollingStamp;
         tmStreamStart = other.tmStreamStart;
         tmStreamStop = other.tmStreamStop;
+        if (agentPolling != other.agentPolling)
+        {
+            int nB = 2;
+        }
+
         agentPolling = other.agentPolling;
         isStreaming = other.isStreaming;
         profileName = other.profileName;
@@ -106,6 +121,7 @@ CBroadcastCtx& CBroadcastCtx::copyFrom(const CBroadcastCtx& other)
         isLoggedIn = other.isLoggedIn;
         isLinked = other.isLinked;
         isWebRTC = other.isWebRTC;
+        isCustom = other.isCustom;
         isRTMP = other.isRTMP;
         isMfc = other.isMfc;
     }
@@ -204,6 +220,8 @@ void CBroadcastCtx::onUpdateSid(uint32_t nCurSid, uint32_t nNewSid, bool profile
             sm_eventQueue.push_front(ev);
             //_MESG("updateSid: change(%d); sid %u => %u, event added, queue sz now: %zu", nChange, nCurSid, nNewSid, sm_eventQueue.size());
         }
+
+        cfg.set("sid", (int)nNewSid);
     }
 }
 
@@ -259,6 +277,8 @@ void CBroadcastCtx::onUpdateUid(uint32_t nCurUid, uint32_t nNewUid, bool profile
 
             sm_eventQueue.push_front(ev);
         }
+
+        cfg.set("uid", (int)nNewUid);
     }
 }
 
@@ -296,9 +316,11 @@ void CBroadcastCtx::onUpdateStreamkey(const string& sCurKey, const string& sNewK
                 ev.sArg2 = sNewKey;
 
                 sm_eventQueue.push_front(ev);
-                //_MESG("STREAMKEY UPDATED ***** change(%d); %s [%zu] => [%zu] %s", nChange, sCurKey.c_str(), sCurKey.size(), sNewKey.size(), sNewKey.c_str());
+                Log::Mesg("[DBG] STREAMKEY UPDATED ***** change(%d); %s [%zu] => [%zu] %s", nChange, sCurKey.c_str(), sCurKey.size(), sNewKey.size(), sNewKey.c_str());
             }
         }
+
+        cfg.set("streamkey", sNewKey);
     }
 }
 
@@ -340,9 +362,11 @@ void CBroadcastCtx::onUpdateServerUrl(const string& sCurUrl, const string& sNewU
                 ev.sArg2 = sNewUrl;
 
                 sm_eventQueue.push_front(ev);
-                //_MESG("SERVERURL UPDATED **** change(%d); %s => %s", nChange, sCurUrl.c_str(), sNewUrl.c_str());
+                //proxy_blog("[DBG] ServerUrl UPDATED **** change(%d); %s => %s", nChange, sCurUrl.c_str(), sNewUrl.c_str());
             }
         }
+
+        cfg.set("streamurl", sNewUrl);
     }
 }
 
@@ -363,39 +387,21 @@ bool CBroadcastCtx::DeserializeCfg(MfcJsonObj& js, bool triggerHooks)
     //sCurKey = cfg.getString("ctx");
     // read current key value from obs settings data directly (in case it was changed in the UI)
     CObsUtil::getCurrentSetting("key", sCurKey);
-    js.objectGetString("streamkey", sData);
-
-    if ( ! sCurKey.empty() || ! sData.empty() )
+    if (js.objectGetString("streamkey", sData) && !sData.empty())
         onUpdateStreamkey(sCurKey, sData, triggerHooks);
+        
+    
 
-    //if (js.objectGetString("streamurl", sData))
-    if (js.objectGetString("videoserver", sData))
+    CObsUtil::getCurrentSetting("server", sCurUrl);
+    if (sCurUrl.empty())
     {
-        //sCurUrl = cfg.getString("streamurl");
-        CObsUtil::getCurrentSetting("server", sCurUrl);
-
-        if ( ! sCurUrl.empty() || ! sData.empty() )
-        {
-            string sTmp(sData);
-            std::transform(sTmp.begin(), sTmp.end(), sTmp.begin(), [](unsigned char c){ return std::tolower(c); });
-#if 0
-            if (    sData.size()            > 10                // Url length is longer than 'rtmp://x' or 'webrtc://x'
-                &&  sData.find("://")       == string::npos     // Url does not contain unencoded '://'
-                &&  sTmp.find("%3a%2f%2f")  != string::npos )   // Url does contain URI encoded '://'
-            {
-                MfcJsonObj::decodeURIComponent(sData);
-            }
-#endif
-            string sUrl = MFC_DEFAULT_BROADCAST_URL;
-            if (js.objectGetString("region", sData))
-            {
-                if (!sData.empty())
-                    sUrl = string("rtmp://publish-") + sData + string(".myfreecams.com/NxServer");
-            }
-
-            if (sCurUrl != sUrl)
-                onUpdateServerUrl(sCurUrl, sUrl, triggerHooks);
-        }
+        string sUrl = MFC_DEFAULT_BROADCAST_URL;
+        if (js.objectGetString("region", sData) && !sData.empty())
+            sUrl = string("rtmp://publish-") + sData + string(".myfreecams.com/NxServer");
+        
+        Log::Mesg("[DBG] DeserializeCfg setting empty serverurl to %s (triggerHooks: %s)", sUrl.c_str(), triggerHooks ? "true" : "false");
+        onUpdateServerUrl(sCurUrl, sUrl, triggerHooks);
+        cfg.set("streamurl", sData);
     }
 
     js.Serialize(sData);
@@ -435,8 +441,7 @@ void CBroadcastCtx::validateActiveState(bool triggerHooks)
     else updateState(activeState, SkUnknownProfile, triggerHooks);
 }
 
-
-bool CBroadcastCtx::readPluginConfig(bool triggerHooks)
+bool CBroadcastCtx::importProfileConfig(void)
 {
     bool retVal;
 
@@ -446,7 +451,7 @@ bool CBroadcastCtx::readPluginConfig(bool triggerHooks)
     CObsUtil::getCurrentSetting("key", sCurKey);
     CObsUtil::getCurrentSetting("server", sCurUrl);
     string sCurProfile = profileName;
-    retVal = cfg.readPluginConfig();
+    retVal = cfg.readProfileConfig();
 
     uint32_t nNewSid = cfg.getInt("sid");
     uint32_t nNewUid = cfg.getInt("uid");
@@ -456,16 +461,19 @@ bool CBroadcastCtx::readPluginConfig(bool triggerHooks)
     bool profileChanged = (sCurProfile != profileName);
 
     // onUpdateSid() will make sure isLoggedIn is the correct value
-    onUpdateSid(nCurSid, nNewSid, profileChanged, triggerHooks);
-    onUpdateUid(nCurUid, nNewUid, profileChanged, triggerHooks);
-    onUpdateStreamkey(sCurKey, sNewKey, triggerHooks);
+    onUpdateSid(nCurSid, nNewSid, profileChanged, false);
+    onUpdateUid(nCurUid, nNewUid, profileChanged, false);
+    onUpdateStreamkey(sCurKey, sNewKey, false);
 
     if (sCurUrl != sNewUrl)
-        onUpdateServerUrl(sCurUrl, sNewUrl, triggerHooks);
+    {
+        Log::Mesg("[DBG] readPluginCOnfig setting url from %s => %s", sCurUrl.c_str(), sNewUrl.c_str());
+        onUpdateServerUrl(sCurUrl, sNewUrl, false);
+    }
 
     // After syncing isLoggedIn and uid, validate active state to
     // make sure activeState is current as well
-    validateActiveState(triggerHooks);
+    validateActiveState(false);
 
     return retVal;
 }
@@ -554,6 +562,7 @@ void CBroadcastCtx::clear(bool triggerHooks)
 
     isMfc = false;
     isRTMP = false;
+    isCustom = false;
     isWebRTC = false;
     isLinked = false;
     isLoggedIn = false;
@@ -580,6 +589,8 @@ void CBroadcastCtx::clear(bool triggerHooks)
     bool profileChanged = (sCurProfile != profileName);
     onUpdateSid(nCurSid, nNewSid, profileChanged, triggerHooks);
     onUpdateUid(nCurUid, nNewUid, profileChanged, triggerHooks);
+
+    stopEdgeSock();
 
     // After syncing isLoggedIn and uid, validate active state to
     // make sure activeState is current as well
@@ -631,15 +642,15 @@ const char* CBroadcastCtx::MapSidekickState(SidekickActiveState state)
 {
     switch (state)
     {
-    case SkUninitialized:       return "SkUninitialized";
-    case SkUnknownProfile:      return "SkUnknownProfile";
-    case SkNoCredentials:       return "SkNoCredentials";
-    case SkInvalidCredentials:  return "SkInvalidCredentials";
-    case SkNoModelwebSession:   return "SkNoModelwebSession";
-    case SkStreamStarting:      return "SkStreamStarting";
-    case SkStreamStarted:       return "SkStreamStarted";
-    case SkStreamStopping:      return "SkStreamStopping";
-    case SkStreamStopped:       return "SkStreamStopped";
+        case SkUninitialized:       return "SkUninitialized";
+        case SkUnknownProfile:      return "SkUnknownProfile";
+        case SkNoCredentials:       return "SkNoCredentials";
+        case SkInvalidCredentials:  return "SkInvalidCredentials";
+        case SkNoModelwebSession:   return "SkNoModelwebSession";
+        case SkStreamStarting:      return "SkStreamStarting";
+        case SkStreamStarted:       return "SkStreamStarted";
+        case SkStreamStopping:      return "SkStreamStopping";
+        case SkStreamStopped:       return "SkStreamStopped";
     }
 
     return "SkInvalid_State_Error";
@@ -648,20 +659,40 @@ const char* CBroadcastCtx::MapSidekickState(SidekickActiveState state)
 
 bool CBroadcastCtx::startEdgeSock(const string& sUser, uint32_t modelId, const string& sToken, const string& sUrl)
 {
+    bool retVal = false;
+
     if (sm_edgeSock == nullptr)
     {
         sm_edgeSock = new EdgeChatSock(sUser, modelId, sToken, sUrl);
-        return true;
+        retVal = true;
     }
-    return false;
+
+    return retVal;
 }
 
 bool CBroadcastCtx::startEdgeSock(const string& sUser, uint32_t modelId, const string& sToken)
 {
+    bool retVal = false;
+
     if (sm_edgeSock == nullptr)
     {
         const string sUrl = string("wss://") + EdgeChatSock::FcsServer() + string(".myfreecams.com/fcsl");
-        return startEdgeSock(sUser, modelId, sToken, sUrl);
+        retVal = startEdgeSock(sUser, modelId, sToken, sUrl);
     }
-    return false;
+
+    return retVal;
+}
+
+bool CBroadcastCtx::stopEdgeSock(void)
+{
+    bool retVal = false;
+
+    if (sm_edgeSock != nullptr)
+    {
+        retVal = sm_edgeSock->stop();
+        delete sm_edgeSock;
+        sm_edgeSock = NULL;
+    }
+
+    return retVal;
 }

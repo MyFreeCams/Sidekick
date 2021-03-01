@@ -43,6 +43,8 @@
 #include <libfcs/UtilCommon.h>  // gettimeofday()
 #endif
 
+#include <libfcs/md5.h>
+
 #include <cstdint>
 #include <regex>
 #include <string>
@@ -107,6 +109,7 @@ void onObsProfileChange(obs_frontend_event eventType);
 void setupSidekickUI(void);
 void showAccountLinkStatus(void);
 void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const char* pszFmt, ...);
+bool calcCheckSum(const std::string& sFile, std::string& sHash);
 void proxy_blog(int nLevel, const char* pszMsg);
 
 void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t nProfileChanged);
@@ -400,6 +403,7 @@ void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t n
     if (pMFCDock)
         pMFCDock->relabelPropertiesText();
 
+    /*
     bool isWebRTC = false, isMfc = false, isLinked = false, isLoggedIn = false;
     std::string sUsername;
     {
@@ -410,6 +414,7 @@ void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t n
         isLinked    = g_ctx.isLinked;
         isMfc       = g_ctx.isMfc;
     }
+    */
 
     if (nCurUid != nNewUid)
         showAccountLinkStatus();
@@ -456,8 +461,15 @@ void ui_onSessionUpdate(int nChange, uint32_t nCurSid, uint32_t nNewSid, uint32_
 void ui_onServerUpdate(const std::string& sCurUrl, const std::string& sNewUrl)
 {
     // Set the server url for the current profile if the profile isMfc and has no server url set.
-    if (g_ctx.isMfc && (g_ctx.isRTMP || g_ctx.isWebRTC))
+    if (g_ctx.isMfc && (g_ctx.isRTMP || g_ctx.isWebRTC) && !g_ctx.isCustom)
     {
+        _MESG(  "DBG: setting url from %s => %s (isMfc true, isRtmp? %s, isWebRTC? %s, isCustom? %s)",
+                sCurUrl.c_str(),
+                sNewUrl.c_str(),
+                g_ctx.isRTMP ? "true" : "false",
+                g_ctx.isWebRTC ? "true" : "false",
+                g_ctx.isCustom ? "true" : "false");
+
         CObsServicesJson services;
         services.updateProfileSettings("(null)", sNewUrl);
         CObsUtil::setCurrentSetting("server", sNewUrl.c_str());
@@ -547,7 +559,10 @@ void ui_onSetWebRtc(int nState)
 
 void SidekickTimer::onTimerEvent()
 {
+    static time_t s_lastProfileUpdate = 0;
     static size_t s_nPulse = 0;
+    static string s_lastProfileHash;
+    
     if (s_nPulse == 0)
         setupSidekickUI();
 
@@ -627,11 +642,12 @@ void SidekickTimer::onTimerEvent()
                 onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
                 break;
 
-#if SIDEKICK_SET_WEBRTC
             case SkSetWebRtc:
+#if SIDEKICK_SET_WEBRTC
                 ui_onSetWebRtc(iEvent->dwArg1);
-                break;
 #endif
+                break;
+
             case SkRoomEv:
                 _MESG("HTTP THREAD [RoomEvent]: %s", iEvent->sArg1.c_str());
                 break;
@@ -643,20 +659,51 @@ void SidekickTimer::onTimerEvent()
         }
     }
 
-    // If we're not a webRTC feed, check if we become one since no event is fired for
-    // profile settings being changed, but only check every 6th iteration (every 1.5 sec)
+    // Every 1500ms (6 cycles of 250ms timer events), check to see if the stream settings
+    // for the current profile have been updated by OBS main UI (such as clicking Settings
+    // and changing the service from Custom -> MyFreeCams WebRTC). If profile's config file
+    // on disk is newer than our last file mod time cached, reparse the config and apply
+    // any changes that were made (if applicable)
+    //
     if ((s_nPulse % 6) == 0)
     {
-        bool isWebRTC = false, isStreaming = false, isMfc = false;
+        bool isWebRTC = false, isStreaming = false, isMfc = false, isCustom = false;
+        time_t nNow = MfcTimer::Now();
+        
         SidekickActiveState curState = SkUninitialized;
         {
             auto lk     = g_ctx.sharedLock();
             curState    = g_ctx.activeState;
             isStreaming = g_ctx.isStreaming;
             isWebRTC    = g_ctx.isWebRTC;
+            isCustom    = g_ctx.isCustom;
             isMfc       = g_ctx.isMfc;
         }
 
+        string sFile( CObsUtil::AppendPath(CObsUtil::getProfilePath(), SERVICE_JSON_FILE) );
+
+        time_t lastUpdate = CObsServicesJson::getFileModifyTm(sFile);
+
+        if (lastUpdate - s_lastProfileUpdate > 0 || s_lastProfileHash.empty())
+        {
+            string sHash;
+
+            calcCheckSum(sFile, sHash);
+            if (s_lastProfileHash.empty())
+                s_lastProfileHash = sHash;
+                
+            if (sHash != s_lastProfileHash)
+            {
+                _MESG("SVCDBG: Detected change, %d sec !! triggering profileChange event", (int)(s_lastProfileUpdate - lastUpdate));
+                onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+                s_lastProfileHash = sHash;
+            }
+
+            s_lastProfileUpdate = lastUpdate + 1;
+        }
+        //else _MESG("SVCDBG: %s not changed (%ld last update, %ld s_lastProfileUpdate)", sFile.c_str(), lastUpdate, s_lastProfileUpdate);
+
+        /*
         obs_service_t* pService = obs_frontend_get_streaming_service();
         if (pService)
         {
@@ -702,7 +749,7 @@ void SidekickTimer::onTimerEvent()
                     }
                 }
             }
-        }
+        }*/
     }
     s_nPulse++;
 }
@@ -767,7 +814,7 @@ void onObsProfileChange(obs_frontend_event eventType)
     if (!servicesUpdated)
         loadServices();
 
-    bool isWebRTC = false, isRtmp = false, isMfc = false, wasWebRTC = g_ctx.isWebRTC, wasRtmp = g_ctx.isRTMP;
+    bool isWebRTC = false, isRtmp = false, isCustom = false, isMfc = false; 
     std::string svcName, sOldProfile(g_ctx.profileName), sUser, streamUrl, sProt("unknown");
     SidekickActiveState curState = g_ctx.activeState;
     static bool s_firstProfileLoad = true;
@@ -789,7 +836,7 @@ void onObsProfileChange(obs_frontend_event eventType)
         bfree(pszProfile);
     }
 
-    bool profileChanged = (g_ctx.profileName != sOldProfile);
+    bool profileChanged = (s_firstProfileLoad || g_ctx.profileName != sOldProfile);
 
     CObsUtil::getCurrentSetting("service", svcName);
     CObsUtil::getCurrentSetting("server", streamUrl);
@@ -798,23 +845,46 @@ void onObsProfileChange(obs_frontend_event eventType)
     {
         isMfc = true;
         isRtmp = false;
+        isCustom = false;
         isWebRTC = true;
         sProt = "WebRTC";
     }
-    else if (svcName == "MyFreeCams RTMP")
+    else if (svcName == "MyFreeCams RTMP" || svcName == "MyFreeCams")
     {
         isMfc = true;
         isRtmp = true;
+        isCustom = false;
+        isWebRTC = false;
+        sProt = "RTMP";
+    }
+    else if ((svcName == "Custom" || svcName == "") && streamUrl.find(".myfreecams.com/NxServer") != string::npos)
+    {
+        isMfc = true;
+        isRtmp = true;
+        isCustom = true;
         isWebRTC = false;
         sProt = "RTMP";
     }
     else
     {
+        _MESG("Unknown service svcName: %s   / streamUrl: %s  ", svcName.c_str(), streamUrl.c_str());
         isMfc = false;
         isRtmp = false;
         isWebRTC = false;
         svcName = "Unavailable";
     }
+
+    // Read any plugin config for this profile if it has changed since last profile loaded (or first profile to load)
+    if (profileChanged)
+    {
+        if (!isMfc)
+        {
+            // clear sidekick config if we switched to a non-mfc profile
+            g_ctx.clear(false);
+        }
+        else g_ctx.importProfileConfig();
+    }
+
 
 #if SIDEKICK_VERBOSE_CONSOLE
     if (profileChanged)
@@ -836,17 +906,16 @@ void onObsProfileChange(obs_frontend_event eventType)
         g_ctx.isWebRTC  = true;
         g_ctx.isMfc     = true;
         g_ctx.isRTMP    = false;
-        g_ctx.readPluginConfig(false);
+        g_ctx.isCustom  = false;
+        
     }
     else if (isRtmp)
     {
         // we are an MFC rtmp stream if we appear to be attached to an mfc video server
         g_ctx.isWebRTC  = false;
         g_ctx.isRTMP    = true;
+        g_ctx.isCustom  = isCustom;
         g_ctx.isMfc     = true;
-
-        if (g_ctx.isMfc)
-            g_ctx.readPluginConfig(false);
     }
     else
     {
@@ -859,12 +928,12 @@ void onObsProfileChange(obs_frontend_event eventType)
     sUser.clear();
     showAccountLinkStatus();
 
-    if (!g_ctx.isMfc)
+    if ( ! g_ctx.isMfc )
     {
         if (g_ctx.activeState != SkUnknownProfile)
             g_ctx.activeState = SkUnknownProfile;
     }
-
+    
     if (pMFCDock)
         pMFCDock->relabelPropertiesText();
 
@@ -886,11 +955,17 @@ void onObsProfileChange(obs_frontend_event eventType)
         s_firstProfileLoad = false;
     }
 
-    // if no update was automatically sent due to triggered changes in profile
-    if (g_ctx.sm_edgeSock && g_ctx.sm_edgeSock->m_updatesSent == updatesSent)
+    // write any updated info back to plugin config for this profile if any of it changed or is new, and an mfc profile
+    if (g_ctx.isMfc)
     {
-        // force sending an update now to make sure model's agent monitor knows current profile/status
-        g_ctx.sm_edgeSock->sendUpdate();
+        g_ctx.cfg.writeProfileConfig();
+
+        // if no update was automatically sent due to triggered changes in profile
+        if (g_ctx.sm_edgeSock && g_ctx.sm_edgeSock->m_updatesSent == updatesSent)
+        {
+            // force sending an update now to make sure model's agent monitor knows current profile/status
+            g_ctx.sm_edgeSock->sendUpdate();
+        }
     }
 
     // start/stop polling if anything changed as part of this profile event
@@ -988,7 +1063,8 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
                 QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
                 QMetaObject::invokeMethod(main, "StartVirtualCam");
 #if MFC_AGENT_EDGESOCK
-                g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+                if (g_ctx.sm_edgeSock)
+                    g_ctx.sm_edgeSock->sendVirtualCameraState(true);
 #endif
 #endif
 #endif
@@ -1018,7 +1094,8 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
             QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
             QMetaObject::invokeMethod(main, "StopVirtualCam");
 #if MFC_AGENT_EDGESOCK
-            g_ctx.sm_edgeSock->sendVirtualCameraState(false);
+            if (g_ctx.sm_edgeSock)
+                g_ctx.sm_edgeSock->sendVirtualCameraState(false);
 #endif
 #endif
 #endif
@@ -1039,11 +1116,13 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
 #if (MFC_AGENT_EDGESOCK && LIBOBS_API_MAJOR_VER > 26)
     else if (eventType == OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED)
     {
-        g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+        if (g_ctx.sm_edgeSock)
+            g_ctx.sm_edgeSock->sendVirtualCameraState(true);
     }
     else if (eventType == OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED)
     {
-        g_ctx.sm_edgeSock->sendVirtualCameraState(false);
+        if (g_ctx.sm_edgeSock)
+            g_ctx.sm_edgeSock->sendVirtualCameraState(false);
     }
 #endif
 }
@@ -1187,4 +1266,34 @@ void proxy_blog(int nLevel, const char* pszMsg)
               pszMsg);
 
     blog(nLevel, "%s", sLog.c_str());
+}
+
+
+bool calcCheckSum(const std::string& sFile, std::string& sHash)
+{
+    bool retVal = false;
+
+    FILE* inFile = fopen(sFile.c_str(), "rb");
+    if (inFile != NULL)
+    {
+        unsigned char c[MD5_DIGEST_LENGTH], data[1025];
+        MD5_CTX mdContext;
+        int i, bytes;
+
+        MD5_Init(&mdContext);
+        while ((bytes = (int)fread(data, 1, 1024, inFile)) != 0)
+            MD5_Update(&mdContext, data, bytes);
+
+        MD5_Final(c, &mdContext);
+        sHash.clear();
+        for (i = 0; i < MD5_DIGEST_LENGTH; i++)
+            sHash += stdprintf("%02x", c[i]);
+
+        fclose(inFile);
+        _TRACE("Checksum for file is %s", sHash.c_str());
+        retVal = true;
+    }
+    else _TRACE("calcCheckSum %s can't be opened %s.\n", sFile.c_str(), stderror(errno).c_str());
+
+    return retVal;
 }

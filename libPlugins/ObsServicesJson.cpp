@@ -109,14 +109,63 @@ bool CObsServicesJson::load(const string& sFile, const string& sProgramFile)
 // update the services file.
 bool CObsServicesJson::save()
 {
-    string sData = m_njson.dump();
+    bool retVal = false;
+
+    string sData = m_njson.dump(4);
     string sFilename = getFilename();
+
+    //_MESG("SVCDBG: Writing %zu bytes to %s...", sData.size(), sFilename.c_str());
     if (stdSetFileContents(sFilename, sData))
+        retVal = setDirty(false);
+
+    return retVal;
+}
+
+#ifdef _WIN32
+time_t CObsServicesJson::convertWindowsTimeToUnixTime(long long int input)
+{
+    #define TICKS_PER_SECOND        10000000
+    #define EPOCH_DIFFERENCE        11644473600LL
+    
+    long long int temp;
+    temp = input / TICKS_PER_SECOND; //convert from 100ns intervals to seconds;
+    temp = temp - EPOCH_DIFFERENCE;  //subtract number of seconds between epochs
+    return (time_t) temp;
+}
+#endif
+
+time_t CObsServicesJson::getFileModifyTm(const string& sFile)
+{
+    time_t nTm = 0;
+
+    // ... the stat() code works in win32 and unix-likes, so just use that
+    /*
+#ifdef _WIN32
+    HANDLE hFile;
+    DWORD dwRet;
+
+    if ((hFile = CreateFileA(sFile.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL)) != INVALID_HANDLE_VALUE)
     {
-        setDirty(false);
-        return true;
+        FILETIME ftCreate, ftAccess, ftWrite;
+        SYSTEMTIME stUTC, stLocal;
+
+        // Retrieve the file times for the file.
+        if (GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite))
+        {
+            // Convert the last-write time to local time.
+            nTm = convertWindowsTimeToUnixTime((long long int)(MAKE_I64(ftWrite.dwLowDateTime, ftWrite.dwHighDateTime)));
+        }
     }
-    return false;
+#else
+    // default stat() mtime
+#endif
+*/
+
+    struct stat st;
+    if (stat(sFile.c_str(), &st) == 0)
+        nTm = st.st_mtime;
+
+    return nTm;
 }
 
 
@@ -172,6 +221,7 @@ bool CObsServicesJson::Update(const string& sFileProfile, const string& sFilePro
             string sData;
             if (stdGetFileContents(sFilename, sData))
             {
+/*
                 _TRACE("updating service.jsons from profile %d to program files %d", nProfileVer, nProgramVer);
                 sFilename = getNormalizedServiceFile(sFileProfile);
 #ifdef _WIN32
@@ -189,6 +239,8 @@ bool CObsServicesJson::Update(const string& sFileProfile, const string& sFilePro
                     _TRACE("updated service.jsons");
                 else
                     _TRACE("failed to update %s", sFilename.c_str());
+*/
+
                 return true;
             }
             else _TRACE("Error, failed to read source file %s", sFilename.c_str());
@@ -207,11 +259,12 @@ bool CObsServicesJson::Update(const string& sFileProfile, const string& sFilePro
 // loadDefaultRTMPService
 //
 // Load the default webrtc MFC service values into obs-studio json
+/*
 bool CObsServicesJson::loadDefaultRTMPService(njson& arr)
 {
     njson jsRTMP =
     {
-        { "name",   MFC_SERVICES_JSON_NAME_RTMP_VALUE   },
+        { "name",   MFC_SERVICES_JSON_NAME_RTMP_VALUE },
         { "common", true                                },
         { "servers",
             {
@@ -270,10 +323,9 @@ bool CObsServicesJson::loadDefaultRTMPService(njson& arr)
         }
     };
     arr.push_back(jsRTMP);
-    setDirty(true);
-    return true;
+    return setDirty(true);
 }
-
+*/
 
 //--------------------------------------------------------------------------
 // loadDefaultWegbRTCService
@@ -312,8 +364,7 @@ bool CObsServicesJson::loadDefaultWebRTCService(njson& arr)
         }
     };
     arr.push_back(jswebRTC);
-    setDirty(true);
-    return true;
+    return setDirty(true);
 }
 
 
@@ -364,7 +415,7 @@ void CObsServicesJson::setURLList(strVec& arrNames, strVec& arrURL)
                 njson jSvr = { { "name", sName.c_str() }, { "url", sURL.c_str() } };
                 jsMFCServers.push_back(jSvr);
             }
-            sData = jsMFCServers.dump();
+            sData = jsMFCServers.dump(4);
             setDirty(false);
         }
     }
@@ -394,6 +445,7 @@ bool CObsServicesJson::getVersion(int& nVersion)
 // getMFCServiceJson
 //
 // find the MFC service json
+
 bool CObsServicesJson::findMFCRTMPServerJson(njson* pArr)
 {
     if (m_njson.find("services") != m_njson.end() && m_njson["services"].is_array())
@@ -415,7 +467,7 @@ bool CObsServicesJson::findMFCRTMPServerJson(njson* pArr)
             else
             {
                 _ASSERT(!"No server object found");
-                string sData = mfc.dump();
+                string sData = mfc.dump(4);
                 _TRACE("No server object found %s", sData.c_str());
             }
         }
@@ -429,7 +481,6 @@ bool CObsServicesJson::findRTMPService(njson& arr, njson* pSrv)
     return findMFCServiceJson(arr, pSrv, string(MFC_SERVICES_JSON_NAME_RTMP_VALUE));
 }
 
-
 bool CObsServicesJson::findWebRtcService(njson& arr, njson* pSrv)
 {
     return findMFCServiceJson(arr, pSrv, string(MFC_SERVICES_JSON_NAME_WEBRTC_VALUE));
@@ -440,6 +491,7 @@ bool CObsServicesJson::findWebRtcService(njson& arr, njson* pSrv)
 // getMFCServiceJson
 //
 // find the MFC service json
+
 bool CObsServicesJson::findMFCServiceJson(njson& arr, njson* pSrv, const string& sSvcName)
 {
     assert(arr.is_array());
@@ -456,13 +508,12 @@ bool CObsServicesJson::findMFCServiceJson(njson& arr, njson* pSrv, const string&
         } // endif this object is not MyFreeCams.
     }
     // _ASSERT(!"Name object not found in json");
-    string sData = arr.dump();
+    string sData = arr.dump(4);
     // _TRACE("Offending json: %s", sData.c_str());
     _TRACE("found service.json");
 
     return false;
 }
-
 
 //--------------------------------------------------------------------------
 // parseFile
@@ -479,7 +530,7 @@ bool CObsServicesJson::parseFile(const string& sFilename)
         m_njson.clear();
 
         str >> m_njson;
-        string js = m_njson.dump();
+        string js = m_njson.dump(4);
 
         string sVersion;
         int nVer = 0;
@@ -496,6 +547,8 @@ bool CObsServicesJson::parseFile(const string& sFilename)
                 {
                     njson& arr = m_njson["services"];
                     njson mfc;
+
+                    /*
                     if (!findRTMPService(arr, &mfc))
                     {
                         _TRACE("%s service not found!", MFC_SERVICES_JSON_NAME_RTMP_VALUE);
@@ -514,6 +567,7 @@ bool CObsServicesJson::parseFile(const string& sFilename)
                     {
                         bFnd = true;
                     }
+                    */
 
                     if (!findWebRtcService(arr, &mfc))
                     {
@@ -656,7 +710,7 @@ bool CObsServicesJson::refreshProfileSettings(string& sKey, string& sURL)
                 sName = jSet[SERVICE_JSON_SERVICE].get<string>();
 
                 // only save if we are the current service.
-                if (sName == MFC_SERVICES_JSON_NAME_RTMP_VALUE || sName == MFC_SERVICES_JSON_NAME_WEBRTC_VALUE)
+                if (sName == MFC_SERVICES_JSON_NAME_RTMP_VALUE || sName == MFC_SERVICES_JSON_NAME_WEBRTC_VALUE || sName == "Custom")
                 {
                     sKey = jSet[SERVICE_JSON_STREAM_KEY].get<string>();
                     sURL = jSet[SERVICE_JSON_STREAM_URL].get<string>();

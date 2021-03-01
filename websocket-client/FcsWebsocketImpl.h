@@ -54,6 +54,8 @@ public:
     bool disconnect(bool wait) override;
     bool send(const std::string& sMsg) override;
 
+    bool isConnected = false;
+
 private:
     FcsListener*                _listener;
     size_t                      _frameNum;

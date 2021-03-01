@@ -156,6 +156,8 @@ bool FcsWebsocketImpl::connect( const string&   username,
         // Request connection (no network messages exchanged until event loop starts running)
         auto pCon = m_client.connect(m_pConnection);
 
+        isConnected = true;
+
         // Async
         m_thread = std::thread([&]()
         {
@@ -172,6 +174,7 @@ bool FcsWebsocketImpl::connect( const string&   username,
     catch (const websocketpp::exception& e)
     {
         obs_error("FcsWebsocketImpl::connect exception: %s", e.what());
+        isConnected = false;
         retVal = false;
     }
 
@@ -217,7 +220,7 @@ bool FcsWebsocketImpl::disconnect(bool wait)
     websocketpp::lib::error_code ec;
     long long sleepTm = 1;
 
-    if (m_pConnection)
+    if (isConnected && m_pConnection)
     {
         try
         {
@@ -238,6 +241,8 @@ bool FcsWebsocketImpl::disconnect(bool wait)
             // shut down socket's IO thread, if its still spun up
             if (m_thread.joinable())
                 wait ? m_thread.join() : m_thread.detach();
+
+            isConnected = false;
         }
         catch (const websocketpp::exception& e)
         {

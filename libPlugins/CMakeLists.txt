@@ -18,6 +18,10 @@ configure_file(
 	${CMAKE_CURRENT_SOURCE_DIR}/build_version.h.in
 	${CMAKE_CURRENT_BINARY_DIR}/build_version.h
 )
+
+find_package(Qt5 COMPONENTS Core Widgets Gui Svg REQUIRED)
+PRINT(Qt5)
+
 set(SRC_OBS_COMMON
 	${CMAKE_CURRENT_BINARY_DIR}/build_version.h
 	CollectSystemInfo.h
@@ -125,6 +129,10 @@ target_compile_definitions(${MyTarget} PUBLIC
 
 target_link_libraries(${MyTarget} PRIVATE
 	CURL::libcurl
+	obs-frontend-api
+	Qt5::Widgets
+	Qt5::Gui
+	Qt5::Svg
 )
 
 MFCDefines(${MyTarget})

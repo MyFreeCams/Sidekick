@@ -295,8 +295,8 @@ void SidekickPropertiesUI::onUnlink(void)
 {
     auto lk = g_ctx.sharedLock();
     g_ctx.clear(true);
-    g_ctx.cfg.writePluginConfig();
-    g_ctx.cfg.readPluginConfig();
+    g_ctx.cfg.writeProfileConfig();
+    g_ctx.cfg.readProfileConfig();
     CBroadcastCtx::sendEvent(SkReadProfile, 0, 0);
 }
 
@@ -369,15 +369,15 @@ void MFCDock::onUnlink()
 {
     auto lk = g_ctx.sharedLock();
     g_ctx.clear(true);
-    g_ctx.cfg.writePluginConfig();
-    g_ctx.cfg.readPluginConfig();
+    g_ctx.cfg.writeProfileConfig();
+    g_ctx.cfg.readProfileConfig();
     CBroadcastCtx::sendEvent(SkReadProfile, 0, 0);
 }
 
 
 void MFCDock::relabelPropertiesText()
 {
-    bool isWebRTC = false, isMfc = false, isLinked = false, isLoggedIn = false;
+    bool isWebRTC = false, isMfc = false, isLinked = false, isLoggedIn = false, isCustom = false;
     const char* pszText = "";
     static std::string s_sText;
     std::string sUsername;
@@ -387,12 +387,13 @@ void MFCDock::relabelPropertiesText()
         sUsername   = g_ctx.cfg.getString("username");
         isLoggedIn  = g_ctx.isLoggedIn;
         isWebRTC    = g_ctx.isWebRTC;
+        isCustom    = g_ctx.isCustom;
         isLinked    = g_ctx.isLinked;
         isMfc       = g_ctx.isMfc;
     }
 
-    std::string sService = isWebRTC ? "WebRTC" : "RTMP";
-    std::string sLoginLabel = isLoggedIn ? "<i>ModelWeb logged in</i>" : "<i>ModelWeb not logged in</i>";
+    std::string sService = isWebRTC ? "WebRTC" : (isCustom ? "<b><i>Custom RTMP</i></b>" : "RTMP");
+    std::string sLoginLabel = isLoggedIn ? "Modelweb: <b><i>logged in</i></b>" : "Modelweb: <i>not logged in</i>";
     bool mfcLogoVisible = false;
 
     // Reset logged in label text
@@ -400,13 +401,13 @@ void MFCDock::relabelPropertiesText()
     {
         if (isLinked)
         {
-            pszText = "Linked";
+            pszText = "Account linked";
             if (isLoggedIn)
                 mfcLogoVisible = true;
         }
         else
         {
-            pszText = "Not Linked";
+            pszText = "Account not linked";
         }
     }
     else

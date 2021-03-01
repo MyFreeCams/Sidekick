@@ -166,6 +166,9 @@ bool EdgeChatSock::stop()
         //delete m_edgeClient;
         m_edgeClient = nullptr;
     }
+
+    onDisconnected();
+
     return retVal;
 }
 
@@ -201,7 +204,7 @@ void EdgeChatSock::onDisconnected(void)
     m_virtualCameraActive   = false;
     m_sessionId             = 0;
     m_retryConnect          = 0;
-    m_modelState            = g_ctx.activeState;
+    m_modelState            = SkUninitialized;
 }
 
 

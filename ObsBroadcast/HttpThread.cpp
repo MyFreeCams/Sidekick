@@ -233,7 +233,7 @@ void CHttpThread::Process()
             if (ctx.agentPolling)
             {
                 // Only send heartbeat to agentSvc.php when we attached to an mfc WebRTC backend
-                if (ctx.isMfc)
+                if (ctx.isMfc)  // && !ctx.isCustom)
                 {
                     int nInterval = ctx.isLoggedIn ? 15 : 8;
                     if ((nErr = api.SendHeartBeat()) == 0)
@@ -431,7 +431,7 @@ void CHttpThread::readSharedMsg(CBroadcastCtx& ctx)
             if (sMsg.length() > 0)
             {
                 ctx.cfg.set("ctx", sMsg);
-                ctx.cfg.writePluginConfig();
+                ctx.cfg.writeProfileConfig();
                 // Send ctx data back to main thread after we updated it
                 g_ctx = ctx;
             }
@@ -443,7 +443,7 @@ void CHttpThread::readSharedMsg(CBroadcastCtx& ctx)
             {
                 MfcJsonObj js;
                 ctx.cfg.Serialize(js);
-                ctx.cfg.writePluginConfig();
+                ctx.cfg.writeProfileConfig();
 
                 // Send ctx data back to main thread after we updated it
                 g_ctx = ctx;

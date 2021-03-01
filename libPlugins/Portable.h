@@ -53,8 +53,13 @@
 #define _ASSERT_EXPR(expr,msg)
 #endif
 
+#ifndef S_OK
 #define S_OK        0L
+#endif
+
+#ifndef S_FALSE
 #define S_FALSE     1L
+#endif
 
 #ifndef UNREFERENCED_PARAMETER
 #define UNREFERENCED_PARAMETER(p) (p)
