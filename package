@@ -224,10 +224,10 @@ codesign_app() {
     cd "$2"
     if [ -d "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework" ]; then
       local cef_path="./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libEGL.dylib"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libswiftshader_libEGL.dylib"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libGLESv2.dylib"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libswiftshader_libGLESv2.dylib"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libEGL.dylib"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libswiftshader_libEGL.dylib"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libGLESv2.dylib"
+      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libswiftshader_libGLESv2.dylib"
       if ! [ "${MACOS_CEF_BUILD_VERSION}" -le 3770 ]; then
         codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "${cef_path}/Libraries/libvk_swiftshader.dylib"
       fi
