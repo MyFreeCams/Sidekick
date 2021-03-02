@@ -17,10 +17,11 @@
 #include "ObsServicesJson.h"
 
 // obs includes
- #include <obs-module.h>
- #include <obs-frontend-api.h>
- #include <util/config-file.h>
- //#include <util/platform.h>
+#include <obs-module.h>
+#include <obs-frontend-api.h>
+#include <util/config-file.h>
+
+#include <sys/stat.h>
 
 // mfc includes
 #include <libfcs/fcslib_string.h>
