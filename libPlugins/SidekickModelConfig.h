@@ -124,6 +124,9 @@ public:
 
     bool readProfileConfig(void);
     bool writeProfileConfig(void) const;
+    bool checkProfileChanged(void);
+
+    static bool calcCheckSum(const string& sFile, string& sHash);
 
     // saves SiekickModelConfig memebr properties to json object
     bool Serialize(MfcJsonObj& js);
@@ -178,6 +181,9 @@ protected:
     static map< string, MfcJsonObj >    sm_reqProps;
     static vector< string >             sm_vAllocs;
     static size_t                       sm_nRefCx;
+
+    static time_t                       sm_lastProfileUpdate;
+    static string                       sm_lastProfileHash;
 
 
 

@@ -34,6 +34,7 @@
 // #include "libfcs/Log.h"
 // #include "libfcs/MfcJson.h"
 #include "libfcs/fcs_b64.h"
+#include "libfcs/md5.h"
 
 // project includes
 //#include "MFCConfigConstants.h"
@@ -42,10 +43,13 @@
 #include "SidekickModelConfig.h"
 #include <libPlugins/MFCConfigConstants.h>
 
+time_t                      SidekickModelConfig::sm_lastProfileUpdate = 0;
 bool                        SidekickModelConfig::sm_initialized = false;
+string                      SidekickModelConfig::sm_lastProfileHash;
 size_t                      SidekickModelConfig::sm_nRefCx = 0;
 map< string, MfcJsonObj >   SidekickModelConfig::sm_reqProps;
 vector< string >            SidekickModelConfig::sm_vAllocs;
+
 
 
 #ifdef _WIN32
@@ -112,6 +116,31 @@ void SidekickModelConfig::initializeDefaults(void)
     }
 }
 
+bool SidekickModelConfig::checkProfileChanged(void)
+{
+    string sFile( CObsUtil::AppendPath(CObsUtil::getProfilePath(), SERVICE_JSON_FILE) );
+    time_t lastUpdate = CObsServicesJson::getFileModifyTm(sFile);
+    bool retVal = false;
+
+    if (lastUpdate - sm_lastProfileUpdate > 0 || sm_lastProfileHash.empty())
+    {
+        string sHash;
+        if (calcCheckSum(sFile, sHash))
+        {
+            if (sm_lastProfileHash.empty())
+                sm_lastProfileHash = sHash;
+            
+            if ((retVal = (sHash != sm_lastProfileHash)) == true)
+                sm_lastProfileHash = sHash;
+
+            sm_lastProfileUpdate = lastUpdate + 1;
+        }
+        else _MESG("PROFILEDBG: unable to check profile on disk for checksum/changes");
+    }
+
+    return retVal;
+}
+
 bool SidekickModelConfig::writeProfileConfig(void) const
 {
     bool retVal = false;
@@ -148,8 +177,16 @@ bool SidekickModelConfig::writeProfileConfig(void) const
         {
             if (stdSetFileContents(sProfilePath, sData))
             {
-                _MESG("SVCDBG: wrote %zu bytes to profile config at %s", sData.size(), sProfilePath.c_str());
-                retVal = true;
+                string sHash;
+                if (calcCheckSum(sProfilePath, sHash))
+                {
+                    sm_lastProfileUpdate = time(NULL);
+                    sm_lastProfileHash = sHash;
+
+                    _MESG("SVCDBG: wrote %zu bytes to profile config at %s:\n%s\n\n", sData.size(), sProfilePath.c_str(), sData.c_str());
+                    retVal = true;
+                }
+                else _MESG("SVCDBG: unable to checksum file after write of %zu bytes to %s !", sData.size(), sProfilePath.c_str());
             }
             else _MESG("failed to write %zu bytes of profile config to %s", sData.size(), sProfilePath.c_str());
         }
@@ -470,6 +507,34 @@ const char* SidekickModelConfig::getString(const string& sKey) const
 
     return sm_vAllocs.back().c_str();
 }
+
+bool SidekickModelConfig::calcCheckSum(const string& sFile, string& sHash)
+{
+    bool retVal = false;
+
+    FILE* inFile = fopen(sFile.c_str(), "rb");
+    if (inFile != NULL)
+    {
+        unsigned char c[MD5_DIGEST_LENGTH], data[1025];
+        MD5_CTX mdContext;
+        int i, bytes;
+
+        MD5_Init(&mdContext);
+        while ((bytes = (int)fread(data, 1, 1024, inFile)) != 0)
+            MD5_Update(&mdContext, data, bytes);
+
+        MD5_Final(c, &mdContext);
+        sHash.clear();
+        for (i = 0; i < MD5_DIGEST_LENGTH; i++)
+            sHash += stdprintf("%02x", c[i]);
+
+        fclose(inFile);
+        retVal = true;
+    }
+
+    return retVal;
+}
+
 
 
 #ifdef UNUSED_CODE

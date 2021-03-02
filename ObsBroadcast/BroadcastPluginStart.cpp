@@ -43,8 +43,6 @@
 #include <libfcs/UtilCommon.h>  // gettimeofday()
 #endif
 
-#include <libfcs/md5.h>
-
 #include <cstdint>
 #include <regex>
 #include <string>
@@ -109,7 +107,6 @@ void onObsProfileChange(obs_frontend_event eventType);
 void setupSidekickUI(void);
 void showAccountLinkStatus(void);
 void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const char* pszFmt, ...);
-bool calcCheckSum(const std::string& sFile, std::string& sHash);
 void proxy_blog(int nLevel, const char* pszMsg);
 
 void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t nProfileChanged);
@@ -559,9 +556,7 @@ void ui_onSetWebRtc(int nState)
 
 void SidekickTimer::onTimerEvent()
 {
-    static time_t s_lastProfileUpdate = 0;
     static size_t s_nPulse = 0;
-    static string s_lastProfileHash;
     
     if (s_nPulse == 0)
         setupSidekickUI();
@@ -667,7 +662,7 @@ void SidekickTimer::onTimerEvent()
     //
     if ((s_nPulse % 6) == 0)
     {
-        bool isWebRTC = false, isStreaming = false, isMfc = false, isCustom = false;
+       /* bool isWebRTC = false, isStreaming = false, isMfc = false, isCustom = false;
         time_t nNow = MfcTimer::Now();
         
         SidekickActiveState curState = SkUninitialized;
@@ -679,29 +674,14 @@ void SidekickTimer::onTimerEvent()
             isCustom    = g_ctx.isCustom;
             isMfc       = g_ctx.isMfc;
         }
+        */
 
-        string sFile( CObsUtil::AppendPath(CObsUtil::getProfilePath(), SERVICE_JSON_FILE) );
-
-        time_t lastUpdate = CObsServicesJson::getFileModifyTm(sFile);
-
-        if (lastUpdate - s_lastProfileUpdate > 0 || s_lastProfileHash.empty())
+        if (g_ctx.cfg.checkProfileChanged())
         {
-            string sHash;
-
-            calcCheckSum(sFile, sHash);
-            if (s_lastProfileHash.empty())
-                s_lastProfileHash = sHash;
-                
-            if (sHash != s_lastProfileHash)
-            {
-                _MESG("SVCDBG: Detected change, %d sec !! triggering profileChange event", (int)(s_lastProfileUpdate - lastUpdate));
-                onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
-                s_lastProfileHash = sHash;
-            }
-
-            s_lastProfileUpdate = lastUpdate + 1;
+            _MESG("SVCDBG: Detected change in profile on disk!");
+            onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
         }
-        //else _MESG("SVCDBG: %s not changed (%ld last update, %ld s_lastProfileUpdate)", sFile.c_str(), lastUpdate, s_lastProfileUpdate);
+    
 
         /*
         obs_service_t* pService = obs_frontend_get_streaming_service();
@@ -1225,6 +1205,7 @@ void proxy_blog(int nLevel, const char* pszMsg)
     struct tm tmNow;
     std::string sLog;
 
+#ifdef _INCLUDE_MODULE_NAME_
 #ifdef _WIN32
     if (s_szModuleName[0] == '\0')
     {
@@ -1256,9 +1237,21 @@ void proxy_blog(int nLevel, const char* pszMsg)
     if (pCt)    tmNow = *pCt;
     else        memset(&tmNow, 0, sizeof(tmNow));
 #endif
+#else
+    
+#ifdef _WIN32
+    gettimeofday(&tvNow, NULL);
+    _localtime32_s(&tmNow, (__time32_t*)&tvNow.tv_sec);
+#else
+    gettimeofday(&tvNow, NULL);
+    struct tm*  pCt = localtime(&tvNow.tv_sec);
+    if (pCt)    tmNow = *pCt;
+    else        memset(&tmNow, 0, sizeof(tmNow));
+#endif
+#endif
 
     stdprintf(sLog,
-              "[%s %02d-%02d %02d:%02d:%02d.%04d] %s",
+              "[%s%02d-%02d %02d:%02d:%02d.%04d] %s",
               s_szModuleName,
               tmNow.tm_mon + 1, tmNow.tm_mday,
               tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec,
@@ -1266,34 +1259,4 @@ void proxy_blog(int nLevel, const char* pszMsg)
               pszMsg);
 
     blog(nLevel, "%s", sLog.c_str());
-}
-
-
-bool calcCheckSum(const std::string& sFile, std::string& sHash)
-{
-    bool retVal = false;
-
-    FILE* inFile = fopen(sFile.c_str(), "rb");
-    if (inFile != NULL)
-    {
-        unsigned char c[MD5_DIGEST_LENGTH], data[1025];
-        MD5_CTX mdContext;
-        int i, bytes;
-
-        MD5_Init(&mdContext);
-        while ((bytes = (int)fread(data, 1, 1024, inFile)) != 0)
-            MD5_Update(&mdContext, data, bytes);
-
-        MD5_Final(c, &mdContext);
-        sHash.clear();
-        for (i = 0; i < MD5_DIGEST_LENGTH; i++)
-            sHash += stdprintf("%02x", c[i]);
-
-        fclose(inFile);
-        _TRACE("Checksum for file is %s", sHash.c_str());
-        retVal = true;
-    }
-    else _TRACE("calcCheckSum %s can't be opened %s.\n", sFile.c_str(), stderror(errno).c_str());
-
-    return retVal;
 }
