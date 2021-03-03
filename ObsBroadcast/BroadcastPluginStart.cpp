@@ -662,7 +662,7 @@ void SidekickTimer::onTimerEvent()
     //
     if ((s_nPulse % 6) == 0)
     {
-       /* bool isWebRTC = false, isStreaming = false, isMfc = false, isCustom = false;
+        bool isWebRTC = false, isStreaming = false, isMfc = false, isCustom = false;
         time_t nNow = MfcTimer::Now();
         
         SidekickActiveState curState = SkUninitialized;
@@ -674,7 +674,6 @@ void SidekickTimer::onTimerEvent()
             isCustom    = g_ctx.isCustom;
             isMfc       = g_ctx.isMfc;
         }
-        */
 
         if (g_ctx.cfg.checkProfileChanged())
         {
@@ -682,8 +681,6 @@ void SidekickTimer::onTimerEvent()
             onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
         }
     
-
-        /*
         obs_service_t* pService = obs_frontend_get_streaming_service();
         if (pService)
         {
@@ -729,7 +726,7 @@ void SidekickTimer::onTimerEvent()
                     }
                 }
             }
-        }*/
+        }
     }
     s_nPulse++;
 }
