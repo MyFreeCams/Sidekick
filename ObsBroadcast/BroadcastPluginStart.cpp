@@ -369,15 +369,19 @@ void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const 
     }
     s_vQueuedMsgs.clear();
 #else
-    _MESG("%s", szData);
+    string sPath(pszFile);
+    string sBase = sPath.substr(sPath.find_last_of("/\\") + 1);
+    
+    Log::Mesg("[%s:%d %s] %s", sBase.c_str(), nLine, pszFunction, szData);
+    //_MESG("%s", szData);
 #endif
 }
 
 
 void ui_appendConsoleMsg(const std::string& sMsg)
 {
-    if (!sMsg.empty())
-        _SKLOG("%s", sMsg.c_str());
+    //if (!sMsg.empty())
+    //    _SKLOG("%s", sMsg.c_str());
 }
 
 
@@ -387,8 +391,8 @@ void ui_replaceConsoleMsg(const std::string& sMsg)
     if (pConsole)
         pConsole->clear();
 
-    if (!sMsg.empty())
-        _SKLOG("%s", sMsg.c_str());
+    //if (!sMsg.empty())
+    //    _SKLOG("%s", sMsg.c_str());
 }
 
 
@@ -557,6 +561,7 @@ void ui_onSetWebRtc(int nState)
 void SidekickTimer::onTimerEvent()
 {
     static size_t s_nPulse = 0;
+
     
     if (s_nPulse == 0)
         setupSidekickUI();
@@ -662,8 +667,7 @@ void SidekickTimer::onTimerEvent()
     //
     if ((s_nPulse % 6) == 0)
     {
-        bool isWebRTC = false, isStreaming = false, isMfc = false, isCustom = false;
-        time_t nNow = MfcTimer::Now();
+        bool isWebRTC = false, isStreaming = false, isMfc = false, isCustom = false, profileChanged = false;
         
         SidekickActiveState curState = SkUninitialized;
         {
@@ -678,55 +682,42 @@ void SidekickTimer::onTimerEvent()
         if (g_ctx.cfg.checkProfileChanged())
         {
             _MESG("SVCDBG: Detected change in profile on disk!");
-            onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+            profileChanged = true;
         }
-    
-        obs_service_t* pService = obs_frontend_get_streaming_service();
-        if (pService)
+        else
         {
-            const char* pszType = obs_service_get_output_type(pService);
-            if (pszType)
+            obs_service_t* pService = obs_frontend_get_streaming_service();
+            if (pService)
             {
-                std::string sSvcOutputType(pszType);
-                if ( sSvcOutputType == "mfc_wowza_output")
+                const char* pszType = obs_service_get_output_type(pService);
+                if (pszType)
                 {
-                    if ( ! isWebRTC )
+                    std::string sSvcOutputType(pszType);
+                    if ( sSvcOutputType == "mfc_wowza_output")
                     {
-                        // went from non-webrtc to webrtc
-                        onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
-                    }
-                }
-                else
-                {
-                    if ( isWebRTC )
-                    {
-                        // went from webrtc to non webrtc
-                        _MESG("** WebRTC Service deactivated on profile change **");
-                        g_ctx.isWebRTC = false;
-
-                        if (sidekick_prop)
-                            sidekick_prop->relabelPropertiesText();
-
-                        if (pMFCDock)
-                            pMFCDock->relabelPropertiesText();
-                    }
-
-                    if ( ! isMfc )
-                    {
-                        if (curState != SkUnknownProfile)
+                        if (!isWebRTC)
                         {
-                            g_ctx.activeState = SkUnknownProfile;
-
-                            if (sidekick_prop)
-                                sidekick_prop->relabelPropertiesText();
-
-                            if (pMFCDock)
-                                pMFCDock->relabelPropertiesText();
+                            _MESG("SVCDBG: ** WebRTC Service activated on profile change **");
+                            profileChanged = true;
                         }
+                    }
+                    else if ( isWebRTC )
+                    {
+                        _MESG("SVCDBG: ** WebRTC Service deactivated on profile change **");
+                        profileChanged = true;
+                    }
+                    else if ( ! isMfc && curState != SkUnknownProfile )
+                    {
+                        _MESG("SVCDBG: ** Change to non-MFC service detected");
+                        profileChanged = true;
                     }
                 }
             }
         }
+
+        // went from non-webrtc to webrtc, the reverse, changed to non-mfc service, or profile on disk changed?
+        if (profileChanged)
+            onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
     }
     s_nPulse++;
 }
@@ -874,6 +865,7 @@ void onObsProfileChange(obs_frontend_event eventType)
         ui_appendConsoleMsg(sMsg);
     }
 #endif
+
     firstProfileCheck = true;
     g_ctx.cfg.set("serviceType", svcName);
 
@@ -884,7 +876,6 @@ void onObsProfileChange(obs_frontend_event eventType)
         g_ctx.isMfc     = true;
         g_ctx.isRTMP    = false;
         g_ctx.isCustom  = false;
-        
     }
     else if (isRtmp)
     {
