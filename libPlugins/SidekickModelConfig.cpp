@@ -125,7 +125,8 @@ bool SidekickModelConfig::checkProfileChanged(void)
     if (lastUpdate - sm_lastProfileUpdate > 0 || sm_lastProfileHash.empty())
     {
         string sHash;
-        if (calcCheckSum(sFile, sHash))
+        size_t nSz;
+        if (calcCheckSum(sFile, sHash, nSz))
         {
             if (sm_lastProfileHash.empty())
                 sm_lastProfileHash = sHash;
@@ -175,10 +176,26 @@ bool SidekickModelConfig::writeProfileConfig(void) const
         jsProfileData.objectAdd("sidekick", m_jsConfig);
         if (jsProfileData.Serialize(sData, MfcJsonObj::JSOPT_PRETTY) > 0)
         {
-            if (stdSetFileContents(sProfilePath, sData))
+            string sHash, sDataPrev, sHashPrev;
+            size_t nOldSz = 0;
+            
+            calcStringHash(sData, sHash);
+
+            // calculate hash of file on disk, in case it differs from sm_lastProfileHash for debug msg
+            calcCheckSum(sProfilePath, sHashPrev, nOldSz);
+
+            // If hash of our serialized data doesnt match on disk, write profile to disk
+            if (sHash != sm_lastProfileHash)
             {
-                string sHash;
-                if (calcCheckSum(sProfilePath, sHash))
+                _MESG(  "SVCDBG:: *** writing profile of %zu bytes [%s] to %s; previous profile of %zu bytes [%s] replaced, lastProfileHash: [%s]",
+                        sData.size(),
+                        sHash.c_str(),
+                        sProfilePath.c_str(),
+                        nOldSz,
+                        sHashPrev.c_str(),
+                        sm_lastProfileHash.c_str());
+
+                if (stdSetFileContents(sProfilePath, sData))
                 {
                     sm_lastProfileUpdate = time(NULL);
                     sm_lastProfileHash = sHash;
@@ -186,13 +203,13 @@ bool SidekickModelConfig::writeProfileConfig(void) const
                     _MESG("SVCDBG: wrote %zu bytes to profile config at %s:\n%s\n\n", sData.size(), sProfilePath.c_str(), sData.c_str());
                     retVal = true;
                 }
-                else _MESG("SVCDBG: unable to checksum file after write of %zu bytes to %s !", sData.size(), sProfilePath.c_str());
+                else _MESG("failed to write %zu bytes of profile config to %s", sData.size(), sProfilePath.c_str());
             }
-            else _MESG("failed to write %zu bytes of profile config to %s", sData.size(), sProfilePath.c_str());
+            else _MESG("SVCDBG: no hash change, no profile write needed");
         }
         else _MESG("failed to re-serialize profile data with sidekick added");
     }
-    else _MESG("SVCDBG: loaded profile data from: %s", sProfilePath.c_str());
+    else _MESG("SVCDBG: failed to load profile data from: %s", sProfilePath.c_str());
 
     return retVal;
 }
@@ -508,11 +525,13 @@ const char* SidekickModelConfig::getString(const string& sKey) const
     return sm_vAllocs.back().c_str();
 }
 
-bool SidekickModelConfig::calcCheckSum(const string& sFile, string& sHash)
+bool SidekickModelConfig::calcCheckSum(const string& sFile, string& sHash, size_t& nSz)
 {
     bool retVal = false;
 
     FILE* inFile = fopen(sFile.c_str(), "rb");
+    nSz = 0;
+
     if (inFile != NULL)
     {
         unsigned char c[MD5_DIGEST_LENGTH], data[1025];
@@ -521,7 +540,10 @@ bool SidekickModelConfig::calcCheckSum(const string& sFile, string& sHash)
 
         MD5_Init(&mdContext);
         while ((bytes = (int)fread(data, 1, 1024, inFile)) != 0)
+        {
             MD5_Update(&mdContext, data, bytes);
+            nSz += bytes;
+        }
 
         MD5_Final(c, &mdContext);
         sHash.clear();
@@ -529,6 +551,29 @@ bool SidekickModelConfig::calcCheckSum(const string& sFile, string& sHash)
             sHash += stdprintf("%02x", c[i]);
 
         fclose(inFile);
+        retVal = true;
+    }
+
+    return retVal;
+}
+
+bool SidekickModelConfig::calcStringHash(const string& sData, string& sHash)
+{
+    unsigned char c[MD5_DIGEST_LENGTH];
+    bool retVal = false;
+    MD5_CTX mdContext;
+
+    sHash.clear();
+
+    if (!sData.empty())
+    {
+        MD5_Init(&mdContext);
+        MD5_Update(&mdContext, sData.c_str(), sData.size());
+        MD5_Final(c, &mdContext);
+        
+        for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
+            sHash += stdprintf("%02x", c[i]);
+
         retVal = true;
     }
 

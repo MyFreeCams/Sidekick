@@ -126,7 +126,8 @@ public:
     bool writeProfileConfig(void) const;
     bool checkProfileChanged(void);
 
-    static bool calcCheckSum(const string& sFile, string& sHash);
+    static bool calcCheckSum(const string& sFile, string& sHash, size_t& nSz);
+    static bool calcStringHash(const string& sData, string& sHash);
 
     // saves SiekickModelConfig memebr properties to json object
     bool Serialize(MfcJsonObj& js);
