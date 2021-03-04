@@ -443,11 +443,13 @@ void CHttpThread::readSharedMsg(CBroadcastCtx& ctx)
             {
                 MfcJsonObj js;
                 ctx.cfg.Serialize(js);
-                ctx.cfg.writeProfileConfig();
-
+                
                 // Send ctx data back to main thread after we updated it
                 g_ctx = ctx;
                 g_ctx.agentPolling = true;
+
+                //_MESG("[PROFILEDBG] MSG_TYPE_DOCREDENTIALS event, calling writeConfig ...");
+                ctx.cfg.writeProfileConfig();
 
             }
             else

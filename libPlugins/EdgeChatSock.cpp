@@ -105,7 +105,9 @@ bool EdgeChatSock::start(const string& sUser, const string& sToken, const string
 {
     bool retVal = false;
 
-    stop();  // Stop just in case
+    if (m_edgeClient != nullptr)
+        stop();
+
     m_retryConnect = 0;
 
     if ((m_edgeClient = proxy_createFcsWebsocket()) != nullptr)
@@ -616,47 +618,49 @@ int randomInt(int min, int max)
 // static
 std::string EdgeChatSock::FcsServer()
 {
-    unsigned int dwLen = 0;
     const string serverConfigUrl("https://assets.mfcimg.com/_js/serverconfig.js");
+    unsigned int dwLen = 0;
     string server = "";
+    njson res;
 
     try
     {
         CCurlHttpRequest httpreq;
         uint8_t* pResponse = httpreq.Get(serverConfigUrl, &dwLen);
-        if (pResponse != nullptr)
+
+        if (pResponse && dwLen > 0)
         {
-            njson res = njson::parse((char*)pResponse, nullptr, false);
+            string sResponse((const char*)pResponse, (size_t)dwLen);
             free(pResponse);
             pResponse = nullptr;
-            if (res.is_discarded())
-            {
-                _MESG("Error parsing serverconfig");
-                return "xchat100";
-            }
+
+            res = njson::parse(sResponse.c_str());
             njson wsServers = res["websocket_servers"];
             std::vector<string> servers;
             for (const auto& it: wsServers.items())
-            {
                 servers.push_back(it.key());
-            }
 
             server = servers[randomInt(0, (int)servers.size() - 1)];
         }
     }
+    catch (njson::parse_error& e)
+    {
+        _MESG("ParseError: %s, id: %u, position: %zu", e.what(), e.id, e.byte);
+        server = "xchat100";
+    }
     catch (const std::exception& e)
     {
-        _MESG("Error fetching chat server: %s", e.what());
+        _MESG("SrdException fetching chat server: %s", e.what());
         server = "xchat100";
     }
     catch (const string& e)
     {
-        _MESG("Error fetching chat server: %s", e.c_str());
+        _MESG("StrError fetching chat server: %s", e.c_str());
         server = "xchat100";
     }
     catch (...)
     {
-        _MESG("Error fetching chat server");
+        _MESG("Unknown error fetching chat server");
         server = "xchat100";
     }
 

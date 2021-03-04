@@ -230,6 +230,7 @@ int CMFCPluginAPI::SendHeartBeat(void)
                     uint32_t nCurUid = g_ctx.cfg.getInt("uid");
 
                     // Sidekick agent svc response had error, make sure to correct g_ctx state if it thinks we are linked
+                    _MESG("[PROFILEDBG] error processing response from SendHeartBeat, clear/writing config...");
                     g_ctx.clear(true);
                     g_ctx.cfg.writeProfileConfig();
                     g_ctx.cfg.readProfileConfig();

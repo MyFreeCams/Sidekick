@@ -137,7 +137,6 @@ bool FcsWebsocketImpl::connect( const string&   username,
             if (m_thread.joinable())
                 m_thread.detach();
             m_pConnection = NULL;
-
             listener->onDisconnected();
         });
 

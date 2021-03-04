@@ -253,6 +253,7 @@ bool obs_module_load(void)
     Log::Setup( CObsUtil::getLogPath() );
     Log::AddOutputMask(MFC_LOG_LEVEL, MFC_LOG_OUTPUT_MASK);
 
+
     SidekickModelConfig::initializeDefaults();
     g_ctx.clear(false);
 

@@ -136,7 +136,11 @@ bool SidekickModelConfig::checkProfileChanged(void)
 
             sm_lastProfileUpdate = lastUpdate + 1;
         }
-        else _MESG("PROFILEDBG: unable to check profile on disk for checksum/changes");
+        else if (!sm_lastProfileHash.empty())
+        {
+            // Only log if we expected to be able to open/read the file (had a hash from before)
+            _MESG("PROFILEDBG: unable to check profile on disk for checksum/changes");
+        }
     }
 
     return retVal;
@@ -553,6 +557,7 @@ bool SidekickModelConfig::calcCheckSum(const string& sFile, string& sHash, size_
         fclose(inFile);
         retVal = true;
     }
+    //else _MESG("SVCDBG: couldnt open %s: %s (%u)", sFile.c_str(), strerror(errno), errno);
 
     return retVal;
 }
