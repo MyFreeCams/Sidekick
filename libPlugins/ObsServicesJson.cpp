@@ -31,7 +31,6 @@
 // project/solution includes
 #include <libPlugins/MFCConfigConstants.h>
 #include <libPlugins/ObsUtil.h>
-//#include <libPlugins/PluginParameterBlock.h>
 #include <libPlugins/Portable.h>
 #include <libPlugins/SidekickModelConfig.h>
 

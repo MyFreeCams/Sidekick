@@ -18,21 +18,11 @@
 #include <curl/curl.h>
 #include <libPlugins/Portable.h>
 #include <libPlugins/MFCConfigConstants.h>
-//#include <SysParam.h>
-//#include "PluginParameterBlock.h"
 #include <libPlugins/ObsUtil.h>
-//#include "ObsBroadcast/ObsBroadcast.h"
 
 // project includes
 #include <libPlugins/HttpRequest.h>
 #include "MFCUpdaterAPI.h"
-
-//CBroadcastCtx g_ctx(true);
-
-//deque< SIDEKICK_UI_EV >   CBroadcastCtx::sm_eventQueue;
-//recursive_mutex           CBroadcastCtx::sm_eventLock;
-//bool                      CBroadcastCtx::suppressUpdates = false;
-
 
 //---------------------------------------------------------------------------
 // CMFCPluginAPI

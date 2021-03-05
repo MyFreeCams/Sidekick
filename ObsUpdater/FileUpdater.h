@@ -4,7 +4,6 @@
 #define __FILE_UPDATER__H__
 
 // solution includes
-#include <libPlugins/PluginParameterBlock.h>
 
 class CStringList : public std::list<std::string>
 {

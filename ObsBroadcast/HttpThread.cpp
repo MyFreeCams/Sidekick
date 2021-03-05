@@ -39,7 +39,6 @@
 #include <libPlugins/MFCConfigConstants.h>
 #include <libPlugins/MFCPluginAPI.h>
 #include <libPlugins/ObsUtil.h>
-//#include <libPlugins/PluginParameterBlock.h>
 #include <libPlugins/Portable.h>
 
 // project includes

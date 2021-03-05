@@ -17,7 +17,6 @@
 
 // solution includes
 #include <libPlugins/Portable.h>
-#include <libPlugins/PluginParameterBlock.h>
 #include <libPlugins/SysParam.h>
 #include <libPlugins/MFCConfigConstants.h>
 #include <libPlugins/ObsUtil.h>
