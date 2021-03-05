@@ -33,15 +33,21 @@
 #include <libPlugins/ObsUtil.h>
 //#include <libPlugins/PluginParameterBlock.h>
 #include <libPlugins/Portable.h>
+#include <libPlugins/SidekickModelConfig.h>
 
 // System Includes
 #include <string>
 #include <iostream>
 #include <fstream>
 
+#include <sys/stat.h>
+
 using njson = nlohmann::json;
 using std::ifstream;
 using std::string;
+
+string CObsServicesJson::sm_sFileHash;
+string CObsServicesJson::sm_sFilename;
 
 //---------------------------------------------------------------------------
 // CObsServicesJson
@@ -65,13 +71,39 @@ bool CObsServicesJson::load(const string& sFile)
     setServicesFilename(sFile);
     string sFilename = getNormalizedServiceFile(sFile);//obs_module_config_path("services.json");
 
-    if (parseFile(sFilename))
-        setLoaded(true);
+    //_MESG("PATHDBG: trying to load %s ...", sFilename.c_str());
+    parseFile(sFilename);
 
     return isLoaded();
 }
 
+bool CObsServicesJson::checkFileHash(void)
+{
+    bool fileChanged = false;
+    struct stat st;
 
+    if (stat(sm_sFilename.c_str(), &st) == 0)
+    {
+        string sOldHash(sm_sFileHash);
+        size_t nSz;
+
+        SidekickModelConfig::calcCheckSum(sm_sFilename, sm_sFileHash, nSz);
+
+        if (sOldHash != sm_sFileHash)
+            fileChanged = true;
+    }
+    else if (!sm_sFileHash.empty())
+    {
+        // file removed? clear our cache of file data
+        sm_sFileHash.clear();
+        fileChanged = true;
+    }
+   
+    return fileChanged; 
+}
+
+
+/*
 bool CObsServicesJson::load(const string& sFile, const string& sProgramFile)
 {
     setLoaded(false);
@@ -80,29 +112,16 @@ bool CObsServicesJson::load(const string& sFile, const string& sProgramFile)
     string sFilename = getNormalizedServiceFile(sFile);//obs_module_config_path("services.json");
     //_MESG("PATHDBG: Trying to load services from file: %s, program file: %s", sFilename.c_str(), sProgramFile.c_str());
 
-    if (parseFile(sFilename))
-    {
-        setLoaded(true);
-    }
-    //else if (m_nVersion > RTMP_SERVICES_FORMAT_VERSION)
-    else
+    if (!parseFile(sFilename))
     {
         // if we failed to load, we might have a bad file version.
         if (Update(sFile, sProgramFile))
-        {
-            if (parseFile(sFilename))
-            {
-                setLoaded(true);
-            }
-            else _TRACE("parseFile failed!");
-        }
-        else _TRACE("Bad services.json file versions!");
+            parseFile(sFilename);
     }
-    //else _TRACE("appears like services.json is corrupt!");
 
     return isLoaded();
 }
-
+*/
 
 //--------------------------------------------------------------------------
 // save
@@ -115,7 +134,7 @@ bool CObsServicesJson::save()
     string sData = m_njson.dump(4);
     string sFilename = getFilename();
 
-    //_MESG("SVCDBG: Writing %zu bytes to %s...", sData.size(), sFilename.c_str());
+    _MESG("PATHDBG: Writing %zu bytes to %s...", sData.size(), sFilename.c_str());
     if (stdSetFileContents(sFilename, sData))
         retVal = setDirty(false);
 
@@ -207,7 +226,7 @@ int CObsServicesJson::getJsonVersion(const string& sFile)
     return nVer;
 }
 
-
+/*
 bool CObsServicesJson::Update(const string& sFileProfile, const string& sFileProgram)
 {
     _MESG("PATHDBG: Update profile settings? profile: %s, program: %s", sFileProfile.c_str(), sFileProgram.c_str());
@@ -222,25 +241,24 @@ bool CObsServicesJson::Update(const string& sFileProfile, const string& sFilePro
             string sData;
             if (stdGetFileContents(sFilename, sData))
             {
-/*
-                _TRACE("updating service.jsons from profile %d to program files %d", nProfileVer, nProgramVer);
-                sFilename = getNormalizedServiceFile(sFileProfile);
+//
+//              _TRACE("updating service.jsons from profile %d to program files %d", nProfileVer, nProgramVer);
+//              sFilename = getNormalizedServiceFile(sFileProfile);
 #ifdef _WIN32
-                char szPath[_MAX_PATH + 1] = { '\0' };
-                char* pFile = NULL;
-                GetFullPathNameA(sFilename.c_str(), sizeof(szPath), szPath, &pFile);
-                string filepath = szPath;
-                string dirpath = filepath.substr(0, filepath.rfind('\\'));
-                CreateDirectoryA(dirpath.c_str(), NULL);
-                _TRACE("Creating %s just in case", dirpath.c_str());
+//              char szPath[_MAX_PATH + 1] = { '\0' };
+//              char* pFile = NULL;
+//              GetFullPathNameA(sFilename.c_str(), sizeof(szPath), szPath, &pFile);
+//              string filepath = szPath;
+//              string dirpath = filepath.substr(0, filepath.rfind('\\'));
+//              CreateDirectoryA(dirpath.c_str(), NULL);
+//              _TRACE("Creating %s just in case", dirpath.c_str());
 #endif
-                _TRACE("PATHDBG: Update profile settings? profile: %s, program: %s",
-                       sFilename.c_str(), getNormalizedServiceFile(sFileProgram).c_str());
-                if (stdSetFileContents(sFilename, sData))
-                    _TRACE("updated service.jsons");
-                else
-                    _TRACE("failed to update %s", sFilename.c_str());
-*/
+//              _TRACE("PATHDBG: Update profile settings? profile: %s, program: %s",
+//                     sFilename.c_str(), getNormalizedServiceFile(sFileProgram).c_str());
+//              if (stdSetFileContents(sFilename, sData))
+//                  _TRACE("updated service.jsons");
+//              else
+//                  _TRACE("failed to update %s", sFilename.c_str());
 
                 return true;
             }
@@ -254,6 +272,7 @@ bool CObsServicesJson::Update(const string& sFileProfile, const string& sFilePro
     }
     return false;
 }
+*/
 
 
 //--------------------------------------------------------------------------
@@ -522,7 +541,7 @@ bool CObsServicesJson::findMFCServiceJson(njson& arr, njson* pSrv, const string&
 // parse the services json file.
 bool CObsServicesJson::parseFile(const string& sFilename)
 {
-    m_sFilename = sFilename;
+    sm_sFilename = sFilename;
     bool bFnd = false;
 
     ifstream str(sFilename);
@@ -548,27 +567,6 @@ bool CObsServicesJson::parseFile(const string& sFilename)
                 {
                     njson& arr = m_njson["services"];
                     njson mfc;
-
-                    /*
-                    if (!findRTMPService(arr, &mfc))
-                    {
-                        _TRACE("%s service not found!", MFC_SERVICES_JSON_NAME_RTMP_VALUE);
-                        if (loadDefaultRTMPService(arr))
-                        {
-#ifdef UNIT_TEST
-                            if (!findRTMPService(arr, &mfc))
-                                bFnd = false;
-                            if (!findWebRtcService(arr, &mfc))
-                                bFnd = false;
-#endif
-                            bFnd = true;
-                        }
-                    }
-                    else
-                    {
-                        bFnd = true;
-                    }
-                    */
 
                     if (!findWebRtcService(arr, &mfc))
                     {
@@ -602,6 +600,14 @@ bool CObsServicesJson::parseFile(const string& sFilename)
             }
         }
     }
+
+    // update our hash/modification time of parsed filename,
+    // even if it failed, which clears static member vars
+    checkFileHash();
+
+    if (bFnd)
+        setLoaded(true);
+
     return bFnd;
 }
 
@@ -672,7 +678,7 @@ bool CObsServicesJson::updateProfileSettings(const string& sKey, const string& s
                         {
                             if ((retVal = stdSetFileContents(sFilename, sData)) == true)
                             {
-                                //blog(100, "[wrote profile config] %s; %zu => %zu bytes", sFilename.c_str(), sCurData.size(), sData.size());
+                                blog(100, "[wrote profile config] %s; %zu => %zu bytes", sFilename.c_str(), sCurData.size(), sData.size());
                             }
                             else _MESG("FAILED TO SET %s with data: %s", sFilename.c_str(), sData.c_str());
                         }

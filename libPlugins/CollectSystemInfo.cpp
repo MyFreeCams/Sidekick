@@ -14,9 +14,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef DO_SERVICE_JSON_COPY
-#define DO_SERVICE_JSON_COPY
-#endif
+//#ifndef DO_SERVICE_JSON_COPY
+//#define DO_SERVICE_JSON_COPY
+//#endif
 
 #ifdef _WIN32
 #include "targetver.h"

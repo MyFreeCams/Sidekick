@@ -16,9 +16,9 @@
 
 // BroadcastPluginStart.cpp : Defines the exported functions for the DLL application.
 
-#ifndef DO_SERVICE_JSON_COPY
-#define DO_SERVICE_JSON_COPY 1
-#endif
+//#ifndef DO_SERVICE_JSON_COPY
+//#define DO_SERVICE_JSON_COPY 1
+//#endif
 #ifndef PANEL_UNIT_TEST
 #define PANEL_UNIT_TEST 0
 #endif
@@ -100,6 +100,7 @@ SidekickPropertiesUI* sidekick_prop = nullptr;
 MFCDock* pMFCDock = nullptr;
 bool firstProfileCheck = false;
 bool servicesUpdated = false;
+QTimer* g_pServicesTimer = NULL;
 
 const char* MapObsEventType(enum obs_frontend_event eventType);
 void onObsEvent(obs_frontend_event eventType, void* pCtx);
@@ -108,6 +109,7 @@ void setupSidekickUI(void);
 void showAccountLinkStatus(void);
 void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const char* pszFmt, ...);
 void proxy_blog(int nLevel, const char* pszMsg);
+void checkServices(void);
 
 void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t nProfileChanged);
 void ui_onSessionUpdate(int nChange, uint32_t nCurSid, uint32_t nNewSid, uint32_t nProfileChanged);
@@ -188,20 +190,24 @@ void openBrowserPanelMenuHandler(void*)
 
 void loadServices(void)
 {
-    // Get location of profile (module) version of services.json
-    std::string sFilename = obs_module_config_path("services.json");
-    //_TRACE("services.json module path: %s", sFilename.c_str());
-
     // Get location of obs installed services.json
-#ifdef _WIN32
+//#ifdef _WIN32
     // services.json is located with the rtmp-services plugin
-    std::string sFilename2 = "../../data/obs-plugins/rtmp-services/services.json";
-#else
-    obs_module_t* pModule = obs_current_module();
-    std::string sT = obs_get_module_data_path(pModule);
-    std::string sFilename2 = CObsUtil::AppendPath(sT, "services.json");
-#endif
-    //_TRACE("services.json obs installed path %s", sFilename2.c_str());
+    //std::string sFilename2 = "../../data/obs-plugins/rtmp-services/services.json";
+//#else
+    //obs_module_t* pModule = obs_current_module();
+    //std::string sT = obs_get_module_data_path(pModule);
+    //std::string sFilename2 = CObsUtil::AppendPath(sT, "services.json");
+//#endif
+
+
+    // wait for upto 10 seconds for services.json to show up
+    CObsServicesJson svc;
+
+    // Get location of profile (module) version of services.json
+    string sFilename = obs_module_config_path("services.json");
+    sFilename = svc.getNormalizedServiceFile(sFilename);
+
     //
     // We need to verify that mfc service is in the services.json file.
     //
@@ -217,32 +223,53 @@ void loadServices(void)
     // Since we do NOT have write permissions to the installed version, we copy the installed services.json
     // to the profile (module) location.
     //
-    CObsServicesJson svc;
-#if DO_SERVICE_JSON_COPY
-    // First try profile version, if it isn't the right version, then copy the installed version
-    // on to the profile version. Fail if installed version is also incorrect.
-    if (svc.load(sFilename, sFilename2))
-#else
-    // If the profile version is not the correct version, we fall back to the installed
-    // version.  But we do NOT do a copy.
-    if (svc.load(sFilename) || svc.load(sFilename2))
-#endif
+    if (svc.load(sFilename))
     {
-        // We successfully loaded the json.
+        // We successfully loaded the json
         servicesUpdated = true;
+
+        // If the object is "dirty" (the MyFreeCams service was not found so we added it)
+        // after the load operation: update the json for obs.
         if (svc.isDirty())
-        {
-            // If the object is "dirty" (the MyFreeCams service was not found so we added it)
-            // after the load operation: update the json for obs.
             svc.save();
-        }
     }
-    else _TRACE("Failed to load services.json.");
+    else _MESG("Failed to load services.json: %s", sFilename.c_str());
 
     if (servicesUpdated)
         g_thread.setServicesFilename(svc.getServicesFilename());
 }
 
+void checkServices(void)
+{
+    // defaults to checking again in 500ms, unless checkFileHash() returns false
+    int checkIntervalMs = 500;         
+
+    if (servicesUpdated)
+    {
+        // see if the file has changed since we loaded services, if so reparse it
+        CObsServicesJson svc;
+        if (svc.checkFileHash())
+        {
+            _MESG("SVCDBG: json services file changed, calling loadServices again..");
+            loadServices();
+        }
+        else checkIntervalMs = 5000;    // if it hasn't, set our interval to 5sec instead of 500ms
+    }
+    else 
+    {
+        _MESG("SVCDBG: servicesUpdated false, so calling loadServices first time from checkServices...");
+        loadServices();
+    }
+
+    // On startup, emulate initial profile change event so we
+    // read the current profile and setup g_ctx accordingly if
+    // the profile changed event wasnt already fired
+    //
+    if ( ! firstProfileCheck )
+        onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+
+    QTimer::singleShot(checkIntervalMs, qApp, checkServices);
+}
 
 //---------------------------------------------------------------------------
 // obs_module_load
@@ -263,17 +290,15 @@ bool obs_module_load(void)
     // Register for event call backs.
     obs_frontend_add_event_callback(OBSFrontendEvent, nullptr);
 #endif
-    loadServices();
+    //loadServices();
+
+    //QTimer::singleShot(200, qApp, checkServices);
+    checkServices();
+
     obs_register_output(&wowza_output_info);
     static SidekickTimer* s_pTimer = new SidekickTimer();
 
-    QTimer::singleShot(1000, qApp, [=]()
-    {
-        // On startup, emulate initial profile change event so we
-        // read the current profile and setup g_ctx accordingly
-        if ( ! firstProfileCheck )
-            onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
-    });
+
 
     // Register event handler to catch streaming start/stop events
     obs_frontend_add_event_callback(onObsEvent, nullptr);
