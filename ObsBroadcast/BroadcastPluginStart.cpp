@@ -290,15 +290,9 @@ bool obs_module_load(void)
     // Register for event call backs.
     obs_frontend_add_event_callback(OBSFrontendEvent, nullptr);
 #endif
-    //loadServices();
-
-    //QTimer::singleShot(200, qApp, checkServices);
-    checkServices();
 
     obs_register_output(&wowza_output_info);
     static SidekickTimer* s_pTimer = new SidekickTimer();
-
-
 
     // Register event handler to catch streaming start/stop events
     obs_frontend_add_event_callback(onObsEvent, nullptr);
@@ -324,11 +318,17 @@ bool obs_module_load(void)
         }
         else _MESG("DBG: ** Unable to create SidekickProp - sidekick_prop NULL **");
 #endif
+
         pMFCDock = new MFCDock(main_window);
         //QAction* addDockAction = (QAction*)obs_frontend_add_dock(pMFCDock);
         main_window->addDockWidget(Qt::BottomDockWidgetArea, (QDockWidget*)pMFCDock);
     }
     else _MESG("DBG: ** Unable to get MainWindow ptr **");
+
+
+    // Start monitoring services.json in rtmp-services. Start after the sidekick dock
+    // widget is created (if it was created)
+    checkServices();
 
     // Start the monitor thread and let OBS continue to start.
     g_thread.Start();
@@ -430,7 +430,6 @@ void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t n
     if (pMFCDock)
         pMFCDock->relabelPropertiesText();
 
-    /*
     bool isWebRTC = false, isMfc = false, isLinked = false, isLoggedIn = false;
     std::string sUsername;
     {
@@ -441,7 +440,6 @@ void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t n
         isLinked    = g_ctx.isLinked;
         isMfc       = g_ctx.isMfc;
     }
-    */
 
     if (nCurUid != nNewUid)
         showAccountLinkStatus();
@@ -920,7 +918,6 @@ void onObsProfileChange(obs_frontend_event eventType)
     }
 
     sUser.clear();
-    showAccountLinkStatus();
 
     if ( ! g_ctx.isMfc )
     {
@@ -928,12 +925,6 @@ void onObsProfileChange(obs_frontend_event eventType)
             g_ctx.activeState = SkUnknownProfile;
     }
     
-    if (pMFCDock)
-        pMFCDock->relabelPropertiesText();
-
-    if (sidekick_prop)
-        sidekick_prop->relabelPropertiesText();
-
     if (s_firstProfileLoad)
     {
 #if SIDEKICK_CONSOLE
@@ -961,6 +952,14 @@ void onObsProfileChange(obs_frontend_event eventType)
             g_ctx.sm_edgeSock->sendUpdate();
         }
     }
+
+    if (pMFCDock)
+        pMFCDock->relabelPropertiesText();
+
+    if (sidekick_prop)
+        sidekick_prop->relabelPropertiesText();
+
+    showAccountLinkStatus();
 
     // start/stop polling if anything changed as part of this profile event
     g_thread.setCmd(THREADCMD_PROFILE);
