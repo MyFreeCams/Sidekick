@@ -30,25 +30,24 @@
 #include <obs-frontend-api.h>
 
 // solution includes
-// #include "libfcs/fcslib_string.h"
-// #include "libfcs/Log.h"
-// #include "libfcs/MfcJson.h"
 #include "libfcs/fcs_b64.h"
 #include "libfcs/md5.h"
+#include <libPlugins/MFCConfigConstants.h>
 
 // project includes
-//#include "MFCConfigConstants.h"
 #include "ObsServicesJson.h"
 #include "ObsUtil.h"
 #include "SidekickModelConfig.h"
-#include <libPlugins/MFCConfigConstants.h>
+
+#ifndef MODEL_CONFIG_VERBOSE_LOG
+#define MODEL_CONFIG_VERBOSE_LOG 0
+#endif
 
 bool                        SidekickModelConfig::sm_initialized = false;
 string                      SidekickModelConfig::sm_lastProfileHash;
 size_t                      SidekickModelConfig::sm_nRefCx = 0;
 map< string, MfcJsonObj >   SidekickModelConfig::sm_reqProps;
 vector< string >            SidekickModelConfig::sm_vAllocs;
-
 
 
 #ifdef _WIN32
@@ -132,11 +131,13 @@ bool SidekickModelConfig::checkProfileChanged(void)
         if ((retVal = (sHash != sm_lastProfileHash)) == true)
             sm_lastProfileHash = sHash;
 
+#if MODEL_CONFIG_VERBOSE_LOG
         if (oldHash != sHash)
         {
             _MESG("PROFILEDBG: retVal %s, oldHash != newHash..", retVal ? "true" : "false");
         }
         else _MESG("PROFILEDBG: retVal %s, oldHash == newHash still", retVal ? "true" : "false");
+#endif
     }
     else if (!sm_lastProfileHash.empty())
     {
@@ -193,6 +194,7 @@ bool SidekickModelConfig::writeProfileConfig(MfcJsonObj& jsProfileData) const
         // If hash of our serialized data doesnt match on disk, write profile to disk
         if (sHash != sm_lastProfileHash)
         {
+#if MODEL_CONFIG_VERBOSE_LOG
             _MESG(  "SVCDBG:: *** writing profile of %zu bytes [%s] to %s; previous profile of %zu bytes [%s] replaced, lastProfileHash: [%s]",
                     sData.size(),
                     sHash.c_str(),
@@ -200,17 +202,21 @@ bool SidekickModelConfig::writeProfileConfig(MfcJsonObj& jsProfileData) const
                     nOldSz,
                     sHashPrev.c_str(),
                     sm_lastProfileHash.c_str());
+#endif
 
             if (stdSetFileContents(sProfilePath, sData))
             {
                 sm_lastProfileHash = sHash;
-
+#if MODEL_CONFIG_VERBOSE_LOG
                 _MESG("SVCDBG: wrote %zu bytes to profile config at %s:\n%s\n\n", sData.size(), sProfilePath.c_str(), sData.c_str());
+#endif
                 retVal = true;
             }
             else _MESG("failed to write %zu bytes of profile config to %s", sData.size(), sProfilePath.c_str());
         }
+#if MODEL_CONFIG_VERBOSE_LOG
         else _MESG("SVCDBG: no hash change, no profile write needed");
+#endif
     }
     else _MESG("failed to re-serialize profile data with sidekick added");
 
