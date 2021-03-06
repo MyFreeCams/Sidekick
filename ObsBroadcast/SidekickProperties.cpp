@@ -216,7 +216,7 @@ void Ui_SKProps::setupUi(QDialog* pDlg)
     pConsole->setFont(f);
 
     // Version label
-    QLabel* versionLabel = new QLabel(QStringLiteral("SidekickVersion"), pDlg);  //sidekick_prop);
+    QLabel* versionLabel = new QLabel(QStringLiteral("SidekickVersion"), pDlg);  //s_pSidekickProperties);
 
     string sVer, sObsVer( obs_get_version_string() );
     stdprintf(sVer,
