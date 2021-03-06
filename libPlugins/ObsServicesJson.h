@@ -45,8 +45,6 @@ public:
     static time_t convertWindowsTimeToUnixTime(long long int input);
  #endif
 
-    static time_t getFileModifyTm(const string& sFile);
-
     // helper function for debugging.
     string prettySerialize() { return m_njson.dump(4); }
 
@@ -76,7 +74,6 @@ public:
         m_sServicesFilename = sFile;
     }
     string getServicesFilename() { return m_sServicesFilename; }
-    //bool Update(const string& sFileProfile, const string& sFileProgram);
 
     string getProfileServiceJson() { return m_sProfileService;  }
     void setProfileServiceJson(const string& s) { m_sProfileService = s; }
@@ -85,7 +82,6 @@ public:
     void setProgramServiceJson(const string& s) { m_sProgramFileServices = s; }
 
     bool updateProfileSettings(const string& sKey, const string& sURL);
-    bool refreshProfileSettings(string& sKey, string& sURL);
     const string getNormalizedServiceFile(const string& sFile);
 
     static const string& getFileHash(void) { return sm_sFileHash; }
@@ -95,7 +91,6 @@ protected:
     bool parseFile(const string& sFilename);
 
     bool loadDefaultWebRTCService(njson &);
-    //bool loadDefaultRTMPService(njson &);
 
     njson& getTopLevelJson() { return m_njson; }
 
@@ -109,9 +104,7 @@ private:
     static string sm_sFilename;
     static string sm_sFileHash;
     string m_sData;
-    //MfcJsonObj m_json;
     int m_nVersion;
-    //MfcJsonObj* m_jsonServices;
     bool m_bLoaded;
     bool m_bisDirty;
     string m_sServicesFilename;

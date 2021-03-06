@@ -451,6 +451,7 @@ bool CBroadcastCtx::importProfileConfig(void)
     CObsUtil::getCurrentSetting("key", sCurKey);
     CObsUtil::getCurrentSetting("server", sCurUrl);
     string sCurProfile = profileName;
+
     retVal = cfg.readProfileConfig();
 
     uint32_t nNewSid = cfg.getInt("sid");

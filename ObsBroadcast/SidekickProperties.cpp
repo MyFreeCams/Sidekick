@@ -296,7 +296,6 @@ void SidekickPropertiesUI::onUnlink(void)
     auto lk = g_ctx.sharedLock();
     g_ctx.clear(true);
     g_ctx.cfg.writeProfileConfig();
-    g_ctx.cfg.readProfileConfig();
     CBroadcastCtx::sendEvent(SkReadProfile, 0, 0);
 }
 
@@ -364,7 +363,6 @@ void MFCDock::onUnlink()
     auto lk = g_ctx.sharedLock();
     g_ctx.clear(true);
     g_ctx.cfg.writeProfileConfig();
-    g_ctx.cfg.readProfileConfig();
     CBroadcastCtx::sendEvent(SkReadProfile, 0, 0);
 }
 

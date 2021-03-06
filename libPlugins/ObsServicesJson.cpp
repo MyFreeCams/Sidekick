@@ -34,6 +34,9 @@
 #include <libPlugins/Portable.h>
 #include <libPlugins/SidekickModelConfig.h>
 
+// for g_ctx
+#include <ObsBroadcast/ObsBroadcast.h>
+
 // System Includes
 #include <string>
 #include <iostream>
@@ -47,6 +50,8 @@ using std::string;
 
 string CObsServicesJson::sm_sFileHash;
 string CObsServicesJson::sm_sFilename;
+
+extern CBroadcastCtx g_ctx;         // part of MFCLibPlugins.lib::MfcPluginAPI.obj
 
 //---------------------------------------------------------------------------
 // CObsServicesJson
@@ -152,41 +157,6 @@ time_t CObsServicesJson::convertWindowsTimeToUnixTime(long long int input)
     return (time_t) temp;
 }
 #endif
-
-time_t CObsServicesJson::getFileModifyTm(const string& sFile)
-{
-    time_t nTm = 0;
-
-    // ... the stat() code works in win32 and unix-likes, so just use that
-    /*
-#ifdef _WIN32
-    HANDLE hFile;
-    DWORD dwRet;
-
-    if ((hFile = CreateFileA(sFile.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL)) != INVALID_HANDLE_VALUE)
-    {
-        FILETIME ftCreate, ftAccess, ftWrite;
-        SYSTEMTIME stUTC, stLocal;
-
-        // Retrieve the file times for the file.
-        if (GetFileTime(hFile, &ftCreate, &ftAccess, &ftWrite))
-        {
-            // Convert the last-write time to local time.
-            nTm = convertWindowsTimeToUnixTime((long long int)(MAKE_I64(ftWrite.dwLowDateTime, ftWrite.dwHighDateTime)));
-        }
-    }
-#else
-    // default stat() mtime
-#endif
-*/
-
-    struct stat st;
-    if (stat(sFile.c_str(), &st) == 0)
-        nTm = st.st_mtime;
-
-    return nTm;
-}
-
 
 const string CObsServicesJson::getNormalizedServiceFile(const string& sFile)
 {
@@ -613,12 +583,10 @@ bool CObsServicesJson::parseFile(const string& sFilename)
 
 bool CObsServicesJson::updateProfileSettings(const string& sKey, const string& sURL)
 {
-    string sFilename = CObsUtil::AppendPath(CObsUtil::getProfilePath(), SERVICE_JSON_FILE);
     bool retVal = false;
     MfcJsonObj js;
 
-    //_MESG("PATHDBG: update profile settings in %s with key:%s", sFilename.c_str(), sKey.c_str());
-    if (js.loadFromFile(sFilename))
+    if (g_ctx.cfg.loadProfileConfig(js))
     {
         MfcJsonObj* pSet = js.objectGet(SERVICE_JSON_SETTING);
         if (pSet)
@@ -671,7 +639,21 @@ bool CObsServicesJson::updateProfileSettings(const string& sKey, const string& s
 
                     if (updates > 0)
                     {
+                        // write current profile back to disk with a call to g_ctx.cfg.writeProfileConfig() ?
+                        // ...
+                        //
+                        // ... pass sKey/sUrl to g_ctx.cfg .... ?
+                        //
+                        if ((retVal = g_ctx.cfg.writeProfileConfig(js)) != false)
+                        {
+                            blog(100, "[SVCDBG] wroteProfileConfig OK");
+                        }
+                        else blog(100, "[SVCDBG] wroteProfileConfig FAILED");
+
+
+                        /*
                         string sCurData, sData = js.prettySerialize();
+
                         stdGetFileContents(sFilename, sCurData);
                         if (sData != sCurData)
                         {
@@ -681,50 +663,17 @@ bool CObsServicesJson::updateProfileSettings(const string& sKey, const string& s
                             }
                             else _MESG("FAILED TO SET %s with data: %s", sFilename.c_str(), sData.c_str());
                         }
+                        */
                     }
                     else retVal = true;
                 }
             }
             else _MESG("SKIPPED non-mfc service profile %s", sName.c_str());
         }
-        else _MESG("Failed to find settings");
+        else _MESG("failed to find settings");
     }
-    else _TRACE("Failed to load %s", sFilename.c_str());
+    else _TRACE("failed to load profile from disk");
 
     return retVal;
 }
 
-
-bool CObsServicesJson::refreshProfileSettings(string& sKey, string& sURL)
-{
-    string sFilename( CObsUtil::AppendPath(CObsUtil::getProfilePath(), SERVICE_JSON_FILE) );
-    bool retVal = false;
-
-    ifstream str(sFilename);
-    if (str.is_open())
-    {
-        njson j;
-        str >> j;
-
-        if (j.find(SERVICE_JSON_SETTING) != j.end())
-        {
-            njson jSet = j[SERVICE_JSON_SETTING];
-
-            string sName;
-            if (jSet.find(SERVICE_JSON_SERVICE) != jSet.end())
-            {
-                sName = jSet[SERVICE_JSON_SERVICE].get<string>();
-
-                // only save if we are the current service.
-                if (sName == MFC_SERVICES_JSON_NAME_RTMP_VALUE || sName == MFC_SERVICES_JSON_NAME_WEBRTC_VALUE || sName == "Custom")
-                {
-                    sKey = jSet[SERVICE_JSON_STREAM_KEY].get<string>();
-                    sURL = jSet[SERVICE_JSON_STREAM_URL].get<string>();
-                    retVal = true;
-                }
-            }
-        }
-    }
-
-    return retVal;
-}

@@ -43,7 +43,6 @@
 #include "SidekickModelConfig.h"
 #include <libPlugins/MFCConfigConstants.h>
 
-time_t                      SidekickModelConfig::sm_lastProfileUpdate = 0;
 bool                        SidekickModelConfig::sm_initialized = false;
 string                      SidekickModelConfig::sm_lastProfileHash;
 size_t                      SidekickModelConfig::sm_nRefCx = 0;
@@ -119,34 +118,57 @@ void SidekickModelConfig::initializeDefaults(void)
 bool SidekickModelConfig::checkProfileChanged(void)
 {
     string sFile( CObsUtil::AppendPath(CObsUtil::getProfilePath(), SERVICE_JSON_FILE) );
-    time_t lastUpdate = CObsServicesJson::getFileModifyTm(sFile);
     bool retVal = false;
+    string sHash;
+    size_t nSz;
 
-    if (lastUpdate - sm_lastProfileUpdate > 0 || sm_lastProfileHash.empty())
+    if (calcCheckSum(sFile, sHash, nSz))
     {
-        string sHash;
-        size_t nSz;
-        if (calcCheckSum(sFile, sHash, nSz))
-        {
-            if (sm_lastProfileHash.empty())
-                sm_lastProfileHash = sHash;
+        if (sm_lastProfileHash.empty())
+            sm_lastProfileHash = sHash;
             
-            if ((retVal = (sHash != sm_lastProfileHash)) == true)
-                sm_lastProfileHash = sHash;
+        string oldHash(sm_lastProfileHash);
 
-            sm_lastProfileUpdate = lastUpdate + 1;
-        }
-        else if (!sm_lastProfileHash.empty())
+        if ((retVal = (sHash != sm_lastProfileHash)) == true)
+            sm_lastProfileHash = sHash;
+
+        if (oldHash != sHash)
         {
-            // Only log if we expected to be able to open/read the file (had a hash from before)
-            _MESG("PROFILEDBG: unable to check profile on disk for checksum/changes");
+            _MESG("PROFILEDBG: retVal %s, oldHash != newHash..", retVal ? "true" : "false");
         }
+        else _MESG("PROFILEDBG: retVal %s, oldHash == newHash still", retVal ? "true" : "false");
+    }
+    else if (!sm_lastProfileHash.empty())
+    {
+        // Only log if we expected to be able to open/read the file (had a hash from before)
+        _MESG("PROFILEDBG: unable to check profile on disk for checksum/changes");
     }
 
     return retVal;
 }
 
+bool SidekickModelConfig::loadProfileConfig(MfcJsonObj& js) const
+{
+    // scoped lock of mutex if we are a sharedCtx instance
+    unique_lock< recursive_mutex >  lk(m_csMutex, std::defer_lock);
+    if (isSharedCtx)                lk.lock();
+
+    string sProfilePath = CObsUtil::getProfilePath() + "/" + SERVICE_JSON_FILE;
+    return js.loadFromFile(sProfilePath);
+}
+
 bool SidekickModelConfig::writeProfileConfig(void) const
+{
+    bool retVal = false;
+    MfcJsonObj js;
+
+    if (loadProfileConfig(js))
+        retVal = writeProfileConfig(js);
+
+    return retVal;
+}
+
+bool SidekickModelConfig::writeProfileConfig(MfcJsonObj& jsProfileData) const
 {
     bool retVal = false;
 
@@ -154,99 +176,63 @@ bool SidekickModelConfig::writeProfileConfig(void) const
     unique_lock< recursive_mutex >  lk(m_csMutex, std::defer_lock);
     if (isSharedCtx)                lk.lock();
 
-    /*
-    std::string sPluginPath = obs_module_config_path("");
-
-#ifdef _WIN32
-    if ( ! DirectoryExists(sPluginPath.c_str()) )
-        if ( ! CreateDirectoryA(sPluginPath.c_str(), NULL) )
-            _MESG("PATHDBG: CreateDirectory() failed to mkdir '%s'", sPluginPath.c_str());
-#else
-    mkdir(sPluginPath.c_str(), 0770);
-#endif
-
-    std::string sPluginCfg = obs_module_config_path("sidekick.json");
-
-#ifdef _WIN32
-
-#endif
-    */
-    string sProfilePath = CObsUtil::getProfilePath() + "/" + SERVICE_JSON_FILE;
-    MfcJsonObj jsProfileData;
     string sData;
-        
-    if (jsProfileData.loadFromFile(sProfilePath))
+
+    jsProfileData.objectAdd("sidekick", m_jsConfig);
+    if (jsProfileData.Serialize(sData, MfcJsonObj::JSOPT_PRETTY) > 0)
     {
-        jsProfileData.objectAdd("sidekick", m_jsConfig);
-        if (jsProfileData.Serialize(sData, MfcJsonObj::JSOPT_PRETTY) > 0)
+        string sProfilePath = CObsUtil::getProfilePath() + "/" + SERVICE_JSON_FILE;
+        string sHash, sDataPrev, sHashPrev;
+        size_t nOldSz = 0;
+        
+        calcStringHash(sData, sHash);
+
+        // calculate hash of file on disk, in case it differs from sm_lastProfileHash for debug msg
+        calcCheckSum(sProfilePath, sHashPrev, nOldSz);
+
+        // If hash of our serialized data doesnt match on disk, write profile to disk
+        if (sHash != sm_lastProfileHash)
         {
-            string sHash, sDataPrev, sHashPrev;
-            size_t nOldSz = 0;
-            
-            calcStringHash(sData, sHash);
+            _MESG(  "SVCDBG:: *** writing profile of %zu bytes [%s] to %s; previous profile of %zu bytes [%s] replaced, lastProfileHash: [%s]",
+                    sData.size(),
+                    sHash.c_str(),
+                    sProfilePath.c_str(),
+                    nOldSz,
+                    sHashPrev.c_str(),
+                    sm_lastProfileHash.c_str());
 
-            // calculate hash of file on disk, in case it differs from sm_lastProfileHash for debug msg
-            calcCheckSum(sProfilePath, sHashPrev, nOldSz);
-
-            // If hash of our serialized data doesnt match on disk, write profile to disk
-            if (sHash != sm_lastProfileHash)
+            if (stdSetFileContents(sProfilePath, sData))
             {
-                _MESG(  "SVCDBG:: *** writing profile of %zu bytes [%s] to %s; previous profile of %zu bytes [%s] replaced, lastProfileHash: [%s]",
-                        sData.size(),
-                        sHash.c_str(),
-                        sProfilePath.c_str(),
-                        nOldSz,
-                        sHashPrev.c_str(),
-                        sm_lastProfileHash.c_str());
+                sm_lastProfileHash = sHash;
 
-                if (stdSetFileContents(sProfilePath, sData))
-                {
-                    sm_lastProfileUpdate = time(NULL);
-                    sm_lastProfileHash = sHash;
-
-                    _MESG("SVCDBG: wrote %zu bytes to profile config at %s:\n%s\n\n", sData.size(), sProfilePath.c_str(), sData.c_str());
-                    retVal = true;
-                }
-                else _MESG("failed to write %zu bytes of profile config to %s", sData.size(), sProfilePath.c_str());
+                _MESG("SVCDBG: wrote %zu bytes to profile config at %s:\n%s\n\n", sData.size(), sProfilePath.c_str(), sData.c_str());
+                retVal = true;
             }
-            else _MESG("SVCDBG: no hash change, no profile write needed");
+            else _MESG("failed to write %zu bytes of profile config to %s", sData.size(), sProfilePath.c_str());
         }
-        else _MESG("failed to re-serialize profile data with sidekick added");
+        else _MESG("SVCDBG: no hash change, no profile write needed");
     }
-    else _MESG("SVCDBG: failed to load profile data from: %s", sProfilePath.c_str());
+    else _MESG("failed to re-serialize profile data with sidekick added");
 
     return retVal;
 }
 
 bool SidekickModelConfig::readProfileConfig(void)
 {
+    MfcJsonObj jsProfileData;
     bool retVal = false;
 
-    /*
-    std::string sPluginCfg = obs_module_config_path("sidekick.json");
-    if ( m_jsConfig.loadFromFile( sPluginCfg ) )
-    {
-        retVal = true;
-    }
-    else _MESG("config failed to load, unable to open '%s' for reading", sPluginCfg.c_str());
-    */
-
-    string sProfilePath = CObsUtil::getProfilePath() + "/" + SERVICE_JSON_FILE;
-    MfcJsonObj jsProfileData;
-
-    if (jsProfileData.loadFromFile(sProfilePath))
+    if (loadProfileConfig(jsProfileData))
     {
         if (jsProfileData.objectGetObject("sidekick", m_jsConfig))
         {
             retVal = true;
         }
-        else _MESG("'sidekick' property missing from profile's service: %s", sProfilePath.c_str());
+        else _MESG("'sidekick' property missing from profile's service");
     }
-    else _MESG("config failed to load, unable to open '%s' for reading", sProfilePath.c_str());
 
     return retVal;
 }
-
 
 bool SidekickModelConfig::Serialize(MfcJsonObj& js)
 {

@@ -233,8 +233,6 @@ int CMFCPluginAPI::SendHeartBeat(void)
                     _MESG("[PROFILEDBG] error processing response from SendHeartBeat, clear/writing config...");
                     g_ctx.clear(true);
                     g_ctx.cfg.writeProfileConfig();
-                    g_ctx.cfg.readProfileConfig();
-
                     CBroadcastCtx::sendEvent(SkUnlink, nCurSid, nCurUid);
                  }
             }

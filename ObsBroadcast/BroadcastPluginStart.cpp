@@ -326,9 +326,12 @@ bool obs_module_load(void)
     else _MESG("DBG: ** Unable to get MainWindow ptr **");
 
 
-    // Start monitoring services.json in rtmp-services. Start after the sidekick dock
-    // widget is created (if it was created)
-    checkServices();
+    QTimer::singleShot(1000, qApp, [=]()
+    {
+        // Start monitoring services.json in rtmp-services. Start after the sidekick dock
+        // widget is created (if it was created)
+        checkServices();
+    });
 
     // Start the monitor thread and let OBS continue to start.
     g_thread.Start();

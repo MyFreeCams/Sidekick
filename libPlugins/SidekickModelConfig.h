@@ -122,8 +122,15 @@ public:
 
     static void initializeDefaults(void);
 
+    // load profile data from current profile on disk, extract sidekick json
+    // config and save to m_jsConfig
     bool readProfileConfig(void);
+
+    // load profile config data from current profile's service.json and save to js
+    bool loadProfileConfig(MfcJsonObj& js) const;       
+
     bool writeProfileConfig(void) const;
+    bool writeProfileConfig(MfcJsonObj& jsProfileData) const;
     bool checkProfileChanged(void);
 
     static bool calcCheckSum(const string& sFile, string& sHash, size_t& nSz);
@@ -183,10 +190,7 @@ protected:
     static vector< string >             sm_vAllocs;
     static size_t                       sm_nRefCx;
 
-    static time_t                       sm_lastProfileUpdate;
     static string                       sm_lastProfileHash;
-
-
 
 #ifdef UNUSED_CODE
 public:
