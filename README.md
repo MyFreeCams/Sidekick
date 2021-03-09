@@ -19,37 +19,44 @@ OBS Plugin for Broadcasting to MyFreeCams using WebRTC
   git clone git@github.com:MyFreeCams/Sidekick.git && cd Sidekick
   ```
 
-* Build
-  * macOS only: Install dependencies
-    ```bash
-    ./build-deps
-    ```
+### Install Dependencies (macOS only)
+```bash
+./build-deps
+```
 
-  ```bash
-  ./build
-  ```
+### Build
+```bash
+./build
+```
 
-* Package
-  * macOS only (omit to skip notarization):
-    ```bash
-    export NOTARIZATION_USERNAME=your_apple_id_email@provider.com
-    # only needed first time (password will be stored in keychain)
-    export NOTARIZATION_PASSWORD=secret
-    ```
+### Package
+macOS only (omit to skip notarization):
+```bash
+export NOTARIZATION_USERNAME=your_apple_id_email@provider.com
+# only needed first time (password will be stored in keychain)
+export NOTARIZATION_PASSWORD=secret
+```
 
-  ```bash
-  ./package
-  ```
+```bash
+./package
+```
 
 Package location:
 * mac: `obs-studio/xAuto/MFC-Sidekick-Setup-YYYYMMDD.pkg`
 * win: `obs-studio\build64\MFC-Sidekick-Setup-YYYYMMDD.exe`
 
-Build type may be entered as an optional arguement (default: RelWithDebInfo):
+### Deploy
 ```bash
-./build Release
+./deploy
 ```
-or by setting the env var `BUILD_TYPE`:
+
+### Customization
+To speed up package generation in development, append `dev` to the package command:
+```bash
+./package dev
+```
+
+Build type may be set with the env var `BUILD_TYPE` (default: RelWithDebInfo):
 macOS:
 ```bash
 export BUILD_TYPE=Debug
@@ -59,10 +66,6 @@ win:
 ```bat
 set BUILD_TYPE=Debug
 build
-```
-or in-line (mac only):
-```bash
-BUILD_TYPE=RelWithDebInfo ./build
 ```
 
 To build using Xcode:

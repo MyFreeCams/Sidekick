@@ -3,7 +3,7 @@
 set -e # exit if something fails
 
 readonly _BUILD_DIR=xAuto
-readonly _BUILD_TYPE=Release
+readonly _BUILD_TYPE=RelWithDebInfo
 readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 # readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
 readonly MACOS_CEF_BUILD_VERSION=3770
@@ -19,6 +19,7 @@ cd .. || exit
 readonly _DEV_DIR=$(pwd)
 export DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
 export OBSDEPS="${DEV_DIR}/obsdeps"
+export QTDIR="${QTDIR:-${OBSDEPS}}"
 
 export BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
 export BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
@@ -27,8 +28,7 @@ cd "${BUILD_ROOT}"
 if [ -f "${BUILD_ROOT}/CMakeCache.txt" ]; then
   PREV_BUILD_TYPE=$(grep -E 'CMAKE_BUILD_TYPE:[^=]+=' "${BUILD_ROOT}/CMakeCache.txt" | sed -E 's/CMAKE_BUILD_TYPE:[^=]+=//')
 fi
-readonly __BUILD_TYPE=${PREV_BUILD_TYPE:-${_BUILD_TYPE}}
-readonly _BUILD_TYPE_=${1:-${__BUILD_TYPE}}
+readonly _BUILD_TYPE_=${PREV_BUILD_TYPE:-${_BUILD_TYPE}}
 export CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE_}}
 export BUILD_TYPE=${CMAKE_BUILD_TYPE}
 _CEF_BUILD_TYPE=Release
@@ -54,6 +54,11 @@ export OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
 # Store current xcode path
 readonly CURRENT_XCODE=$(xcode-select -p)
 
+if [ -n "${NOTARIZATION_USERNAME}" ]; then NOTARIZING=yes; else NOTARIZING=no; fi
+NOTARIZED=no
+SIGNING=no
+SIGNED=no
+
 readonly red=$'\e[1;31m'
 readonly grn=$'\e[1;32m'
 readonly blu=$'\e[1;34m'
@@ -76,6 +81,9 @@ hr() {
   [ -n "$5" ] && echo "$5"
   [ -n "$6" ] && echo "$6"
   [ -n "$7" ] && echo "$7"
+  [ -n "$8" ] && echo "$8"
+  [ -n "$9" ] && echo "$9"
+  [ -n "${10}" ] && echo "${10}"
   echo "───────────────────────────────────────────────────"
 }
 
@@ -92,50 +100,67 @@ fetch_git_tags() {
   export FILE_DATE=${_FILE_DATE}
   readonly _YYYYMMDD=$(date +%Y%m%d)
   export YYYYMMDD=${_YYYYMMDD}
+  export PACKAGE_LOCATION="${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
+  if [ "${BUILD_TYPE}" = "RelWithDebInfo" ] || [ "${BUILD_TYPE}" = "Release" ]; then
+    export PACKAGE_WITH_COMMIT_LOCATION="${BUILD_ROOT}/Sidekick-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg"
+  else
+    export PACKAGE_WITH_COMMIT_LOCATION="${BUILD_ROOT}/Sidekick-${GIT_BRANCH}-${GIT_COMMIT}-${BUILD_TYPE}-${YYYYMMDD}.pkg"
+  fi
 }
 
 find_codesign_ident() {
-  readonly CODESIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Application')
-  readonly _CODESIGN_IDENT=$(security find-identity -p codesigning -v | grep 'Developer ID Application' | grep -Eoe '\s\w+\s"' | grep -Eoe '\w+')
-  if [ -z "${CODESIGN_IDENT}" ]; then CODESIGN=1; fi
-  export CODESIGN_IDENT=${CODESIGN_IDENT:-${_CODESIGN_IDENT}}
-  if [ -z "${CODESIGN_IDENT_FULL}" ] && [ "${CODESIGN}" -ne 1 ]; then NO_CODESIGN=1; fi
-  readonly PRODUCTSIGN_IDENT_FULL=$(security find-identity -v | grep 'Developer ID Installer')
-  readonly _PRODUCTSIGN_IDENT_=$(security find-identity -v | grep 'Developer ID Installer' | grep -Eoe '\s\w+\s"' | grep -Eoe '\w+')
-  readonly _PRODUCTSIGN_IDENT=${_PRODUCTSIGN_IDENT_:-${DEFAULT_PRODUCTSIGN_IDENT}}
-  export PRODUCTSIGN_IDENT=${PRODUCTSIGN_IDENT:-${_PRODUCTSIGN_IDENT}}
+  if [ "$1" = "dev" ]; then NO_CODESIGN=1; fi
+  if [ -z "${NO_CODESIGN}" ]; then
+    CODESIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Application' | grep -Eoe '[A-F0-9]+\s"[^"]+"')
+    if [ -z "${CODESIGN_IDENT_FULL}" ] && [ -z "${CODESIGN_IDENT}" ]; then NO_CODESIGN=1; fi
+    if [ -z "${NO_CODESIGN}" ]; then
+      SIGNING=yes
+      export CODESIGN_IDENT=${CODESIGN_IDENT:-$(echo "${CODESIGN_IDENT_FULL}" | grep -Eoe '^[A-F0-9]+')}
+      readonly PRODUCTSIGN_IDENT_FULL=$(security find-identity -v | grep 'Developer ID Installer' | grep -Eoe '[A-F0-9]+\s"[^"]+"')
+      export PRODUCTSIGN_IDENT=${PRODUCTSIGN_IDENT:-$(echo "${PRODUCTSIGN_IDENT_FULL}" | grep -Eoe '^[A-F0-9]+')}
+    fi
+  fi
 }
 
 print_env() {
+  echo "${cyn}Packaging Sidekick${reset}"
   echo
-  echo "${cyn}Packaging              Sidekick${reset}"
-  echo "${red}BUILD_TYPE:            ${BUILD_TYPE}${reset}"
+  echo "BUILD_TYPE:              ${BUILD_TYPE}"
   if [ -f "${BUILD_ROOT}/CMakeCache.txt" ]; then
-    echo "${red}PREVIOUS BUILD_TYPE:   ${PREV_BUILD_TYPE}${reset}"
+    if [ "${BUILD_TYPE}" != "${PREV_BUILD_TYPE}" ]; then
+      echo "PREVIOUS BUILD_TYPE:     ${PREV_BUILD_TYPE}"
+    fi
   fi
-  echo "GIT_BRANCH:            ${GIT_BRANCH}"
+  echo "${bold}GIT_BRANCH:              ${GIT_BRANCH}${reset}"
   if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
     if [ "${GIT_BRANCH}" = "${PREV_GIT_BRANCH}" ]; then
-      echo "${bold}PREV_GIT_BRANCH:       ${PREV_GIT_BRANCH}${reset}"
+      echo "${bold}PREV_GIT_BRANCH:         ${PREV_GIT_BRANCH}${reset}"
     else
-      echo "${mag}PREV_GIT_BRANCH:       ${PREV_GIT_BRANCH}${reset}"
+      echo "${mag}PREV_GIT_BRANCH:         ${PREV_GIT_BRANCH}${reset}"
     fi
   fi
-  echo "GIT_COMMIT:            ${GIT_COMMIT}"
+  echo "${bold}GIT_COMMIT:              ${GIT_COMMIT}${reset}"
   if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
     if [ "${GIT_COMMIT}" = "${PREV_GIT_COMMIT}" ]; then
-      echo "${bold}PREV_GIT_COMMIT:       ${PREV_GIT_COMMIT}${reset}"
+      echo "PREV_GIT_COMMIT:         ${PREV_GIT_COMMIT}"
     else
-      echo "${mag}PREV_GIT_COMMIT:       ${PREV_GIT_COMMIT}${reset}"
+      echo "${mag}PREV_GIT_COMMIT:         ${PREV_GIT_COMMIT}${reset}"
     fi
   fi
-  echo "BUILD_ROOT:            ${BUILD_ROOT}"
-  echo "OBS_ROOT:              ${OBS_ROOT}"
-  echo "DEV_DIR:               ${DEV_DIR}"
-  echo "CODESIGN_IDENT_FULL:   ${CODESIGN_IDENT_FULL}"
-  echo "PRODUCTSIGN_IDENT_FULL:${PRODUCTSIGN_IDENT_FULL}"
-  echo "CODESIGN_IDENT:        ${CODESIGN_IDENT}"
-  echo "PRODUCTSIGN_IDENT:     ${PRODUCTSIGN_IDENT}"
+  echo
+  echo "BUILD_ROOT:              ${BUILD_ROOT}"
+  echo "OBS_ROOT:                ${OBS_ROOT}"
+  echo "DEV_DIR:                 ${DEV_DIR}"
+  echo
+  echo "Signing?                 ${SIGNING}"
+  echo "Notarizing?              ${NOTARIZING}"
+  if [ -z "${NO_CODESIGN}" ]; then
+    echo
+    echo "CODESIGN_IDENT_FULL:     ${CODESIGN_IDENT_FULL}"
+    echo "CODESIGN_IDENT:          ${CODESIGN_IDENT}"
+    echo "PRODUCTSIGN_IDENT_FULL:  ${PRODUCTSIGN_IDENT_FULL}"
+    echo "PRODUCTSIGN_IDENT:       ${PRODUCTSIGN_IDENT}"
+  fi
 }
 
 build_obs_bundle() {
@@ -187,7 +212,7 @@ build_obs_bundle() {
   mv -f ./OBS.app/Contents/MacOS/libobs-opengl.so ./OBS.app/Contents/Frameworks
 
   # Copy QtNetwork for plugin support
-  cp -pfR "${OBSDEPS}/lib/QtNetwork.framework" ./OBS.app/Contents/Frameworks/
+  cp -pfR "${QTDIR}/lib/QtNetwork.framework" ./OBS.app/Contents/Frameworks/
   chmod -R +w ./OBS.app/Contents/Frameworks/QtNetwork.framework
   chmod 644 ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Resources/Info.plist
   rm -rf ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Headers
@@ -196,7 +221,7 @@ build_obs_bundle() {
     @rpath/QtNetwork \
     ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
   install_name_tool -change \
-    "${OBSDEPS}/lib/QtCore.framework/Versions/5/QtCore" \
+    "${QTDIR}/lib/QtCore.framework/Versions/5/QtCore" \
     @executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore \
     ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
 
@@ -223,6 +248,40 @@ fix_dependencies_mfcbroadcast() {
     install_name_tool -id \
       @rpath/websocketclient.dylib \
       "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/websocketclient.dylib"
+  fi
+}
+
+prepare_files_for_package() {
+  cd "${BUILD_ROOT}"
+  mkdir -p "${BUILD_ROOT}/MFCBroadcast/bin"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libx264"* "${BUILD_ROOT}/MFCBroadcast/bin/"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libssl"* "${BUILD_ROOT}/MFCBroadcast/bin/"
+  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libcrypto"* "${BUILD_ROOT}/MFCBroadcast/bin/"
+
+  for f in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
+    install_name_tool -change \
+      "@executable_path/../Frameworks/${f##*/}" \
+      "@loader_path/${f##*/}" \
+      "${BUILD_ROOT}/MFCBroadcast/bin/MFCBroadcast.so"
+    install_name_tool -change \
+      "@executable_path/../Frameworks/${f##*/}" \
+      "@loader_path/${f##*/}" \
+      "${BUILD_ROOT}/MFCBroadcast/bin/websocketclient.dylib"
+    for g in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
+      install_name_tool -change \
+        "@executable_path/../Frameworks/${f##*/}" \
+        "@loader_path/${f##*/}" \
+        "${BUILD_ROOT}/MFCBroadcast/bin/${g##*/}"
+    done
+  done
+
+  if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg" ]; then
+    rm -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
+  fi
+  if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg" ]; then
+    rm -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg"
   fi
 }
 
@@ -266,60 +325,9 @@ codesign_apps() {
   fi
 }
 
-prepare_files_for_package() {
-  cd "${BUILD_ROOT}"
-  mkdir -p "${BUILD_ROOT}/MFCBroadcast/bin"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libx264"* "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libssl"* "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libcrypto"* "${BUILD_ROOT}/MFCBroadcast/bin/"
-
-  for f in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
-    install_name_tool -change \
-      "@executable_path/../Frameworks/${f##*/}" \
-      "@loader_path/${f##*/}" \
-      "${BUILD_ROOT}/MFCBroadcast/bin/MFCBroadcast.so"
-    install_name_tool -change \
-      "@executable_path/../Frameworks/${f##*/}" \
-      "@loader_path/${f##*/}" \
-      "${BUILD_ROOT}/MFCBroadcast/bin/websocketclient.dylib"
-    for g in "${BUILD_ROOT}/MFCBroadcast/bin/lib"*; do
-      install_name_tool -change \
-        "@executable_path/../Frameworks/${f##*/}" \
-        "@loader_path/${f##*/}" \
-        "${BUILD_ROOT}/MFCBroadcast/bin/${g##*/}"
-    done
-  done
-
-  if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg" ]; then
-    rm -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
-  fi
-  if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg" ]; then
-    rm -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg"
-  fi
-}
-
-notarize_package() {
-  if [ -n "${NOTARIZATION_USERNAME}" ]; then
-    if [ -n "${NOTARIZATION_PASSWORD}" ]; then
-      xcrun altool --store-password-in-keychain-item "AC_PASSWORD" -u "${NOTARIZATION_USERNAME}" -p "${NOTARIZATION_PASSWORD}"
-    fi
-    echo "Notarization precheck - started"
-    if xcnotary precheck "${BUILD_ROOT}/Sidekick.pkg"; then
-      echo "Notarization precheck - success"
-      if [ -n "${ASC_PROVIDER_SHORTNAME}" ]; then
-        ASC_PROVIDER_SHORTNAME=$(xcrun altool --list-providers -p "@keychain:AC_PASSWORD" 2>/dev/null | grep -Eoe '[a-zA-Z0-9]+\s+[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+' | grep -Eoe '^[a-zA-Z0-9]+')
-      fi
-      hr "Notarizing package"
-      xcnotary notarize "${BUILD_ROOT}/Sidekick.pkg" --developer-account "${NOTARIZATION_USERNAME}" --developer-password-keychain-item "AC_PASSWORD" --provider "${ASC_PROVIDER_SHORTNAME}"
-      # System Policy (Gatekeeper) assessment
-      spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"
-    else
-      echo "Notarization precheck - failed"
-      return 1
-    fi
-  fi
+generate_package() {
+  hr "Generating installation package"
+  packagesbuild "${BUILD_ROOT}/sidekick.pkgproj"
 }
 
 codesign_package() {
@@ -328,38 +336,51 @@ codesign_package() {
     mv "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/Sidekick-unsigned.pkg"
     productsign --sign "${PRODUCTSIGN_IDENT:--}" "${BUILD_ROOT}/Sidekick-unsigned.pkg" "${BUILD_ROOT}/Sidekick.pkg"
     # Validate signature
-    pkgutil --check-signature "${BUILD_ROOT}/Sidekick.pkg"
-    notarize_package
+    if pkgutil --check-signature "${BUILD_ROOT}/Sidekick.pkg"; then SIGNED=yes; fi
   fi
 }
 
-cleanup_print_summary() {
+notarize_package() {
+  if [ -z "${NO_CODESIGN}" ]; then
+    if [ -n "${NOTARIZATION_USERNAME}" ]; then
+      if [ -n "${NOTARIZATION_PASSWORD}" ]; then
+        xcrun altool --store-password-in-keychain-item "AC_PASSWORD" -u "${NOTARIZATION_USERNAME}" -p "${NOTARIZATION_PASSWORD}"
+      fi
+      echo "Notarization precheck - started"
+      if xcnotary precheck "${BUILD_ROOT}/Sidekick.pkg"; then
+        echo "Notarization precheck - success"
+        if [ -n "${ASC_PROVIDER_SHORTNAME}" ]; then
+          ASC_PROVIDER_SHORTNAME=$(xcrun altool --list-providers -p "@keychain:AC_PASSWORD" 2>/dev/null | grep -Eoe '[a-zA-Z0-9]+\s+[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+' | grep -Eoe '^[a-zA-Z0-9]+')
+        fi
+        hr "Notarizing package"
+        xcnotary notarize "${BUILD_ROOT}/Sidekick.pkg" --developer-account "${NOTARIZATION_USERNAME}" --developer-password-keychain-item "AC_PASSWORD" --provider "${ASC_PROVIDER_SHORTNAME}"
+        # System Policy (Gatekeeper) assessment
+        if spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"; then NOTARIZED=yes; fi
+      else
+        echo "Notarization precheck - failed"
+        return 1
+      fi
+    fi
+  fi
+}
+
+cleanup() {
   set +e
+  cp -pf "${BUILD_ROOT}/Sidekick.pkg" "${PACKAGE_WITH_COMMIT_LOCATION}"
+  cp -pf "${BUILD_ROOT}/Sidekick.pkg" "${PACKAGE_LOCATION}"
   # Restore previously selected Xcode
   local DEFAULT_XCODE=$(xcode-select -p)
   if [ "${DEFAULT_XCODE}" != "${CURRENT_XCODE}" ]; then
     echo "Restoring previous Xcode"
     sudo xcode-select --switch "${CURRENT_XCODE}"
   fi
-
   # rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"
   rm -f "${BUILD_ROOT}/OBS.app/Contents/Plugins/MFCBroadcast.so" 2> /dev/null
   rm -f "${BUILD_ROOT}/OBS.app/Contents/Plugins/websocketclient.dylib" 2> /dev/null
   rm -f "${BUILD_ROOT}/OBS.app/Contents/Frameworks/websocketclient.dylib" 2> /dev/null
+}
 
-  hr "Finished building Sidekick"
-  if [ "${BUILD_TYPE}" = "RelWithDebInfo" ]; then
-    cp -pf "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg"
-    mv -f "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
-    hr "BUILD_TYPE:            ${BUILD_TYPE}" "GIT_BRANCH:            ${GIT_BRANCH}" \
-      "GIT_COMMIT:            ${GIT_COMMIT}" " " "Package location:" " " "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
-  else
-    cp -pf "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/Sidekick-${GIT_BRANCH}-${GIT_COMMIT}-${BUILD_TYPE}-${YYYYMMDD}.pkg"
-    mv -f "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
-    hr "BUILD_TYPE:            ${BUILD_TYPE}" "GIT_BRANCH:            ${GIT_BRANCH}" \
-      "GIT_COMMIT:            ${GIT_COMMIT}" " " "Package location:" " " "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
-  fi
-
+print_summary() {
   end=$(date '+%Y-%m-%d %H:%M:%S')
   end_ts=$(date +%s)
   runtime=$((end_ts-start_ts))
@@ -367,15 +388,27 @@ cleanup_print_summary() {
   minutes=$(( (runtime % 3600) / 60 ))
   seconds=$(( (runtime % 3600) % 60 ))
 
+  hr "Finished building Sidekick"
+
   echo
-  echo   "Start:           ${start}"
-  echo   "End:             ${end}"
-  printf "Elapsed:         (hh:mm:ss) %02d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+  echo "${bold}Package location:${reset}"
+  echo "${PACKAGE_LOCATION}"
+  echo
+  echo "BUILD_TYPE:            ${BUILD_TYPE}"
+  echo "${red}GIT_BRANCH:            ${GIT_BRANCH}${reset}"
+  echo "${bold}GIT_COMMIT:            ${GIT_COMMIT}${reset}"
+  echo
+  echo "Signed?                ${SIGNED}"
+  echo "Notarized?             ${NOTARIZED}"
+  echo
+  echo   "Start:                 ${start}"
+  echo   "End:                   ${end}"
+  printf "Elapsed:               (hh:mm:ss) %02d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
 }
 
 main() {
   fetch_git_tags
-  find_codesign_ident
+  find_codesign_ident "$@"
   print_env
   sudo xcode-select --reset
 
@@ -388,7 +421,7 @@ main() {
   hr "Building OBS app bundle"
   (build_obs_bundle)
 
-  cd "${BUILD_ROOT}"
+  # cd "${BUILD_ROOT}"
 
   # Create copy to use for Sidekick Installer packaging
   rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"
@@ -397,12 +430,13 @@ main() {
   fix_dependencies_mfcbroadcast
   prepare_files_for_package
   codesign_apps
-
-  hr "Generating installation package"
-  packagesbuild "${BUILD_ROOT}/sidekick.pkgproj"
-
+  generate_package
   codesign_package
-  cleanup_print_summary
+  notarize_package
+  cleanup
+  print_summary
+
+  exit 0
 }
 
 main "$@"
