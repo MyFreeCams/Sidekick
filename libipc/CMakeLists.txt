@@ -45,7 +45,7 @@ if(APPLE)
 		${SRC_LIB_MSG_QUE}
 		${SRC_LIB_MSG_QUE_Mac}
 	)
-	target_link_libraries(${MyTarget}
+	target_link_libraries(${MyTarget} PRIVATE
 			${Boost_LIBRARIES}
 			MFClibfcs
 			)

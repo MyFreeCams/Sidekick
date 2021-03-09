@@ -182,13 +182,6 @@ if(OS_MACOSX)
 		${Boost_LIBRARIES}
 		libipc
 	)
-	target_include_directories(${CEF_TARGET} PUBLIC
-
-			)
-	target_include_directories(${CEF_HELPER_TARGET} PUBLIC
-
-			)
-
 	set_target_properties(${CEF_TARGET} PROPERTIES
 		MACOSX_BUNDLE TRUE
 		# MACOSX_BUNDLE_BUNDLE_NAME ${CEF_TARGET}
@@ -298,7 +291,7 @@ if(OS_MACOSX)
 
 		COMMAND ${CMAKE_COMMAND} -E echo "copy libipc ${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib ${CEF_APP}/Contents/Frameworks/${CEF_HELPER_OUTPUT_NAME}.app/Contents/MacOS/libipc.dylib"
 
-			COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
+		COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib"
 			"${CEF_APP}/Contents/Frameworks/${CEF_HELPER_OUTPUT_NAME}.app/Contents/MacOS/libipc.dylib"
 
 		COMMAND ${CMAKE_COMMAND} -E echo "PATH: ${CMAKE_CURRENT_BINARY_DIR}/../libipc/libipc.dylib ${CEF_APP}/Contents/macos/libipc.dylib"

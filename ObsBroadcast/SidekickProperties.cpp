@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -216,7 +216,7 @@ void Ui_SKProps::setupUi(QDialog* pDlg)
     pConsole->setFont(f);
 
     // Version label
-    QLabel* versionLabel = new QLabel(QStringLiteral("SidekickVersion"), pDlg);  //sidekick_prop);
+    QLabel* versionLabel = new QLabel(QStringLiteral("SidekickVersion"), pDlg);  //s_pSidekickProperties);
 
     string sVer, sObsVer( obs_get_version_string() );
     stdprintf(sVer,
@@ -295,8 +295,7 @@ void SidekickPropertiesUI::onUnlink(void)
 {
     auto lk = g_ctx.sharedLock();
     g_ctx.clear(true);
-    g_ctx.cfg.writePluginConfig();
-    g_ctx.cfg.readPluginConfig();
+    g_ctx.cfg.writeProfileConfig();
     CBroadcastCtx::sendEvent(SkReadProfile, 0, 0);
 }
 
@@ -305,8 +304,8 @@ void SidekickPropertiesUI::relabelPropertiesText(void)
 {
     bool isWebRTC = false, isMfc = false, isLinked = false, isLoggedIn = false;
     const char* pszText = "";
-    static std::string s_sText;
-    std::string sUsername;
+    static string s_sText;
+    string sUsername;
 
     {
         auto lk     = g_ctx.sharedLock();
@@ -317,8 +316,8 @@ void SidekickPropertiesUI::relabelPropertiesText(void)
         isMfc       = g_ctx.isMfc;
     }
 
-    std::string sService = isWebRTC ? "WebRTC" : "RTMP";
-    std::string sLoginStatus = isLoggedIn ? "YES" : "NO";
+    string sService     = isWebRTC      ? "WebRTC"  : "RTMP";
+    string sLoginStatus = isLoggedIn    ? "YES"     : "NO";
 
     // Reset logged in label text
     if (isMfc)
@@ -328,15 +327,9 @@ void SidekickPropertiesUI::relabelPropertiesText(void)
             stdprintf(s_sText, "Sidekick (%s) is LINKED with %s.  ModelWeb Login: %s", sService.c_str(), sUsername.c_str(), sLoginStatus.c_str() );
             pszText = s_sText.c_str();
         }
-        else
-        {
-            pszText = "Sidekick is NOT LINKED with any model account.";
-        }
+        else pszText = "Sidekick is NOT LINKED with any model account.";
     }
-    else
-    {
-        pszText = "Sidekick DISABLED: current profile is not using a MyFreeCams service.";
-    }
+    else pszText = "Sidekick DISABLED: current profile is not using a MyFreeCams service.";
 
     // set logged in label text
     ui->linked_label->setText( QString( pszText ) );
@@ -369,52 +362,46 @@ void MFCDock::onUnlink()
 {
     auto lk = g_ctx.sharedLock();
     g_ctx.clear(true);
-    g_ctx.cfg.writePluginConfig();
-    g_ctx.cfg.readPluginConfig();
+    g_ctx.cfg.writeProfileConfig();
     CBroadcastCtx::sendEvent(SkReadProfile, 0, 0);
 }
 
 
 void MFCDock::relabelPropertiesText()
 {
-    bool isWebRTC = false, isMfc = false, isLinked = false, isLoggedIn = false;
+    bool isWebRTC = false, isMfc = false, isLinked = false, isOnline = false, isCustom = false;
     const char* pszText = "";
-    static std::string s_sText;
-    std::string sUsername;
+    string sUsername;
 
     {
         auto lk     = g_ctx.sharedLock();
         sUsername   = g_ctx.cfg.getString("username");
-        isLoggedIn  = g_ctx.isLoggedIn;
+        isOnline    = g_ctx.isLoggedIn;
         isWebRTC    = g_ctx.isWebRTC;
+        isCustom    = g_ctx.isCustom;
         isLinked    = g_ctx.isLinked;
         isMfc       = g_ctx.isMfc;
     }
 
-    std::string sService = isWebRTC ? "WebRTC" : "RTMP";
-    std::string sLoginLabel = isLoggedIn ? "<i>ModelWeb logged in</i>" : "<i>ModelWeb not logged in</i>";
+    string sService, sLoginLabel;
     bool mfcLogoVisible = false;
 
     // Reset logged in label text
     if (isMfc)
     {
+        sLoginLabel = "Modelweb: ";
+        sLoginLabel += (isOnline ? "<b><i>logged in</i></b>" : "<i>not logged in</i>");
+        sService    = isWebRTC ? "WebRTC" : (isCustom ? "<b><i>Custom RTMP</i></b>" : "RTMP");
+
         if (isLinked)
         {
-            pszText = "Linked";
-            if (isLoggedIn)
-                mfcLogoVisible = true;
+            pszText = "Account linked";
+            mfcLogoVisible = isOnline;
         }
-        else
-        {
-            pszText = "Not Linked";
-        }
+        else pszText = "Account not linked";
+    
     }
-    else
-    {
-        pszText = "Non MFC Service";
-        sLoginLabel.clear();
-        sService.clear();
-    }
+    else pszText = "Non MFC Service";
 
     ui->linkedLabel->setText(pszText);
     ui->loginLabel->setText(sLoginLabel.c_str());

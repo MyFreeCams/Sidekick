@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,9 +14,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef DO_SERVICE_JSON_COPY
-#define DO_SERVICE_JSON_COPY
-#endif
+//#ifndef DO_SERVICE_JSON_COPY
+//#define DO_SERVICE_JSON_COPY
+//#endif
 
 #ifdef _WIN32
 #include "targetver.h"

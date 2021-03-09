@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,9 +16,6 @@
 
 // BroadcastPluginStart.cpp : Defines the exported functions for the DLL application.
 
-#ifndef DO_SERVICE_JSON_COPY
-#define DO_SERVICE_JSON_COPY 1
-#endif
 #ifndef PANEL_UNIT_TEST
 #define PANEL_UNIT_TEST 0
 #endif
@@ -92,14 +89,14 @@
 #define _SKLOG(pszFmt, ...) SKLogMarker(__FILE__, __FUNCTION__, __LINE__, pszFmt, ##__VA_ARGS__)
 
 extern CBroadcastCtx g_ctx;  // part of MFCLibPlugins.lib::MfcPluginAPI.obj
-extern char g_dummyCharVal;  // Part of MfcLog.cpp in MFClibfcs.lib
-extern "C" struct obs_output_info wowza_output_info;
+extern char g_dummyCharVal;  // part of MfcLog.cpp in MFClibfcs.lib
+extern "C" struct obs_output_info wowza_output_info;  // part of wowza-stream.cpp in MFCBroadcast.lib
 
-CHttpThread g_thread;
-SidekickPropertiesUI* sidekick_prop = nullptr;
-MFCDock* pMFCDock = nullptr;
-bool firstProfileCheck = false;
-bool servicesUpdated = false;
+static CHttpThread s_thread;
+static SidekickPropertiesUI* s_pSidekickProperties = nullptr;
+static MFCDock* s_pMFCDock = nullptr;
+static bool s_bFirstProfileCheck = false;
+static bool s_bServicesUpdated = false;
 
 const char* MapObsEventType(enum obs_frontend_event eventType);
 void onObsEvent(obs_frontend_event eventType, void* pCtx);
@@ -108,6 +105,7 @@ void setupSidekickUI(void);
 void showAccountLinkStatus(void);
 void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const char* pszFmt, ...);
 void proxy_blog(int nLevel, const char* pszMsg);
+void checkServices(void);
 
 void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t nProfileChanged);
 void ui_onSessionUpdate(int nChange, uint32_t nCurSid, uint32_t nNewSid, uint32_t nProfileChanged);
@@ -188,20 +186,13 @@ void openBrowserPanelMenuHandler(void*)
 
 void loadServices(void)
 {
-    // Get location of profile (module) version of services.json
-    std::string sFilename = obs_module_config_path("services.json");
-    //_TRACE("services.json module path: %s", sFilename.c_str());
+    // wait for upto 10 seconds for services.json to show up
+    CObsServicesJson svc;
 
-    // Get location of obs installed services.json
-#ifdef _WIN32
-    // services.json is located with the rtmp-services plugin
-    std::string sFilename2 = "../../data/obs-plugins/rtmp-services/services.json";
-#else
-    obs_module_t* pModule = obs_current_module();
-    std::string sT = obs_get_module_data_path(pModule);
-    std::string sFilename2 = CObsUtil::AppendPath(sT, "services.json");
-#endif
-    //_TRACE("services.json obs installed path %s", sFilename2.c_str());
+    // Get location of profile (module) version of services.json
+    string sFilename = obs_module_config_path("services.json");
+    sFilename = svc.getNormalizedServiceFile(sFilename);
+
     //
     // We need to verify that mfc service is in the services.json file.
     //
@@ -217,32 +208,54 @@ void loadServices(void)
     // Since we do NOT have write permissions to the installed version, we copy the installed services.json
     // to the profile (module) location.
     //
-    CObsServicesJson svc;
-#if DO_SERVICE_JSON_COPY
-    // First try profile version, if it isn't the right version, then copy the installed version
-    // on to the profile version. Fail if installed version is also incorrect.
-    if (svc.load(sFilename, sFilename2))
-#else
-    // If the profile version is not the correct version, we fall back to the installed
-    // version.  But we do NOT do a copy.
-    if (svc.load(sFilename) || svc.load(sFilename2))
-#endif
+    if (svc.load(sFilename))
     {
-        // We successfully loaded the json.
-        servicesUpdated = true;
-        if (svc.isDirty())
-        {
-            // If the object is "dirty" (the MyFreeCams service was not found so we added it)
-            // after the load operation: update the json for obs.
-            svc.save();
-        }
-    }
-    else _TRACE("Failed to load services.json.");
+        // We successfully loaded the json
+        s_bServicesUpdated = true;
 
-    if (servicesUpdated)
-        g_thread.setServicesFilename(svc.getServicesFilename());
+        // If the object is "dirty" (the MyFreeCams service was not found so we added it)
+        // after the load operation: update the json for obs.
+        if (svc.isDirty())
+            svc.save();
+    }
+    else _MESG("Failed to load services.json: %s", sFilename.c_str());
+
+    if (s_bServicesUpdated)
+        s_thread.setServicesFilename(svc.getServicesFilename());
 }
 
+
+void checkServices(void)
+{
+    // defaults to checking again in 500ms, unless checkFileHash() returns false
+    int checkIntervalMs = 500;         
+
+    if (s_bServicesUpdated)
+    {
+        // see if the file has changed since we loaded services, if so reparse it
+        CObsServicesJson svc;
+        if (svc.checkFileHash())
+        {
+            _MESG("SVCDBG: json services file changed, calling loadServices again..");
+            loadServices();
+        }
+        else checkIntervalMs = 5000;    // if it hasn't, set our interval to 5sec instead of 500ms
+    }
+    else 
+    {
+        _MESG("SVCDBG: s_bServicesUpdated false, so calling loadServices first time from checkServices...");
+        loadServices();
+    }
+
+    // On startup, emulate initial profile change event so we
+    // read the current profile and setup g_ctx accordingly if
+    // the profile changed event wasnt already fired
+    //
+    if ( ! s_bFirstProfileCheck )
+        onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+
+    QTimer::singleShot(checkIntervalMs, qApp, checkServices);
+}
 
 //---------------------------------------------------------------------------
 // obs_module_load
@@ -262,17 +275,9 @@ bool obs_module_load(void)
     // Register for event call backs.
     obs_frontend_add_event_callback(OBSFrontendEvent, nullptr);
 #endif
-    loadServices();
+
     obs_register_output(&wowza_output_info);
     static SidekickTimer* s_pTimer = new SidekickTimer();
-
-    QTimer::singleShot(1000, qApp, [=]()
-    {
-        // On startup, emulate initial profile change event so we
-        // read the current profile and setup g_ctx accordingly
-        if ( ! firstProfileCheck )
-            onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
-    });
 
     // Register event handler to catch streaming start/stop events
     obs_frontend_add_event_callback(onObsEvent, nullptr);
@@ -283,29 +288,37 @@ bool obs_module_load(void)
         obs_frontend_push_ui_translation(obs_module_get_string);
 
 #if SIDEKICK_CONSOLE
-        sidekick_prop = new SidekickPropertiesUI( main_window );
-        if (sidekick_prop)
+        s_pSidekickProperties = new SidekickPropertiesUI( main_window );
+        if (s_pSidekickProperties)
         {
             QString qsTitle( QString::fromStdString( stdprintf("MFC Sidekick v%s", SIDEKICK_VERSION_STR) ) );
-            sidekick_prop->setWindowTitle(qsTitle);
+            s_pSidekickProperties->setWindowTitle(qsTitle);
             obs_frontend_pop_ui_translation();
             QAction* action = (QAction*)obs_frontend_add_tools_menu_qaction(obs_module_text("Sidekick Properties"));
             auto menu_cb = [=]()
             {
-                sidekick_prop->ShowHideDialog();
+                s_pSidekickProperties->ShowHideDialog();
             };
             QAction::connect(action, &QAction::triggered, menu_cb);
         }
-        else _MESG("DBG: ** Unable to create SidekickProp - sidekick_prop NULL **");
+        else _MESG("DBG: ** Unable to create SidekickProp - s_pSidekickProperties NULL **");
 #endif
-        pMFCDock = new MFCDock(main_window);
-        //QAction* addDockAction = (QAction*)obs_frontend_add_dock(pMFCDock);
-        main_window->addDockWidget(Qt::BottomDockWidgetArea, (QDockWidget*)pMFCDock);
+
+        s_pMFCDock = new MFCDock(main_window);
+        main_window->addDockWidget(Qt::BottomDockWidgetArea, (QDockWidget*)s_pMFCDock);
     }
     else _MESG("DBG: ** Unable to get MainWindow ptr **");
 
+
+    QTimer::singleShot(1000, qApp, [=]()
+    {
+        // Start monitoring services.json in rtmp-services. Start after the sidekick dock
+        // widget is created (if it was created)
+        checkServices();
+    });
+
     // Start the monitor thread and let OBS continue to start.
-    g_thread.Start();
+    s_thread.Start();
 
 #if PANEL_UNIT_TEST
 #if (defined(MFC_BROWSER_AVAILABLE) && (MFC_BROWSER_AVAILABLE > 0))
@@ -369,36 +382,44 @@ void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const 
     }
     s_vQueuedMsgs.clear();
 #else
-    _MESG("%s", szData);
+    string sPath(pszFile);
+    string sBase = sPath.substr(sPath.find_last_of("/\\") + 1);
+    
+    Log::Mesg("[%s:%d %s] %s", sBase.c_str(), nLine, pszFunction, szData);
+    //_MESG("%s", szData);
 #endif
 }
 
 
 void ui_appendConsoleMsg(const std::string& sMsg)
 {
-    if (!sMsg.empty())
-        _SKLOG("%s", sMsg.c_str());
+#if SIDEKICK_CONSOLE
+    //if (!sMsg.empty())
+    //    _SKLOG("%s", sMsg.c_str());
+#endif
 }
 
 
 void ui_replaceConsoleMsg(const std::string& sMsg)
 {
+#if SIDEKICK_CONSOLE
     QTextEdit* pConsole = (QTextEdit*)g_ctx.getConsole();
     if (pConsole)
         pConsole->clear();
 
-    if (!sMsg.empty())
-        _SKLOG("%s", sMsg.c_str());
+    //if (!sMsg.empty())
+    //    _SKLOG("%s", sMsg.c_str());
+#endif
 }
 
 
 void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t nProfileChanged)
 {
-    if (sidekick_prop)
-        sidekick_prop->relabelPropertiesText();
+    if (s_pSidekickProperties)
+        s_pSidekickProperties->relabelPropertiesText();
 
-    if (pMFCDock)
-        pMFCDock->relabelPropertiesText();
+    if (s_pMFCDock)
+        s_pMFCDock->relabelPropertiesText();
 
     bool isWebRTC = false, isMfc = false, isLinked = false, isLoggedIn = false;
     std::string sUsername;
@@ -418,11 +439,12 @@ void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t n
 
 void ui_onSessionUpdate(int nChange, uint32_t nCurSid, uint32_t nNewSid, uint32_t nProfileChanged)
 {
-    if (sidekick_prop)
-        sidekick_prop->relabelPropertiesText();
+    if (s_pMFCDock)
+        s_pMFCDock->relabelPropertiesText();
 
-    if (pMFCDock)
-        pMFCDock->relabelPropertiesText();
+#if SIDEKICK_CONSOLE
+    if (s_pSidekickProperties)
+        s_pSidekickProperties->relabelPropertiesText();
 
     // If both profile and sid changed, we cannot determine whether the sid change
     // is a modelweb login/logout event. It may simply be that the new profile
@@ -450,14 +472,22 @@ void ui_onSessionUpdate(int nChange, uint32_t nCurSid, uint32_t nNewSid, uint32_
         ui_replaceConsoleMsg(consoleMessage);
 #endif
     }
+#endif
 }
 
 
 void ui_onServerUpdate(const std::string& sCurUrl, const std::string& sNewUrl)
 {
     // Set the server url for the current profile if the profile isMfc and has no server url set.
-    if (g_ctx.isMfc && (g_ctx.isRTMP || g_ctx.isWebRTC))
+    if (g_ctx.isMfc && (g_ctx.isRTMP || g_ctx.isWebRTC) && !g_ctx.isCustom)
     {
+        _MESG(  "DBG: setting url from %s => %s (isMfc true, isRtmp? %s, isWebRTC? %s, isCustom? %s)",
+                sCurUrl.c_str(),
+                sNewUrl.c_str(),
+                g_ctx.isRTMP ? "true" : "false",
+                g_ctx.isWebRTC ? "true" : "false",
+                g_ctx.isCustom ? "true" : "false");
+
         CObsServicesJson services;
         services.updateProfileSettings("(null)", sNewUrl);
         CObsUtil::setCurrentSetting("server", sNewUrl.c_str());
@@ -479,6 +509,7 @@ void ui_onStreamkeyUpdate(const std::string& sCurKey, const std::string& sNewKey
 
 void ui_onUnlinkEvent(void)
 {
+#if SIDEKICK_CONSOLE
     QTextEdit* pConsole = (QTextEdit*)g_ctx.getConsole();
     if (pConsole)
         pConsole->clear();
@@ -489,17 +520,18 @@ void ui_onUnlinkEvent(void)
     consoleMessage = "<div style=\"font-size:14px;\">Click on the <b>Link Sidekick</b> button to authenticate with MyFreeCams.</div>";
 #endif
 
-    if (sidekick_prop)
-        sidekick_prop->relabelPropertiesText();
-
-    if (pMFCDock)
-        pMFCDock->relabelPropertiesText();
+    if (s_pSidekickProperties)
+        s_pSidekickProperties->relabelPropertiesText();
 
 #if SIDEKICK_VERBOSE_CONSOLE
     ui_appendConsoleMsg(consoleMessage);
 #else
     ui_replaceConsoleMsg(consoleMessage);
 #endif
+#endif  // SIDEKICK_CONSOLE
+
+    if (s_pMFCDock)
+        s_pMFCDock->relabelPropertiesText();
 }
 
 
@@ -548,6 +580,7 @@ void ui_onSetWebRtc(int nState)
 void SidekickTimer::onTimerEvent()
 {
     static size_t s_nPulse = 0;
+    
     if (s_nPulse == 0)
         setupSidekickUI();
 
@@ -627,11 +660,12 @@ void SidekickTimer::onTimerEvent()
                 onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
                 break;
 
-#if SIDEKICK_SET_WEBRTC
             case SkSetWebRtc:
+#if SIDEKICK_SET_WEBRTC
                 ui_onSetWebRtc(iEvent->dwArg1);
-                break;
 #endif
+                break;
+
             case SkRoomEv:
                 _MESG("HTTP THREAD [RoomEvent]: %s", iEvent->sArg1.c_str());
                 break;
@@ -643,66 +677,65 @@ void SidekickTimer::onTimerEvent()
         }
     }
 
-    // If we're not a webRTC feed, check if we become one since no event is fired for
-    // profile settings being changed, but only check every 6th iteration (every 1.5 sec)
+    // Every 1500ms (6 cycles of 250ms timer events), check to see if the stream settings
+    // for the current profile have been updated by OBS main UI (such as clicking Settings
+    // and changing the service from Custom -> MyFreeCams WebRTC). If profile's config file
+    // on disk is newer than our last file mod time cached, reparse the config and apply
+    // any changes that were made (if applicable)
+    //
     if ((s_nPulse % 6) == 0)
     {
-        bool isWebRTC = false, isStreaming = false, isMfc = false;
+        bool isWebRTC = false, isStreaming = false, isMfc = false, isCustom = false, profileChanged = false;
+        
         SidekickActiveState curState = SkUninitialized;
         {
             auto lk     = g_ctx.sharedLock();
             curState    = g_ctx.activeState;
             isStreaming = g_ctx.isStreaming;
             isWebRTC    = g_ctx.isWebRTC;
+            isCustom    = g_ctx.isCustom;
             isMfc       = g_ctx.isMfc;
         }
 
-        obs_service_t* pService = obs_frontend_get_streaming_service();
-        if (pService)
+        if (g_ctx.cfg.checkProfileChanged())
         {
-            const char* pszType = obs_service_get_output_type(pService);
-            if (pszType)
+            _MESG("SVCDBG: Detected change in profile on disk!");
+            profileChanged = true;
+        }
+        else
+        {
+            obs_service_t* pService = obs_frontend_get_streaming_service();
+            if (pService)
             {
-                std::string sSvcOutputType(pszType);
-                if ( sSvcOutputType == "mfc_wowza_output")
+                const char* pszType = obs_service_get_output_type(pService);
+                if (pszType)
                 {
-                    if ( ! isWebRTC )
+                    std::string sSvcOutputType(pszType);
+                    if ( sSvcOutputType == "mfc_wowza_output")
                     {
-                        // went from non-webrtc to webrtc
-                        onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
-                    }
-                }
-                else
-                {
-                    if ( isWebRTC )
-                    {
-                        // went from webrtc to non webrtc
-                        _MESG("** WebRTC Service deactivated on profile change **");
-                        g_ctx.isWebRTC = false;
-
-                        if (sidekick_prop)
-                            sidekick_prop->relabelPropertiesText();
-
-                        if (pMFCDock)
-                            pMFCDock->relabelPropertiesText();
-                    }
-
-                    if ( ! isMfc )
-                    {
-                        if (curState != SkUnknownProfile)
+                        if (!isWebRTC)
                         {
-                            g_ctx.activeState = SkUnknownProfile;
-
-                            if (sidekick_prop)
-                                sidekick_prop->relabelPropertiesText();
-
-                            if (pMFCDock)
-                                pMFCDock->relabelPropertiesText();
+                            _MESG("SVCDBG: ** WebRTC Service activated on profile change **");
+                            profileChanged = true;
                         }
+                    }
+                    else if ( isWebRTC )
+                    {
+                        _MESG("SVCDBG: ** WebRTC Service deactivated on profile change **");
+                        profileChanged = true;
+                    }
+                    else if ( ! isMfc && curState != SkUnknownProfile )
+                    {
+                        _MESG("SVCDBG: ** Change to non-MFC service detected");
+                        profileChanged = true;
                     }
                 }
             }
         }
+
+        // went from non-webrtc to webrtc, the reverse, changed to non-mfc service, or profile on disk changed?
+        if (profileChanged)
+            onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
     }
     s_nPulse++;
 }
@@ -764,13 +797,13 @@ void onObsProfileChange(obs_frontend_event eventType)
 
     auto lk = g_ctx.sharedLock();
 
-    if (!servicesUpdated)
+    if (!s_bServicesUpdated)
         loadServices();
 
-    bool isWebRTC = false, isRtmp = false, isMfc = false, wasWebRTC = g_ctx.isWebRTC, wasRtmp = g_ctx.isRTMP;
+    bool isWebRTC = false, isRtmp = false, isCustom = false, isMfc = false; 
     std::string svcName, sOldProfile(g_ctx.profileName), sUser, streamUrl, sProt("unknown");
     SidekickActiveState curState = g_ctx.activeState;
-    static bool s_firstProfileLoad = true;
+    static bool s_bFirstProfileLoad = true;
     size_t updatesSent = 0;
 
     if (g_ctx.sm_edgeSock)
@@ -778,9 +811,11 @@ void onObsProfileChange(obs_frontend_event eventType)
 
     g_ctx.clear(false);
 
+#if SIDEKICK_CONSOLE
     QTextEdit* pCon = (QTextEdit*)g_ctx.getConsole();
     if (pCon)
         pCon->clear();
+#endif
 
     char* pszProfile = obs_frontend_get_current_profile();
     if (pszProfile != nullptr)
@@ -789,7 +824,7 @@ void onObsProfileChange(obs_frontend_event eventType)
         bfree(pszProfile);
     }
 
-    bool profileChanged = (g_ctx.profileName != sOldProfile);
+    bool profileChanged = (s_bFirstProfileLoad || g_ctx.profileName != sOldProfile);
 
     CObsUtil::getCurrentSetting("service", svcName);
     CObsUtil::getCurrentSetting("server", streamUrl);
@@ -798,36 +833,60 @@ void onObsProfileChange(obs_frontend_event eventType)
     {
         isMfc = true;
         isRtmp = false;
+        isCustom = false;
         isWebRTC = true;
         sProt = "WebRTC";
     }
-    else if (svcName == "MyFreeCams RTMP")
+    else if (svcName == "MyFreeCams RTMP" || svcName == "MyFreeCams")
     {
         isMfc = true;
         isRtmp = true;
+        isCustom = false;
+        isWebRTC = false;
+        sProt = "RTMP";
+    }
+    else if ((svcName == "Custom" || svcName == "") && streamUrl.find(".myfreecams.com/NxServer") != string::npos)
+    {
+        isMfc = true;
+        isRtmp = true;
+        isCustom = true;
         isWebRTC = false;
         sProt = "RTMP";
     }
     else
     {
+        _MESG("Unknown service svcName: %s   / streamUrl: %s  ", svcName.c_str(), streamUrl.c_str());
         isMfc = false;
         isRtmp = false;
         isWebRTC = false;
         svcName = "Unavailable";
     }
 
+    // Read any plugin config for this profile if it has changed since last profile loaded (or first profile to load)
+    if (profileChanged)
+    {
+        if (!isMfc)
+        {
+            // clear sidekick config if we switched to a non-mfc profile
+            g_ctx.clear(false);
+        }
+        else g_ctx.importProfileConfig();
+    }
+
+
 #if SIDEKICK_VERBOSE_CONSOLE
     if (profileChanged)
     {
         std::string sMsg;
         if (isMfc)
-            stdprintf(sMsg, "%s <i><b>%s</b></i>, using <b>%s</b>", firstProfileCheck ? "Switching to" : "Loading profile", g_ctx.profileName.c_str(), sProt.c_str());
+            stdprintf(sMsg, "%s <i><b>%s</b></i>, using <b>%s</b>", s_bFirstProfileCheck ? "Switching to" : "Loading profile", g_ctx.profileName.c_str(), sProt.c_str());
         else
-            stdprintf(sMsg, "%s <i>%s</i> (<i><b>Sidekick disabled</b></i>)", firstProfileCheck ? "Switching to" : "Loading profile", g_ctx.profileName.c_str());
+            stdprintf(sMsg, "%s <i>%s</i> (<i><b>Sidekick disabled</b></i>)", s_bFirstProfileCheck ? "Switching to" : "Loading profile", g_ctx.profileName.c_str());
         ui_appendConsoleMsg(sMsg);
     }
 #endif
-    firstProfileCheck = true;
+
+    s_bFirstProfileCheck = true;
     g_ctx.cfg.set("serviceType", svcName);
 
     // read config if we are webRTC, clear config if we are not
@@ -836,17 +895,15 @@ void onObsProfileChange(obs_frontend_event eventType)
         g_ctx.isWebRTC  = true;
         g_ctx.isMfc     = true;
         g_ctx.isRTMP    = false;
-        g_ctx.readPluginConfig(false);
+        g_ctx.isCustom  = false;
     }
     else if (isRtmp)
     {
         // we are an MFC rtmp stream if we appear to be attached to an mfc video server
         g_ctx.isWebRTC  = false;
         g_ctx.isRTMP    = true;
+        g_ctx.isCustom  = isCustom;
         g_ctx.isMfc     = true;
-
-        if (g_ctx.isMfc)
-            g_ctx.readPluginConfig(false);
     }
     else
     {
@@ -857,44 +914,51 @@ void onObsProfileChange(obs_frontend_event eventType)
     }
 
     sUser.clear();
-    showAccountLinkStatus();
 
-    if (!g_ctx.isMfc)
+    if ( ! g_ctx.isMfc )
     {
         if (g_ctx.activeState != SkUnknownProfile)
             g_ctx.activeState = SkUnknownProfile;
     }
-
-    if (pMFCDock)
-        pMFCDock->relabelPropertiesText();
-
-    if (sidekick_prop)
-        sidekick_prop->relabelPropertiesText();
-
-    if (s_firstProfileLoad)
+    
+    if (s_bFirstProfileLoad)
     {
 #if SIDEKICK_CONSOLE
         QTimer::singleShot(500, qApp, [=]()
         {
-            if (sidekick_prop)
+            if (s_pSidekickProperties)
             {
-                sidekick_prop->show();
-                sidekick_prop->setVisible(true);
+                s_pSidekickProperties->show();
+                s_pSidekickProperties->setVisible(true);
             }
         });
 #endif
-        s_firstProfileLoad = false;
+        s_bFirstProfileLoad = false;
     }
 
-    // if no update was automatically sent due to triggered changes in profile
-    if (g_ctx.sm_edgeSock && g_ctx.sm_edgeSock->m_updatesSent == updatesSent)
+    // write any updated info back to plugin config for this profile if any of it changed or is new, and an mfc profile
+    if (g_ctx.isMfc)
     {
-        // force sending an update now to make sure model's agent monitor knows current profile/status
-        g_ctx.sm_edgeSock->sendUpdate();
+        g_ctx.cfg.writeProfileConfig();
+
+        // if no update was automatically sent due to triggered changes in profile
+        if (g_ctx.sm_edgeSock && g_ctx.sm_edgeSock->m_updatesSent == updatesSent)
+        {
+            // force sending an update now to make sure model's agent monitor knows current profile/status
+            g_ctx.sm_edgeSock->sendUpdate();
+        }
     }
+
+    if (s_pMFCDock)
+        s_pMFCDock->relabelPropertiesText();
+
+    if (s_pSidekickProperties)
+        s_pSidekickProperties->relabelPropertiesText();
+
+    showAccountLinkStatus();
 
     // start/stop polling if anything changed as part of this profile event
-    g_thread.setCmd(THREADCMD_PROFILE);
+    s_thread.setCmd(THREADCMD_PROFILE);
 }
 
 
@@ -906,13 +970,13 @@ void setupSidekickUI(void)
         QMainWindow* pWindow = (QMainWindow*)obs_frontend_get_main_window();
         if (pWindow)
         {
-            if (sidekick_prop)
+            if (s_pSidekickProperties)
             {
                 // Setup multi-line edit control for log info
-                QTextEdit* pConsole = sidekick_prop->createConsole();
+                QTextEdit* pConsole = s_pSidekickProperties->createConsole();
                 g_ctx.setConsole(pConsole);
             }
-            else _MESG("sidekick_prop dialog ptr window is NULL; cannot setup sidekick UI!");
+            else _MESG("s_pSidekickProperties dialog ptr window is NULL; cannot setup sidekick UI!");
         }
     }
 #endif
@@ -979,7 +1043,7 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
 
                 // When streaming starts, pause polling agentSvc.php
                 g_ctx.onStartStreaming();
-                g_thread.setCmd(THREADCMD_STREAMSTART);
+                s_thread.setCmd(THREADCMD_STREAMSTART);
 
 #if SIDEKICK_ENABLE_VIRTUALCAM
 #if (LIBOBS_API_MAJOR_VER > 26)
@@ -988,7 +1052,8 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
                 QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
                 QMetaObject::invokeMethod(main, "StartVirtualCam");
 #if MFC_AGENT_EDGESOCK
-                g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+                if (g_ctx.sm_edgeSock)
+                    g_ctx.sm_edgeSock->sendVirtualCameraState(true);
 #endif
 #endif
 #endif
@@ -1009,7 +1074,7 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
 
             // When streaming stops, we resume polling agentSvc.php
             g_ctx.onStopStreaming();
-            g_thread.setCmd(THREADCMD_STREAMSTOP);
+            s_thread.setCmd(THREADCMD_STREAMSTOP);
 
 #if SIDEKICK_ENABLE_VIRTUALCAM
 #if (LIBOBS_API_MAJOR_VER > 26)
@@ -1018,7 +1083,8 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
             QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
             QMetaObject::invokeMethod(main, "StopVirtualCam");
 #if MFC_AGENT_EDGESOCK
-            g_ctx.sm_edgeSock->sendVirtualCameraState(false);
+            if (g_ctx.sm_edgeSock)
+                g_ctx.sm_edgeSock->sendVirtualCameraState(false);
 #endif
 #endif
 #endif
@@ -1034,16 +1100,18 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
     }
     else if (eventType == OBS_FRONTEND_EVENT_EXIT)
     {
-        g_thread.setCmd(THREADCMD_SHUTDOWN);
+        s_thread.setCmd(THREADCMD_SHUTDOWN);
     }
 #if (MFC_AGENT_EDGESOCK && LIBOBS_API_MAJOR_VER > 26)
     else if (eventType == OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED)
     {
-        g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+        if (g_ctx.sm_edgeSock)
+            g_ctx.sm_edgeSock->sendVirtualCameraState(true);
     }
     else if (eventType == OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED)
     {
-        g_ctx.sm_edgeSock->sendVirtualCameraState(false);
+        if (g_ctx.sm_edgeSock)
+            g_ctx.sm_edgeSock->sendVirtualCameraState(false);
     }
 #endif
 }
@@ -1103,7 +1171,7 @@ const char* MapObsEventType(enum obs_frontend_event eventType)
 void obs_module_unload()
 {
     _TRACE("obs_module_unload called, stopping thread");
-    g_thread.Stop(-1);
+    s_thread.Stop(-1);
     _TRACE("%s OBS Plugin has been Unloaded", __progname);
 
     CObsUtil::TerminateMFCLogin();
@@ -1115,8 +1183,10 @@ int ui_SidekickMsgBox(const char* pszTitle, const char* pszBody, int nButtons, Q
     int retVal = -1;
     if (pszBody)
     {
+#if SIDEKICK_CONSOLE
         std::string sMsg(pszBody);
         ui_appendConsoleMsg(sMsg);
+#endif
 
         if (pszTitle)
         {
@@ -1142,10 +1212,11 @@ std::unique_ptr<FcsWebsocket> proxy_createFcsWebsocket(void)
 void proxy_blog(int nLevel, const char* pszMsg)
 {
     static char s_szModuleName[MAX_PATH] = { '\0' };
-    struct timeval tvNow;
-    struct tm tmNow;
+    struct timeval tvNow{};
+    struct tm tmNow{};
     std::string sLog;
 
+#ifdef _INCLUDE_MODULE_NAME_
 #ifdef _WIN32
     if (s_szModuleName[0] == '\0')
     {
@@ -1177,9 +1248,21 @@ void proxy_blog(int nLevel, const char* pszMsg)
     if (pCt)    tmNow = *pCt;
     else        memset(&tmNow, 0, sizeof(tmNow));
 #endif
+#else
+    
+#ifdef _WIN32
+    gettimeofday(&tvNow, NULL);
+    _localtime32_s(&tmNow, (__time32_t*)&tvNow.tv_sec);
+#else
+    gettimeofday(&tvNow, NULL);
+    struct tm*  pCt = localtime(&tvNow.tv_sec);
+    if (pCt)    tmNow = *pCt;
+    else        memset(&tmNow, 0, sizeof(tmNow));
+#endif
+#endif
 
     stdprintf(sLog,
-              "[%s %02d-%02d %02d:%02d:%02d.%04d] %s",
+              "[%s%02d-%02d %02d:%02d:%02d.%04d] %s",
               s_szModuleName,
               tmNow.tm_mon + 1, tmNow.tm_mday,
               tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec,

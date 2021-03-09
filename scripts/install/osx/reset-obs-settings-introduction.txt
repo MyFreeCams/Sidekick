@@ -1,1 +1,1 @@
-This package will reset (erase) your OBS settings.
+This package will reset (erase) your OBS settings, profiles, and scenes.

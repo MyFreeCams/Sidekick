@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -46,22 +46,13 @@ public:
     bool Stop(int);
     void Process();
 
-#ifdef _USE_OLD_MEMMANAGER
-    // Reads any queued messages from shared mem segm addressed to us,
-    // updates ctx with them & synchronizes ctx to main thread if the msg
-    // was read successfully and ctx was updated as a result of the message.
-    //
-    void readSharedMsg(CBroadcastCtx& ctx);
-#endif
+
     void setServicesFilename(const std::string& sFile)
     {
         m_sServicesFilename = sFile;
     }
     string getServicesFilename() { return m_sServicesFilename; }
 
-#ifdef _USE_OLD_MEMMANAGER
-   // static MFC_Shared_Mem::CMessageManager& getSharedMemManager() { return sm_mem; }
-#endif
 
     // thread-safe methods for setting and getting the current thread cmd
     static uint32_t                         getCmd(void);
@@ -69,9 +60,9 @@ public:
 
     static void*                            startProcessThread(void* pCtx);
 
-    //static MFC_Shared_Mem::CMessageManager  sm_mem;
+
     static atomic< uint32_t >               sm_dwThreadCmd;
-    //static pthread_mutex_t                  sm_mutexTimed;
+
 
     std::string                             m_sServicesFilename;
 

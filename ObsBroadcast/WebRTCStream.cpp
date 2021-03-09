@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  * Copyright (c) 2020 CoSMo - Dr Alex Gouaillard <contact@cosmosoftware.io>
  *
  * Permission to use, copy, modify, and distribute this software for any

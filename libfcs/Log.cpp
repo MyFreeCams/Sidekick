@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -43,7 +43,7 @@
 #include "fcslib_string.h"
 #include "MfcLog.h"
 
-void proxy_blog(int nLevel, const char* pszMsg);
+extern void proxy_blog(int nLevel, const char* pszMsg);
 MfcLog Log::sm_Log;
 
 
@@ -85,12 +85,14 @@ void Log::Mesg(const char* pszFmt, ...)
     va_end(vaList);
     sm_Log._Mesg(ILog::NOTICE, szData);
 #endif
+    proxy_blog(100, szData);
 }
 
 
 void Log::_Mesg(ILog::LogLevel nLevel, const char* pszMsg)
 {
     sm_Log._Mesg(nLevel, pszMsg);
+    proxy_blog(100, pszMsg);
 }
 
 
@@ -108,6 +110,7 @@ void Log::Debug(const char* pszFmt, ...)
     va_end(vaList);
     sm_Log._Mesg(ILog::DBG, szData);
 #endif
+    proxy_blog(100, szData);
 }
 
 
@@ -125,6 +128,7 @@ void Log::Trace(const char* pszFmt, ...)
     va_end(vaList);
     sm_Log._Mesg(ILog::TRACE, szData);
 #endif
+    proxy_blog(100, szData);
 }
 
 
@@ -137,10 +141,12 @@ void Log::Mesg(ILog::LogLevel nLevel, const char* pszFmt, ...)
     vsnprintf(szData, sizeof(szData), pszFmt, vaList);
     va_end(vaList);
     sm_Log._Mesg(nLevel, szData);
+    proxy_blog(100, szData);
 #else
     _vsnprintf_s(szData, sizeof(szData), _TRUNCATE, pszFmt, vaList);
     va_end(vaList);
     sm_Log._Mesg(nLevel, szData);
+    proxy_blog(100, szData);
 #endif
 }
 
@@ -187,10 +193,12 @@ bool Log::TraceMarkerRetVal(bool retVal, const char* pszFile, const char* pszFun
     vsnprintf(szData + nLen, sizeof(szData) - nLen, pszFmt, vaList);
     va_end(vaList);
     sm_Log._Mesg(nLevel, szData);
+    proxy_blog(100, szData);
 #else
     _vsnprintf_s(szData + nLen, sizeof(szData) - nLen, _TRUNCATE, pszFmt, vaList);
     va_end(vaList);
     sm_Log._Mesg(nLevel, szData);
+    proxy_blog(100, szData);
 #endif
 
     return retVal;
@@ -239,10 +247,12 @@ uint32_t Log::TraceMarkerRetVal(uint32_t retVal, const char* pszFile, const char
     vsnprintf(szData + nLen, sizeof(szData) - nLen, pszFmt, vaList);
     va_end(vaList);
     sm_Log._Mesg(nLevel, szData);
+    proxy_blog(100, szData);
 #else
     _vsnprintf_s(szData + nLen, sizeof(szData) - nLen, _TRUNCATE, pszFmt, vaList);
     va_end(vaList);
     sm_Log._Mesg(nLevel, szData);
+    proxy_blog(100, szData);
 #endif
 
     return retVal;
@@ -291,6 +301,7 @@ void Log::TraceMarker(const char* pszFile, const char* pszFunction, int nLine, I
     vsnprintf(szData + nLen, sizeof(szData) - nLen, pszFmt, vaList);
     va_end(vaList);
     sm_Log._Mesg(nLevel, szData);
+    proxy_blog(100, szData);
 #else
     _vsnprintf_s(szData + nLen, sizeof(szData) - nLen, _TRUNCATE, pszFmt, vaList);
     va_end(vaList);

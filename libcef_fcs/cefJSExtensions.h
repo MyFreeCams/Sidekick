@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  * Created by Todd Anderson on 2019-04-05
  *
  * Permission to use, copy, modify, and distribute this software for any

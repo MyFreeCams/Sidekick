@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,7 +19,7 @@
 
 #include <string>
 #include <vector>
-
+    
 using njson = nlohmann::json;
 using std::vector;
 using std::string;
@@ -33,7 +33,7 @@ public:
     CObsServicesJson();
 
     bool load(const string& sFilename);
-    bool load(const string& sFilename, const string& sProgamFile);
+    //bool load(const string& sFilename, const string& sProgamFile);
     bool save();
 
     bool getVersion(int& nVersion);
@@ -41,16 +41,27 @@ public:
     void getURLList(strVec* parrNames, strVec* parrURL);
     void setURLList(strVec& arrNames, strVec& arrURL);
 
+ #ifdef _WIN32
+    static time_t convertWindowsTimeToUnixTime(long long int input);
+ #endif
+
     // helper function for debugging.
-    string prettySerialize() { return m_njson.dump(); }
+    string prettySerialize() { return m_njson.dump(4); }
 
     // true if we successfully loaded json data.
     bool isLoaded() { return m_bLoaded;}
-    void setLoaded(bool b) { m_bLoaded = b; }
+    void setLoaded(bool b)
+    {
+        m_bLoaded = b;
+    }
+
+    // returns true if services file has changed since last check (or if this is first
+    // check, using static member vars to determine)
+    bool checkFileHash(void);
 
     // true if the json data has been changed and needs saving.
     bool isDirty() { return m_bisDirty;}
-    void setDirty(bool b) { m_bisDirty = b; }
+    bool setDirty(bool b) { m_bisDirty = b; return true; }
 
     bool findRTMPService(njson& arr, njson* pSrv);
     bool findWebRtcService(njson& arr, njson* pSrv);
@@ -63,7 +74,6 @@ public:
         m_sServicesFilename = sFile;
     }
     string getServicesFilename() { return m_sServicesFilename; }
-    bool Update(const string& sFileProfile, const string& sFileProgram);
 
     string getProfileServiceJson() { return m_sProfileService;  }
     void setProfileServiceJson(const string& s) { m_sProfileService = s; }
@@ -72,29 +82,29 @@ public:
     void setProgramServiceJson(const string& s) { m_sProgramFileServices = s; }
 
     bool updateProfileSettings(const string& sKey, const string& sURL);
-    bool refreshProfileSettings(string& sKey, string& sURL);
+    const string getNormalizedServiceFile(const string& sFile);
+
+    static const string& getFileHash(void) { return sm_sFileHash; }
+
 
 protected:
     bool parseFile(const string& sFilename);
 
     bool loadDefaultWebRTCService(njson &);
-    bool loadDefaultRTMPService(njson &);
 
     njson& getTopLevelJson() { return m_njson; }
 
     njson& getServicesNJson() { return m_njsonServices; }
     void setServicesNJson(njson& j) { m_njsonServices = j; }
 
-    const string& getFilename() { return m_sFilename;}
-    const string getNormalizedServiceFile(const string& sFile);
+    static const string& getFilename() { return sm_sFilename;}
     int getJsonVersion(const string& sFile);
 
 private:
-    string m_sFilename;
+    static string sm_sFilename;
+    static string sm_sFileHash;
     string m_sData;
-    //MfcJsonObj m_json;
     int m_nVersion;
-    //MfcJsonObj* m_jsonServices;
     bool m_bLoaded;
     bool m_bisDirty;
     string m_sServicesFilename;

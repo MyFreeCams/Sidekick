@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -35,3 +35,8 @@ bool IPCUtil::isEqual(std::string &s, std::string &s2)
 
 
 }
+
+void proxy_blog(int nLevel, const char* pszMsg)
+{
+}
+

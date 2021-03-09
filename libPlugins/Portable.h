@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -53,8 +53,13 @@
 #define _ASSERT_EXPR(expr,msg)
 #endif
 
+#ifndef S_OK
 #define S_OK        0L
+#endif
+
+#ifndef S_FALSE
 #define S_FALSE     1L
+#endif
 
 #ifndef UNREFERENCED_PARAMETER
 #define UNREFERENCED_PARAMETER(p) (p)

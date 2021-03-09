@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -122,8 +122,19 @@ public:
 
     static void initializeDefaults(void);
 
-    bool readPluginConfig(void);
-    bool writePluginConfig(void) const;
+    // load profile data from current profile on disk, extract sidekick json
+    // config and save to m_jsConfig
+    bool readProfileConfig(void);
+
+    // load profile config data from current profile's service.json and save to js
+    bool loadProfileConfig(MfcJsonObj& js) const;       
+
+    bool writeProfileConfig(void) const;
+    bool writeProfileConfig(MfcJsonObj& jsProfileData) const;
+    bool checkProfileChanged(void);
+
+    static bool calcCheckSum(const string& sFile, string& sHash, size_t& nSz);
+    static bool calcStringHash(const string& sData, string& sHash);
 
     // saves SiekickModelConfig memebr properties to json object
     bool Serialize(MfcJsonObj& js);
@@ -179,7 +190,7 @@ protected:
     static vector< string >             sm_vAllocs;
     static size_t                       sm_nRefCx;
 
-
+    static string                       sm_lastProfileHash;
 
 #ifdef UNUSED_CODE
 public:

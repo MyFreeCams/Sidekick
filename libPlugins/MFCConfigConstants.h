@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -72,7 +72,7 @@
 #endif // _PROD
 
 #ifndef MFC_AGENT_SVC_URL
-#define MFC_AGENT_SVC_URL                       "https://sidekick.mfc.dev/agentSvc.php"
+#define MFC_AGENT_SVC_URL                       "https://sidekick.mfc.dev/yagentSvc.php"
 #endif
 
 #define SYSREPORT_API                           "/SysInfo"
@@ -180,8 +180,10 @@
 #endif
 
 #define MFC_SERVICES_JSON_NAME                  "name"
+
 #ifndef MFC_SERVICES_JSON_NAME_RTMP_VALUE
-#define MFC_SERVICES_JSON_NAME_RTMP_VALUE       "MyFreeCams RTMP"
+//#define MFC_SERVICES_JSON_NAME_RTMP_VALUE       "MyFreeCams RTMP"
+#define MFC_SERVICES_JSON_NAME_RTMP_VALUE       "MyFreeCams"
 #endif
 
 #ifndef MFC_SERVICES_JSON_NAME_WEBRTC_VALUE

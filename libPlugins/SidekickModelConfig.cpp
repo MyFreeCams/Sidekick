@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -30,18 +30,21 @@
 #include <obs-frontend-api.h>
 
 // solution includes
-// #include "libfcs/fcslib_string.h"
-// #include "libfcs/Log.h"
-// #include "libfcs/MfcJson.h"
 #include "libfcs/fcs_b64.h"
+#include "libfcs/md5.h"
+#include <libPlugins/MFCConfigConstants.h>
 
 // project includes
-//#include "MFCConfigConstants.h"
 #include "ObsServicesJson.h"
 #include "ObsUtil.h"
 #include "SidekickModelConfig.h"
 
+#ifndef MODEL_CONFIG_VERBOSE_LOG
+#define MODEL_CONFIG_VERBOSE_LOG 0
+#endif
+
 bool                        SidekickModelConfig::sm_initialized = false;
+string                      SidekickModelConfig::sm_lastProfileHash;
 size_t                      SidekickModelConfig::sm_nRefCx = 0;
 map< string, MfcJsonObj >   SidekickModelConfig::sm_reqProps;
 vector< string >            SidekickModelConfig::sm_vAllocs;
@@ -111,7 +114,62 @@ void SidekickModelConfig::initializeDefaults(void)
     }
 }
 
-bool SidekickModelConfig::writePluginConfig(void) const
+bool SidekickModelConfig::checkProfileChanged(void)
+{
+    string sFile( CObsUtil::AppendPath(CObsUtil::getProfilePath(), SERVICE_JSON_FILE) );
+    bool retVal = false;
+    string sHash;
+    size_t nSz;
+
+    if (calcCheckSum(sFile, sHash, nSz))
+    {
+        if (sm_lastProfileHash.empty())
+            sm_lastProfileHash = sHash;
+            
+        string oldHash(sm_lastProfileHash);
+
+        if ((retVal = (sHash != sm_lastProfileHash)) == true)
+            sm_lastProfileHash = sHash;
+
+#if MODEL_CONFIG_VERBOSE_LOG
+        if (oldHash != sHash)
+        {
+            _MESG("PROFILEDBG: retVal %s, oldHash != newHash..", retVal ? "true" : "false");
+        }
+        else _MESG("PROFILEDBG: retVal %s, oldHash == newHash still", retVal ? "true" : "false");
+#endif
+    }
+    else if (!sm_lastProfileHash.empty())
+    {
+        // Only log if we expected to be able to open/read the file (had a hash from before)
+        _MESG("PROFILEDBG: unable to check profile on disk for checksum/changes");
+    }
+
+    return retVal;
+}
+
+bool SidekickModelConfig::loadProfileConfig(MfcJsonObj& js) const
+{
+    // scoped lock of mutex if we are a sharedCtx instance
+    unique_lock< recursive_mutex >  lk(m_csMutex, std::defer_lock);
+    if (isSharedCtx)                lk.lock();
+
+    string sProfilePath = CObsUtil::getProfilePath() + "/" + SERVICE_JSON_FILE;
+    return js.loadFromFile(sProfilePath);
+}
+
+bool SidekickModelConfig::writeProfileConfig(void) const
+{
+    bool retVal = false;
+    MfcJsonObj js;
+
+    if (loadProfileConfig(js))
+        retVal = writeProfileConfig(js);
+
+    return retVal;
+}
+
+bool SidekickModelConfig::writeProfileConfig(MfcJsonObj& jsProfileData) const
 {
     bool retVal = false;
 
@@ -119,51 +177,68 @@ bool SidekickModelConfig::writePluginConfig(void) const
     unique_lock< recursive_mutex >  lk(m_csMutex, std::defer_lock);
     if (isSharedCtx)                lk.lock();
 
-    std::string sPluginPath = obs_module_config_path("");
-
-#ifdef _WIN32
-    if ( ! DirectoryExists(sPluginPath.c_str()) )
-        if ( ! CreateDirectoryA(sPluginPath.c_str(), NULL) )
-            _MESG("PATHDBG: CreateDirectory() failed to mkdir '%s'", sPluginPath.c_str());
-#else
-    mkdir(sPluginPath.c_str(), 0770);
-#endif
-
-    std::string sPluginCfg = obs_module_config_path("sidekick.json");
-
-#ifdef _WIN32
-
-#endif
-
     string sData;
-    if (m_jsConfig.Serialize(sData) > 0)
+
+    jsProfileData.objectAdd("sidekick", m_jsConfig);
+    if (jsProfileData.Serialize(sData, MfcJsonObj::JSOPT_PRETTY) > 0)
     {
-        if (stdSetFileContents(sPluginCfg, sData))
+        string sProfilePath = CObsUtil::getProfilePath() + "/" + SERVICE_JSON_FILE;
+        string sHash, sDataPrev, sHashPrev;
+        size_t nOldSz = 0;
+        
+        calcStringHash(sData, sHash);
+
+        // calculate hash of file on disk, in case it differs from sm_lastProfileHash for debug msg
+        calcCheckSum(sProfilePath, sHashPrev, nOldSz);
+
+        // If hash of our serialized data doesnt match on disk, write profile to disk
+        if (sHash != sm_lastProfileHash)
+        {
+#if MODEL_CONFIG_VERBOSE_LOG
+            _MESG(  "SVCDBG:: *** writing profile of %zu bytes [%s] to %s; previous profile of %zu bytes [%s] replaced, lastProfileHash: [%s]",
+                    sData.size(),
+                    sHash.c_str(),
+                    sProfilePath.c_str(),
+                    nOldSz,
+                    sHashPrev.c_str(),
+                    sm_lastProfileHash.c_str());
+#endif
+
+            if (stdSetFileContents(sProfilePath, sData))
+            {
+                sm_lastProfileHash = sHash;
+#if MODEL_CONFIG_VERBOSE_LOG
+                _MESG("SVCDBG: wrote %zu bytes to profile config at %s:\n%s\n\n", sData.size(), sProfilePath.c_str(), sData.c_str());
+#endif
+                retVal = true;
+            }
+            else _MESG("failed to write %zu bytes of profile config to %s", sData.size(), sProfilePath.c_str());
+        }
+#if MODEL_CONFIG_VERBOSE_LOG
+        else _MESG("SVCDBG: no hash change, no profile write needed");
+#endif
+    }
+    else _MESG("failed to re-serialize profile data with sidekick added");
+
+    return retVal;
+}
+
+bool SidekickModelConfig::readProfileConfig(void)
+{
+    MfcJsonObj jsProfileData;
+    bool retVal = false;
+
+    if (loadProfileConfig(jsProfileData))
+    {
+        if (jsProfileData.objectGetObject("sidekick", m_jsConfig))
         {
             retVal = true;
         }
-        else _MESG("failed to write %zu bytes of plugin config to %s", sData.size(), sPluginCfg.c_str());
+        else _MESG("'sidekick' property missing from profile's service");
     }
-    else _MESG("failed to serialize plugin config; 0 bytes of data");
-
 
     return retVal;
 }
-
-bool SidekickModelConfig::readPluginConfig(void)
-{
-    bool retVal = false;
-
-    std::string sPluginCfg = obs_module_config_path("sidekick.json");
-    if ( m_jsConfig.loadFromFile( sPluginCfg ) )
-    {
-        retVal = true;
-    }
-    else _MESG("config failed to load, unable to open '%s' for reading", sPluginCfg.c_str());
-
-    return retVal;
-}
-
 
 bool SidekickModelConfig::Serialize(MfcJsonObj& js)
 {
@@ -175,7 +250,7 @@ bool SidekickModelConfig::Serialize(MfcJsonObj& js)
 bool SidekickModelConfig::Serialize(string& sData)
 {
     unique_lock< recursive_mutex > lk = sharedLock();
-    return m_jsConfig.Serialize(sData);
+    return m_jsConfig.Serialize(sData, MfcJsonObj::JSOPT_PRETTY);
 }
 
 // Reads a json string and deserializes it, loading it into this instance
@@ -445,6 +520,63 @@ const char* SidekickModelConfig::getString(const string& sKey) const
 
     return sm_vAllocs.back().c_str();
 }
+
+bool SidekickModelConfig::calcCheckSum(const string& sFile, string& sHash, size_t& nSz)
+{
+    bool retVal = false;
+
+    FILE* inFile = fopen(sFile.c_str(), "rb");
+    nSz = 0;
+
+    if (inFile != NULL)
+    {
+        unsigned char c[MD5_DIGEST_LENGTH], data[1025];
+        MD5_CTX mdContext;
+        int i, bytes;
+
+        MD5_Init(&mdContext);
+        while ((bytes = (int)fread(data, 1, 1024, inFile)) != 0)
+        {
+            MD5_Update(&mdContext, data, bytes);
+            nSz += bytes;
+        }
+
+        MD5_Final(c, &mdContext);
+        sHash.clear();
+        for (i = 0; i < MD5_DIGEST_LENGTH; i++)
+            sHash += stdprintf("%02x", c[i]);
+
+        fclose(inFile);
+        retVal = true;
+    }
+    //else _MESG("SVCDBG: couldnt open %s: %s (%u)", sFile.c_str(), strerror(errno), errno);
+
+    return retVal;
+}
+
+bool SidekickModelConfig::calcStringHash(const string& sData, string& sHash)
+{
+    unsigned char c[MD5_DIGEST_LENGTH];
+    bool retVal = false;
+    MD5_CTX mdContext;
+
+    sHash.clear();
+
+    if (!sData.empty())
+    {
+        MD5_Init(&mdContext);
+        MD5_Update(&mdContext, sData.c_str(), sData.size());
+        MD5_Final(c, &mdContext);
+        
+        for (int i = 0; i < MD5_DIGEST_LENGTH; i++)
+            sHash += stdprintf("%02x", c[i]);
+
+        retVal = true;
+    }
+
+    return retVal;
+}
+
 
 
 #ifdef UNUSED_CODE

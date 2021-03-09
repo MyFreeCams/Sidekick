@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -313,6 +313,7 @@ void MfcLog::TraceMarker(const char* pszFile, const char* pszFunction, int nLine
 
 void MfcLog::_Mesg(LogLevel nLevel, const char* pszMesg)
 {
+    char szModuleName[MAX_PATH] = { '\0' };
     struct timeval tvNow;
     char szTmp[512];
     struct tm tmNow;
@@ -323,10 +324,10 @@ void MfcLog::_Mesg(LogLevel nLevel, const char* pszMesg)
 
     gettimeofday(&tvNow, NULL);
 
+#ifdef _INCLUDE_MODULE_NAME_
 #ifdef _WIN32
     _localtime32_s(&tmNow, (__time32_t*)&tvNow.tv_sec);
 
-    char szModuleName[MAX_PATH];
     //GetModuleFileNameExA(GetCurrentProcess(), GetModuleHandle(NULL), szModuleName, sizeof(szModuleName));
     HMODULE phModule = NULL;
     if ( GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -360,12 +361,13 @@ void MfcLog::_Mesg(LogLevel nLevel, const char* pszMesg)
     }
     else fcs_strlcpy(szModuleName, "module-err", sizeof(szModuleName));
 #endif
+#endif
 
     // Hardcode the most common time formats as an optimization (less calls to snprintf)
     if (m_Data.nStampMask == (ILog::TS_YEAR | ILog::TS_MONTHDAY | ILog::TS_HOURMIN | ILog::TS_SEC))
     {
         stdprintf(  sLog,
-                    "[%s %04d-%02d-%02d %02d:%02d:%02d] ",
+                    "[%s%04d-%02d-%02d %02d:%02d:%02d] ",
                     szModuleName,
                     1900 + tmNow.tm_year, tmNow.tm_mon + 1, tmNow.tm_mday,
                     tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec);
@@ -373,7 +375,7 @@ void MfcLog::_Mesg(LogLevel nLevel, const char* pszMesg)
     else if (m_Data.nStampMask == (ILog::TS_MONTHDAY | ILog::TS_HOURMIN | ILog::TS_SEC | ILog::TS_MSEC))
     {
         stdprintf(  sLog,
-                    "[%s %02d-%02d %02d:%02d:%02d.%04d] ",
+                    "[%s%02d-%02d %02d:%02d:%02d.%04d] ",
                     szModuleName,
                     tmNow.tm_mon + 1, tmNow.tm_mday,
                     tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec,
@@ -382,7 +384,7 @@ void MfcLog::_Mesg(LogLevel nLevel, const char* pszMesg)
     else if (m_Data.nStampMask == (ILog::TS_PID | ILog::TS_MONTHDAY | ILog::TS_HOURMIN | ILog::TS_SEC | ILog::TS_MSEC))
     {
         stdprintf(  sLog,
-                    "[%s %d %02d-%02d %02d:%02d:%02d.%04d] ",
+                    "[%d %02d-%02d %02d:%02d:%02d.%04d] ",
                     szModuleName,
 #ifdef _WIN32
                     _getpid(),
@@ -396,7 +398,7 @@ void MfcLog::_Mesg(LogLevel nLevel, const char* pszMesg)
     else if (m_Data.nStampMask == (ILog::TS_PROGNAME | ILog::TS_PID | ILog::TS_YEAR | ILog::TS_MONTHDAY | ILog::TS_HOURMIN | ILog::TS_SEC))
     {
         stdprintf(  sLog,
-                    "[%s %s:%d %04d-%02d-%02d %02d:%02d:%02d] ",
+                    "[%s%s:%d %04d-%02d-%02d %02d:%02d:%02d] ",
                     szModuleName,
                     __progname,
 #ifdef _WIN32
@@ -414,7 +416,7 @@ void MfcLog::_Mesg(LogLevel nLevel, const char* pszMesg)
         sLog = "[";
 
         sLog += szModuleName;
-        sLog += " ";
+        //sLog += " ";
 
         if (m_Data.nStampMask & ILog::TS_PROGNAME)
             sLog += __progname;
@@ -598,8 +600,8 @@ void MfcLog::_Mesg(LogLevel nLevel, const char* pszMesg)
         }
     }
 
-    if (m_Data.nOutputMasks[nLevel] & OF_STDOUT)
-        fwrite(sLog.c_str(), sLog.length(), 1, stdout);
+    //if (m_Data.nOutputMasks[nLevel] & OF_STDOUT)
+    //    fwrite(sLog.c_str(), sLog.length(), 1, stdout);
 #ifdef _WIN32
     if (m_Data.nOutputMasks[nLevel] & OF_STDERR)
         fwrite(sLog.c_str(), sLog.length(), 1, stderr);

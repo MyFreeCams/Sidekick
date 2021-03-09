@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -34,7 +34,7 @@
 
 
 CMFCCefEventHandler::CMFCCefEventHandler(const bool use_views)
-        : myBaseClass(use_views)
+    : myBaseClass(use_views)
 {
 }
 #ifdef USE_OLD_MEMMANAGER
@@ -52,11 +52,11 @@ bool CMFCCefEventHandler::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser
                                                    CefRefPtr<CefProcessMessage> message)
 {
 
-    std::string msgName = message->GetName();
+  std::string msgName = message->GetName();
 
-    if (msgName == "CloseWindows")
-    {
-      CloseAllBrowsers(false);
-    }
-    return false;
+  if (msgName == "CloseWindows")
+  {
+    CloseAllBrowsers(false);
+  }
+  return false;
 }

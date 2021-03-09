@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -72,8 +72,3 @@ size_t fcs_strlcat(char *dst, const char *src, size_t siz);         // portable 
 size_t fcs_strlcpy_range(char chStart, char chStop, char *dst, const char *src, size_t siz);
 
 std::string &stdLeftTrim(std::string &s);		// left trim
-
-std::string stdToLower(std::string &s);         // to lower case
-
-
-

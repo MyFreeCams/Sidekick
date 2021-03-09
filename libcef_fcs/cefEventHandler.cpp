@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -40,9 +40,7 @@ cefEventHandler* g_pEvent = NULL;
 #include <libPlugins/IPCShared.h>
 
 cefEventHandler* cefEventHandler::sm_pThis = NULL;
-#ifdef USE_OLD_MEMMANAGER
 extern MFC_Shared_Mem::CMessageManager g_LocalRenderMemManager;
-#endif
 #endif
 
 // Returns a data: URI with the specified contents.
@@ -80,7 +78,6 @@ cefEventHandler::~cefEventHandler()
 #ifndef _WIN32
     g_pEvent = NULL;
 #else
-#ifdef USE_OLD_MEMMANAGER
     if (!g_LocalRenderMemManager.isInitialized())
         g_LocalRenderMemManager.init(false);
 
@@ -89,10 +86,9 @@ cefEventHandler::~cefEventHandler()
                                       MSG_TYPE_SHUTDOWN,
                                       stdprintf("%u", _getpid()).c_str());
     g_LocalRenderMemManager.sendMessage(msg);
-#endif
+
     if (sm_pThis == this)
         sm_pThis = NULL;
-
 #endif
 }
 

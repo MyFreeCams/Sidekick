@@ -30,7 +30,6 @@
 // Solutions includes
 #include <libPlugins/Portable.h>
 #include <curl/curl.h>
-#include <libPlugins/PluginParameterBlock.h>
 #include <libPlugins/MFCConfigConstants.h>
 #include <libPlugins/HttpRequest.h>
 #include <libPlugins/MFCPluginAPI.h>

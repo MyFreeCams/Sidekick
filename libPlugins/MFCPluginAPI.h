@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,27 +15,12 @@
  */
 #pragma once
 
-#ifndef __MFC_PLUGIN_API_H__
-#define __MFC_PLUGIN_API_H__
-
-
 class CMFCPluginAPI
 {
 public:
     CMFCPluginAPI(PROGRESS_CALLBACK pfnProgress);
     ~CMFCPluginAPI() = default;
-
-    // fetch the model's plugin version.
-    int getPluginVersionForModel(std::string& sVersion);
-
-    // download the manifest file for the model's version.
-    int getManifestFile(const std::string& sVersion, std::string& sFile);
-    int getUpdateFile(const std::string& sVersion, const std::string& sTargetFile, uint8_t* pFileContents, unsigned int nSize, unsigned int* pFileSize);
-
-    int ShutdownReport(int nPluginType);
-    int StartupReport(int nPluginType);
-
-    int SendSystemReport(void);
+    
     int SendHeartBeat(void);
 
     void setLastHttpError(const std::string& s) { m_sLastError = s; }
@@ -50,5 +35,3 @@ private:
     std::string m_sLastError;
     PROGRESS_CALLBACK m_pfnProgress;
 };
-
-#endif  // __MFC_PLUGIN_API_H__

@@ -37,21 +37,6 @@
 // solution includes
 #include <libPlugins/HttpRequest.h>
 //#include <libPlugins/IPCShared.h>
-
-#ifdef _USE_OLD_MEMMANAGER
-#define BUF_SIZE                        1024
-#define ADDR_BUF_SIZE                   32
-
-// names of shared memory objects.
-#define SHARED_MEMNAME                  "MFCSharedMemoryYYXX"
-#define CONTAINER_NAME                  "MyBoostList"
-#define MFC_SEMA_NAME                   "fcsSEMA"
-#define MFC_CLIENT_MUTEX_NAME           "fcsClientMutex"
-#define MFC_SERVER_MUTEX_NAME           "fcsServerMutex"
-#define MAX_QUE_SIZE                    20
-
-#endif
-
 #define ADDR_FCSLOGIN                   "fcsLoginCEF"
 #define ADDR_OBS_BROADCAST_Plugin       "obsBPlugin"
 #define ADDR_CEF_JSEXTENSION            "CefJSExtension"
@@ -59,7 +44,6 @@
 #include <libPlugins/MFCConfigConstants.h>
 #include <libPlugins/MFCPluginAPI.h>
 #include <libPlugins/ObsUtil.h>
-//#include <libPlugins/PluginParameterBlock.h>
 #include <libPlugins/Portable.h>
 
 // project includes
@@ -75,11 +59,6 @@ using std::string;
 
 // https://stackoverflow.com/questions/27314485/use-of-deleted-function-error-with-stdatomic-int
 std::atomic< uint32_t >         CHttpThread::sm_dwThreadCmd = { THREADCMD_NONE };
-#ifdef USE_OLD_MEMMANAGER
-//pthread_mutex_t                 CHttpThread::sm_mutexTimed;
-//MFC_Shared_Mem::CMessageManager CHttpThread::sm_mem;
-//CSemaphore                      g_semaBroadcastPlugin;
-#endif
 
 extern CBroadcastCtx g_ctx; // part of MFCLibPlugins.lib::MfcPluginAPI.obj
 
@@ -301,9 +280,23 @@ void CHttpThread::Process()
             }
             break;
         }
-
+        case MSG_TYPE_SET_MSK:
+          //_TRACE("MSG_TYPE_SET_MSK  To:%s From:%s Type:%d Msg: %s\n", sTo.c_str(), msg.getFrom(), msg.getID(), sMsg.c_str());
+          if (sMsg.length() > 0)
+          {
+            // this function is called on a different thread.
+            // use our own ctx or we collide with the loop below.
+            auto lk = g_ctx.sharedLock();
+            CBroadcastCtx ctx = g_ctx;
+            ctx.cfg.set("ctx", sMsg);
+            ctx.cfg.writeProfileConfig();
+            // Send ctx data back to main thread after we updated it
+            g_ctx = ctx;
+          }
         case MSG_TYPE_DOCREDENTIALS:
         {
+          // this function is called on a different thread.
+          // use our own ctx or we collide with the loop below.
           auto lk = g_ctx.sharedLock();
           CBroadcastCtx ctx = g_ctx;
 
@@ -316,7 +309,7 @@ void CHttpThread::Process()
             {
                 MfcJsonObj js;
                 ctx.cfg.Serialize(js);
-                ctx.cfg.writePluginConfig();
+                ctx.cfg.writeProfileConfig();
 
                 // Send ctx data back to main thread after we updated it
                 g_ctx = ctx;
@@ -403,9 +396,6 @@ void CHttpThread::Process()
             if (!m_workerPids.empty())
             {
                 MFCIPC::CRouter::getInstance()->sendEvent("Ping",ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_PING, "Ping %d obsBroadcast", nPingCx++);
-#ifdef _USE_OLD_MEMMANAGER \
-            sm_mem.sendMessage(ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_PING, "Ping %d obsBroadcast", nPingCx++);
-#endif
             }
             nLastPingTm = boost::posix_time::second_clock::local_time();
         }
@@ -413,10 +403,6 @@ void CHttpThread::Process()
         // Sleep for at most 1 second (if we aren't woken up by acquisition of lock) before we timeout and
         // check for threadcmd events and loop starting block over and potentially sending a heartbeat API
         //
-#ifdef _USE_OLD_MEMMANAGER
-        boost::posix_time::ptime t1 = boost::posix_time::second_clock::universal_time() + boost::posix_time::seconds( 1 );
-        sm_mem.getBroadcastPluginMutex()->timed_lock( t1 );
-#endif
         // wait 1 second for the semaphore to triggerr
         m_pSema->timed_wait(1000);
 
@@ -435,7 +421,6 @@ void CHttpThread::Process()
                 {
                     MFCIPC::CRouter::getInstance()->sendEvent("Shutdown",ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_SHUTDOWN, "Shutdown!");
 
-//                    sm_mem.sendMessage(ADDR_FCSLOGIN, ADDR_OBS_BROADCAST_Plugin, MSG_TYPE_SHUTDOWN, "Shutdown!");
                     bDone = true;
                 }
                 break;
@@ -491,111 +476,7 @@ void CHttpThread::Process()
             setCmd(THREADCMD_NONE);
         }
         // Check for any shared mem messages for us before looping
-#ifdef _USE_OLD_MEMMANAGER
-      //  if (!bDone)
-       //     readSharedMsg(ctx);
-#endif
+
     }
 }
 
-#ifdef _USE_OLD_MEMMANAGER
-void CHttpThread::readSharedMsg(CBroadcastCtx& ctx)
-{
-/*    MFC_Shared_Mem::CSharedMemMsg msg;
-
-    while (sm_mem.getNextMessage(&msg, ADDR_OBS_BROADCAST_Plugin))
-    {
-        string sMsg( msg.getMessage() );
-        string sFrom( msg.getFrom() );
-        string sTo( msg.getTo() );
-
-        switch (msg.getID())
-        {
-        case MSG_TYPE_PING:
-            _TRACE("MSG_TYPE_PING  To:%s From:%s Type:%d Msg: %s\n", sTo.c_str(), msg.getFrom(), msg.getID(), sMsg.c_str());
-            break;
-
-        case MSG_TYPE_LOG:
-            _TRACE("MSG_TYPE_LOG To:%s From:%s Type:%d Msg:\r\n%s\n", sTo.c_str(), msg.getFrom(), msg.getID(), sMsg.c_str());
-            break;
-
-        case MSG_TYPE_START:
-        {
-            int nPid = atoi( sMsg.c_str() );
-            if (nPid > 0)
-            {
-                m_workerPids.insert(nPid);
-                // _TRACE("MSG_TYPE_START  To:%s From:%s Type:%d Worker process id %d (%zu total workers running)",
-                //        sTo.c_str(),
-                //        msg.getFrom(),
-                //        msg.getID(),
-                //        nPid,
-                //        m_workerPids.size());
-            }
-            break;
-        }
-
-        case MSG_TYPE_SHUTDOWN:
-        {
-            if (sFrom == ADDR_CEF_JSEXTENSION || sFrom == ADDR_FCSLOGIN)
-            {
-                int nPid = atoi( sMsg.c_str() );
-                if (nPid > 0)
-                {
-                    m_workerPids.erase(nPid);
-                    // _TRACE("MSG_TYPE_SHUTDOWN  To:%s From:%s Type:%d process id %d (%zu total running)\n", sTo.c_str(), sFrom.c_str(), msg.getID(), nPid, m_workerPids.size());
-                }
-                else _TRACE("MSG_TYPE_SHUTDOWN  To:%s From:%s Type:%d: Invalid process id: '%s'\n",
-                            sTo.c_str(), sFrom.c_str(), msg.getID(), sMsg.c_str() );
-            }
-            else _TRACE("MSG_TYPE_SHUTDOWN  To:%s From:%s Type:%d: Invalid From field; expected JSEXtension or FCSLOGIN; pid: '%s'\n",
-                        sTo.c_str(), sFrom.c_str(), msg.getID(), sMsg.c_str() );
-            break;
-        }
-
-        case MSG_TYPE_DOLOGIN:
-            _TRACE("MSG_TYPE_DOLOGIN  To:%s From:%s Type:%d Msg: %s\n", sTo.c_str(), msg.getFrom(), msg.getID(), sMsg.c_str());
-            break;
-
-        case MSG_TYPE_SET_MSK:
-            _TRACE("MSG_TYPE_SET_MSK  To:%s From:%s Type:%d Msg: %s\n", sTo.c_str(), msg.getFrom(), msg.getID(), sMsg.c_str());
-            if (sMsg.length() > 0)
-            {
-                ctx.cfg.set("ctx", sMsg);
-                ctx.cfg.writePluginConfig();
-                // Send ctx data back to main thread after we updated it
-                g_ctx = ctx;
-            }
-            break;
-
-        case MSG_TYPE_DOCREDENTIALS:
-            //_MESG("MSG_TYPE_DOCREDENTIALS  To:%s From:%s Type:%d Msg: %s\n", sTo.c_str(), msg.getFrom(), msg.getID(), sMsg.c_str());
-            if (ctx.cfg.Deserialize(sMsg))
-            {
-                MfcJsonObj js;
-                ctx.cfg.Serialize(js);
-                ctx.cfg.writePluginConfig();
-
-                // Send ctx data back to main thread after we updated it
-                g_ctx = ctx;
-                g_ctx.agentPolling = true;
-
-            }
-            else
-            {
-                _TRACE("failed to read data from do credentials msg: %s", sMsg.c_str());
-
-                // collect original ctx data again, since we may have corrupted or
-                // invalidated our local 'ctx' from cfg.Deserialize() call that just failed.
-                ctx = g_ctx;
-            }
-            break;
-
-        default:
-            _TRACE("Unknown Message Type: To:%s From:%s Type:%d Msg: %s\n", sTo.c_str(), msg.getFrom(), msg.getID(), sMsg.c_str());
-            break;
-        }
-    }
-    */
-}
-#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -46,6 +46,8 @@
 // project
 #include "ObsUtil.h"
 #include "Portable.h"
+
+//#include <ui/obs-app.hpp>
 
 #ifdef _WIN32
 static const char* module_bin[] = { "../../obs-plugins/" BIT_STRING };  // from obs-windows.c
@@ -768,12 +770,15 @@ unsigned long CObsUtil::ExecProcess(const char* pPath, const char* pFile)
     // CEF apps, or just expect the login process wont ever need hardware acceleration (simple HTML only?)
     // -AM 12-11-19
     snprintf(app, 1023, "open -n \"%s/%s\" --args --disable-gpu", pPath, pFile);
-    int nRet = system(app);
+
+    /*int nRet = */
+    system(app);
+
     return bRv;
 #endif
 }
 
-//#define RUN_CEFLOGIN_FROM_DEBUGGER 1
+#define RUN_CEFLOGIN_FROM_DEBUGGER 1
 
 // open cef mfc login app or panel
 bool CObsUtil::ExecMFCLogin()
@@ -800,11 +805,14 @@ bool CObsUtil::ExecMFCLogin()
     }
 #else
 #ifdef RUN_CEFLOGIN_FROM_DEBUGGER
-    dwProc = CObsUtil::ExecProcess("../../../plugins/MyFreeCams/Sidekick/MFCCefLogin/Debug", MFC_CEF_APP_EXE_NAME);
+#ifdef _DEBUG
+  dwProc = CObsUtil::ExecProcess("../../../plugins/MyFreeCams/Sidekick/MFCCefLogin/Debug", MFC_CEF_APP_EXE_NAME);
 #else
-    dwProc = CObsUtil::ExecProcess(MFC_OBS_CEF_LOGIN_BIN_PATH, MFC_CEF_APP_EXE_NAME);
+  dwProc = CObsUtil::ExecProcess("../../../plugins/MyFreeCams/Sidekick/MFCCefLogin/RelWithDebInfo", MFC_CEF_APP_EXE_NAME);
 #endif
-
+#else
+  dwProc = CObsUtil::ExecProcess(MFC_OBS_CEF_LOGIN_BIN_PATH, MFC_CEF_APP_EXE_NAME);
+#endif
 #endif  // _WIN32
     bRv = (dwProc > 0);
 #endif  // MFC_BROWSER_LOGIN

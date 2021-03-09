@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -779,14 +779,9 @@ size_t MfcJsonObj::Serialize(string& str, int nOpt) const
 
             if (nOpt >= JSOPT_PRETTY)
             {
-                if (nCx > 0)
-                    str += " ";
-                else
-                {
-                    str += "\n";
-                    for (int nDx = 0; nDx <= nOpt; nDx++)
-                        str += "   ";
-                }
+                str += "\n";
+                for (int nDx = 0; nDx <= nOpt; nDx++)
+                    str += "   ";
             }
 
 
@@ -822,14 +817,9 @@ size_t MfcJsonObj::Serialize(string& str, int nOpt) const
 
             if (nOpt >= JSOPT_PRETTY)
             {
-                if (nCx > 0)
-                    str += " ";
-                else
-                {
-                    str += "\n";
-                    for (int nDx = 0; nDx <= nOpt; nDx++)
-                        str += "   ";
-                }
+                str += "\n";
+                for (int nDx = 0; nDx <= nOpt; nDx++)
+                    str += "   ";
             }
 
             // Serialize value

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -53,6 +53,8 @@ public:
 
     bool disconnect(bool wait) override;
     bool send(const std::string& sMsg) override;
+
+    bool isConnected = false;
 
 private:
     FcsListener*                _listener;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2020 MFCXY, Inc. <mfcxy@mfcxy.com>
+ * Copyright (c) 2013-2021 MFCXY, Inc. <mfcxy@mfcxy.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -75,7 +75,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
-    //::MessageBoxA(NULL,"Attach debugger now!","ceflogin", MB_OK);
+
     // Enable High-DPI support on Windows 7 or newer.
     CefEnableHighDPISupport();
 
@@ -127,9 +127,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
     // add new extensions
     app->addExtension(new CMFCJsCredentials);
 
-    //CIPCWorkerThread worker(*app);
-    //if (worker.init() || 1 == 1)
-
     MFCIPC::CRouter::setRouterID("MFCCefLogin");
     MFCIPC::CRouter::getInstance()->start(5);
 
@@ -175,11 +172,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance,
     // Shut down CEF.
     CefShutdown();
     
-    //else
-    //{
-    //    _TRACE("Failed to created shared memory file.  Maybe MFCBroadcast is NOT running?");
-   // }
-
     return 0;
 }
 
@@ -225,7 +217,3 @@ string cefGetInstallPath(void)
     return stdprintf("%s\\cef", sRootPath.c_str());
 }
 
-void proxy_blog(int nLevel, const char* pszMsg)
-{
-    // blog(nLevel, "%s", pszMsg);
-}

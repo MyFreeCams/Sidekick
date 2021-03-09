@@ -13,10 +13,8 @@
 #include "MfcJsExtensions.h"
 
 #define _DIRECT_TO_BROADCAST
-#ifdef USE_OLD_MEMMANAGER
 #ifdef _DIRECT_TO_BROADCAST
 extern MFC_Shared_Mem::CMessageManager g_LocalRenderMemManager;
-#endif
 #endif
 
 CMFCJsonExtension g_arrExtensions[] = {{"fcsAPI", "credentials", MSG_TYPE_DOCREDENTIALS},
@@ -413,7 +411,6 @@ bool CMFCJsonExtension::execute(CefRefPtr<CefV8Value> object,
 		std::string sJson = arguments[0]->GetStringValue();
 		std::string sMsgName = getFunctionName();
 #ifdef _DIRECT_TO_BROADCAST
-#ifdef USE_OLD_MEMMANAGER
 		// direct to broadcast
 		if (!g_LocalRenderMemManager.isInitialized())
 			g_LocalRenderMemManager.init(false);
@@ -425,7 +422,6 @@ bool CMFCJsonExtension::execute(CefRefPtr<CefV8Value> object,
 				ADDR_CEF_JSEXTENSION,
 				getMessageType(),
 				sJson.c_str()));
-#endif
 #else
 		// send via the existing cef internal ipc message system.
 
