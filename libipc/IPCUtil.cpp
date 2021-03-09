@@ -35,8 +35,10 @@ bool IPCUtil::isEqual(std::string &s, std::string &s2)
 
 
 }
-
+#ifndef _WIN32
 void proxy_blog(int nLevel, const char* pszMsg)
 {
 }
+#endif
+
 
