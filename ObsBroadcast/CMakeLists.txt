@@ -176,6 +176,7 @@ target_link_libraries(${MyTarget} PRIVATE
 	Qt5::Gui
 	Qt5::Svg
 	WebRTC::WebRTC
+	nlohmannjson
 	${LIBX264_LIBRARIES}
 	${MyTarget_PLATFORM_LIBRARIES}
 )

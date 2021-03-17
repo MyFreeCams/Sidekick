@@ -81,6 +81,60 @@ bool CObsServicesJson::load(const string& sFile)
     return isLoaded();
 }
 
+
+bool CObsServicesJson::load(const string& sFile, const string& sProgramFile)
+{
+    setLoaded(false);
+
+    setServicesFilename(sFile);
+    string sFilename = getNormalizedServiceFile(sFile);//obs_module_config_path("services.json");
+    //_MESG("PATHDBG: Trying to load services from file: %s, program file: %s", sFilename.c_str(), sProgramFile.c_str());
+
+    if (parseFile(sFilename))
+    {
+        setLoaded(true);
+    }
+    //else if (m_nVersion > RTMP_SERVICES_FORMAT_VERSION)
+    else
+    {
+        // if we failed to load, we might have a bad file version.
+        if (Update(sFile, sProgramFile))
+        {
+            if (parseFile(sFilename))
+            {
+                setLoaded(true);
+            }
+            else _TRACE("parseFile failed!");
+        }
+        else _TRACE("Bad services.json file versions!");
+    }
+    //else _TRACE("appears like services.json is corrupt!");
+
+    return isLoaded();
+}
+
+
+#if 0
+bool CObsServicesJson::load(const string& sFile, const string& sProgramFile)
+{
+    setLoaded(false);
+
+    setServicesFilename(sFile);
+    string sFilename = getNormalizedServiceFile(sFile);//obs_module_config_path("services.json");
+    //_MESG("PATHDBG: Trying to load services from file: %s, program file: %s", sFilename.c_str(), sProgramFile.c_str());
+
+    if (!parseFile(sFilename))
+    {
+        // if we failed to load, we might have a bad file version.
+        if (Update(sFile, sProgramFile))
+            parseFile(sFilename);
+    }
+
+    return isLoaded();
+}
+#endif
+
+
 bool CObsServicesJson::checkFileHash(void)
 {
     bool fileChanged = false;
@@ -107,26 +161,6 @@ bool CObsServicesJson::checkFileHash(void)
 }
 
 
-/*
-bool CObsServicesJson::load(const string& sFile, const string& sProgramFile)
-{
-    setLoaded(false);
-
-    setServicesFilename(sFile);
-    string sFilename = getNormalizedServiceFile(sFile);//obs_module_config_path("services.json");
-    //_MESG("PATHDBG: Trying to load services from file: %s, program file: %s", sFilename.c_str(), sProgramFile.c_str());
-
-    if (!parseFile(sFilename))
-    {
-        // if we failed to load, we might have a bad file version.
-        if (Update(sFile, sProgramFile))
-            parseFile(sFilename);
-    }
-
-    return isLoaded();
-}
-*/
-
 //--------------------------------------------------------------------------
 // save
 //
@@ -140,7 +174,10 @@ bool CObsServicesJson::save()
 
     _MESG("PATHDBG: Writing %zu bytes to %s...", sData.size(), sFilename.c_str());
     if (stdSetFileContents(sFilename, sData))
-        retVal = setDirty(false);
+    {
+        setDirty(false);
+        retVal = true;
+    }
 
     return retVal;
 }
@@ -195,7 +232,8 @@ int CObsServicesJson::getJsonVersion(const string& sFile)
     return nVer;
 }
 
-/*
+
+#if 0
 bool CObsServicesJson::Update(const string& sFileProfile, const string& sFileProgram)
 {
     _MESG("PATHDBG: Update profile settings? profile: %s, program: %s", sFileProfile.c_str(), sFileProgram.c_str());
@@ -241,15 +279,67 @@ bool CObsServicesJson::Update(const string& sFileProfile, const string& sFilePro
     }
     return false;
 }
-*/
+#endif
 
+
+#if 0
+bool CObsServicesJson::Update(const string& sFileProfile, const string& sFileProgram)
+{
+    _MESG("PATHDBG: Update profile settings? profile: %s, program: %s", sFileProfile.c_str(), sFileProgram.c_str());
+    int nProfileVer = getJsonVersion(sFileProfile);
+    if (nProfileVer > RTMP_SERVICES_FORMAT_VERSION)
+    {
+        int nProgramVer = getJsonVersion(sFileProgram);
+        // profile version is wrong.
+        if (nProgramVer <= RTMP_SERVICES_FORMAT_VERSION)
+        {
+            string sFilename = getNormalizedServiceFile(sFileProgram);
+            string sData;
+            if (stdGetFileContents(sFilename, sData))
+            {
+                _TRACE("updating service.jsons from profile %d to program files %d", nProfileVer, nProgramVer);
+                sFilename = getNormalizedServiceFile(sFileProfile);
+#ifdef _WIN32
+                char szPath[_MAX_PATH + 1] = { '\0' };
+                char* pFile = NULL;
+                GetFullPathNameA(sFilename.c_str(), sizeof(szPath), szPath, &pFile);
+                string filepath = szPath;
+                string dirpath = filepath.substr(0, filepath.rfind('\\'));
+                CreateDirectoryA(dirpath.c_str(), NULL);
+                _TRACE("Creating %s just in case", dirpath.c_str());
+#endif
+                _TRACE("PATHDBG: Update profile settings? profile: %s, program: %s",
+                       sFilename.c_str(), getNormalizedServiceFile(sFileProgram).c_str());
+                if (stdSetFileContents(sFilename, sData))
+                    _TRACE("updated service.jsons");
+                else
+                    _TRACE("failed to update %s", sFilename.c_str());
+                return true;
+            }
+            else _TRACE("Error, failed to read source file %s", sFilename.c_str());
+        }
+        else
+        {
+            // both files are not the correct version.  obs-studio will throw an exception. let it handle it. bye
+            _TRACE("Both service.jsons have bad version: profile %s program files %d expected %d", nProfileVer, nProgramVer, RTMP_SERVICES_FORMAT_VERSION);
+        }
+    }
+    return false;
+}
+#endif
+
+bool CObsServicesJson::Update(const string& sFileProfile, const string& sFileProgram)
+{
+    _MESG("This is where Update() would run");
+    return true;
+}
 
 //--------------------------------------------------------------------------
 // loadDefaultRTMPService
 //
 // Load the default webrtc MFC service values into obs-studio json
 /*
-bool CObsServicesJson::loadDefaultRTMPService(njson& arr)
+void CObsServicesJson::loadDefaultRTMPService(njson& arr)
 {
     njson jsRTMP =
     {
@@ -312,7 +402,7 @@ bool CObsServicesJson::loadDefaultRTMPService(njson& arr)
         }
     };
     arr.push_back(jsRTMP);
-    return setDirty(true);
+    setDirty(true);
 }
 */
 
@@ -320,7 +410,7 @@ bool CObsServicesJson::loadDefaultRTMPService(njson& arr)
 // loadDefaultWegbRTCService
 //
 // Load the default webrtc MFC service values into obs-studio json
-bool CObsServicesJson::loadDefaultWebRTCService(njson& arr)
+void CObsServicesJson::loadDefaultWebRTCService(njson& arr)
 {
     njson jswebRTC =
     {
@@ -353,7 +443,31 @@ bool CObsServicesJson::loadDefaultWebRTCService(njson& arr)
         }
     };
     arr.push_back(jswebRTC);
-    return setDirty(true);
+    setDirty(true);
+}
+
+
+void CObsServicesJson::elevateRtmpService(njson& arr)
+{
+    _TRACE("elevating RTMP service");
+    for (auto itr = arr.begin(); itr != arr.end(); itr++)
+    {
+        njson j = *itr;
+        string sName = j["name"].get<string>();
+
+        if (sName == MFC_SERVICES_JSON_NAME_RTMP_VALUE)
+        {
+            if (j.find("common") == j.end())
+            {
+                (*itr)["common"] = true;
+                save();
+            }
+            else
+            {
+                _TRACE("RTMP service is already 'common'");
+            }
+        }
+    }
 }
 
 
@@ -539,17 +653,17 @@ bool CObsServicesJson::parseFile(const string& sFilename)
 
                     if (!findWebRtcService(arr, &mfc))
                     {
-                        _TRACE("%s service not found!", MFC_SERVICES_JSON_NAME_WEBRTC_VALUE);
-                        if (loadDefaultWebRTCService(arr))
-                        {
+                        _TRACE("%s service not found. Loading %s into services.json", MFC_SERVICES_JSON_NAME_WEBRTC_VALUE, MFC_SERVICES_JSON_NAME_WEBRTC_VALUE);
+                        loadDefaultWebRTCService(arr);
+                        bFnd = true;
+
+                        elevateRtmpService(arr);
 #ifdef UNIT_TEST
-                            if (!findRTMPService(arr, &mfc))
-                                bFnd = false;
-                            if (!findWebRtcService(arr, &mfc))
-                                bFnd = false;
-#endif
-                            bFnd = true;
-                        }
+                        if (!findRTMPService(arr, &mfc))
+                            bFnd = false;
+                        if (!findWebRtcService(arr, &mfc))
+                            bFnd = false;
+#endif                  
                     }
                     else
                     {
@@ -676,4 +790,3 @@ bool CObsServicesJson::updateProfileSettings(const string& sKey, const string& s
 
     return retVal;
 }
-

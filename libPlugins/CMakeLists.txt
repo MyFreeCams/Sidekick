@@ -133,6 +133,7 @@ target_link_libraries(${MyTarget} PRIVATE
 	Qt5::Widgets
 	Qt5::Gui
 	Qt5::Svg
+	nlohmannjson
 )
 
 MFCDefines(${MyTarget})

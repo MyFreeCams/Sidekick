@@ -184,6 +184,63 @@ void openBrowserPanelMenuHandler(void*)
 #endif
 
 
+#if 0
+void loadServices(void)
+{
+    CObsServicesJson svc;
+
+    // Get location of profile (module) version of services.json
+    std::string sFilename = obs_module_config_path("services.json");
+    sFilename = svc.getNormalizedServiceFile(sFilename);
+    //_TRACE("services.json module path: %s", sFilename.c_str());
+
+    // Get location of obs installed services.json
+#ifdef _WIN32
+    // services.json is located with the rtmp-services plugin
+    std::string sFilename2 = "../../data/obs-plugins/rtmp-services/services.json";
+#else
+    obs_module_t* pModule = obs_current_module();
+    std::string sT = obs_get_module_data_path(pModule);
+    std::string sFilename2 = CObsUtil::AppendPath(sT, "services.json");
+#endif
+    //_TRACE("services.json obs installed path %s", sFilename2.c_str());
+
+    //
+    // We need to verify that mfc service is in the services.json file.
+    //
+    // There are two versions of the file in different directories:
+    //
+    // 1. Profile (module) version. This one is preferred (c:\users\todd\appdata\roaming\obs-studio\.....
+    // It must be the current version: RTMP_SERVICES_FORMAT_VERSION
+    // OBS <= v26.0.2 (10/2020): version is 2
+    // OBS >= v26.1 (11/27/20): version is 3
+    //
+    // 2. OBS installed version. If profile version is not the current version, we fall back to the
+    // version installed with obs-studio: c:\program files\obs-studio\data\obs-plugins\rtmp-services\services.json
+    // Since we do NOT have write permissions to the installed version, we copy the installed services.json
+    // to the profile (module) location.
+    //
+    // First try profile version, if it isn't the right version, then copy the installed version
+    // on to the profile version. Fail if installed version is also incorrect.
+    if (svc.load(sFilename, sFilename2))
+    {
+        // We successfully loaded the json.
+        s_bServicesUpdated = true;
+        if (svc.isDirty())
+        {
+            // If the object is "dirty" (the MyFreeCams service was not found so we added it)
+            // after the load operation: update the json for obs.
+            svc.save();
+        }
+    }
+    else _TRACE("Failed to load services.json.");
+
+    if (s_bServicesUpdated)
+        s_thread.setServicesFilename(svc.getServicesFilename());
+}
+#endif
+
+
 void loadServices(void)
 {
     // wait for upto 10 seconds for services.json to show up

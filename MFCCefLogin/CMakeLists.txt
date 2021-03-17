@@ -159,6 +159,7 @@ if(OS_MAC)
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
 		# ${Boost_LIBRARIES}
+		nlohmannjson
 	)
 	set_target_properties(${CEF_TARGET} PROPERTIES
 		MACOSX_BUNDLE TRUE
@@ -224,6 +225,7 @@ if(OS_MAC)
 			MFCLibCef
 			${Boost_LIBRARIES}
 			#libipc
+                        nlohmannjson
 		)
 		set_target_properties(${_helper_target} PROPERTIES
 			MACOSX_BUNDLE_INFO_PLIST ${_helper_info_plist}
@@ -296,6 +298,7 @@ if(OS_WINDOWS)
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
 		${Boost_LIBRARIES}
+		nlohmannjson
 	)
 	# Turn on RTTI & disable warnings as errors
 	target_compile_options(${CEF_TARGET} PUBLIC /MT /GR /WX-)
