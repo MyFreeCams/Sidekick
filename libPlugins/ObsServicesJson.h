@@ -33,7 +33,7 @@ public:
     CObsServicesJson();
 
     bool load(const string& sFilename);
-    //bool load(const string& sFilename, const string& sProgamFile);
+    bool load(const string& sFilename, const string& sProgamFile);
     bool save();
 
     bool getVersion(int& nVersion);
@@ -61,7 +61,7 @@ public:
 
     // true if the json data has been changed and needs saving.
     bool isDirty() { return m_bisDirty;}
-    bool setDirty(bool b) { m_bisDirty = b; return true; }
+    void setDirty(bool b) { m_bisDirty = b; }
 
     bool findRTMPService(njson& arr, njson* pSrv);
     bool findWebRtcService(njson& arr, njson* pSrv);
@@ -69,11 +69,14 @@ public:
     bool findMFCServiceJson(njson& arr, njson* pSvr, const string& sName);
     bool findMFCRTMPServerJson(njson* pSrv);
 
+    void elevateRtmpService(njson& arr);
+
     void setServicesFilename(const string& sFile)
     {
         m_sServicesFilename = sFile;
     }
     string getServicesFilename() { return m_sServicesFilename; }
+    bool Update(const string& sFileProfile, const string& sFileProgram);
 
     string getProfileServiceJson() { return m_sProfileService;  }
     void setProfileServiceJson(const string& s) { m_sProfileService = s; }
@@ -90,7 +93,7 @@ public:
 protected:
     bool parseFile(const string& sFilename);
 
-    bool loadDefaultWebRTCService(njson &);
+    void loadDefaultWebRTCService(njson &);
 
     njson& getTopLevelJson() { return m_njson; }
 

@@ -66,8 +66,8 @@ target_compile_definitions(${MyTarget} PUBLIC WEBSOCKETCLIENT_EXPORTS)
 
 target_include_directories(${MyTarget} PRIVATE
 	${OPENSSL_INCLUDE_DIR}
-	${asio_SOURCE_DIR}/asio/include
-	${websocketpp_SOURCE_DIR}
+	# ${asio_SOURCE_DIR}/asio/include
+	# ${websocketpp_SOURCE_DIR}
 )
 
 target_link_libraries(${MyTarget} PRIVATE
@@ -76,6 +76,9 @@ target_link_libraries(${MyTarget} PRIVATE
 	MFCLibPlugins
 	${OPENSSL_LIBRARIES}
 	CURL::libcurl
+	nlohmannjson
+	asio
+	websocketpp
 )
 
 if(APPLE)

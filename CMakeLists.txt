@@ -59,8 +59,9 @@ elseif(APPLE)
 	set(CMAKE_CXX_VISIBILITY_PRESET default)
 endif()
 
-include("helpers")
-include("variables")
+include(downloadCPM)
+include(helpers)
+include(variables)
 include(FetchContent)
 
 APPLY_PATCHES() # apply patches to obs-studio
@@ -107,30 +108,91 @@ PRINT(Qt5)
 # Nlohmann JSON (Modern JSON for C++)
 #
 message(STATUS "Fetching nlohmann json")
-FetchContent_Declare(nlohmannjson GIT_REPOSITORY https://github.com/nlohmann/json)
+# FetchContent_Declare(nlohmannjson
+# 	GIT_REPOSITORY	https://github.com/nlohmann/json
+# 	GIT_TAG			v3.9.1
+# )
+FetchContent_Declare(nlohmannjson
+	URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
+	URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
+)
 FetchContent_GetProperties(nlohmannjson)
 if(NOT nlohmannjson_POPULATED)
 	FetchContent_Populate(nlohmannjson)
 endif()
+if(nlohmannjson_POPULATED)
+	message(STATUS "Fetching nlohmann json - success")
+	add_library(nlohmannjson INTERFACE IMPORTED)
+	target_include_directories(nlohmannjson INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
+else()
+	message(FATAL_ERROR "Fetching nlohmann json - error")
+endif()
+
+# CPMAddPackage(
+# 	NAME	nlohmannjson
+# 	VERSION	3.9.1
+# 	# the git repo is incredibly large, so we download the archived include directory
+# 	URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
+# 	URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
+# )
+# if(nlohmannjson_ADDED)
+# 	message(STATUS "Fetching nlohmann json - success")
+# 	add_library(nlohmannjson INTERFACE IMPORTED)
+# 	target_include_directories(nlohmannjson INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
+# else()
+# 	message(FATAL_ERROR "Fetching nlohmann json - error")
+# endif()
 
 #------------------------------------------------------------------------
 # WebSocket++ (websocketpp)
 #
 message(STATUS "Fetching websocketpp")
-FetchContent_Declare(websocketpp GIT_REPOSITORY https://github.com/zaphoyd/websocketpp)
+FetchContent_Declare(websocketpp
+	GIT_REPOSITORY 	https://github.com/zaphoyd/websocketpp
+	GIT_TAG 		0.8.2
+)
 FetchContent_GetProperties(websocketpp)
 if(NOT websocketpp_POPULATED)
 	FetchContent_Populate(websocketpp)
+endif()
+
+# CPMAddPackage(
+# 	NAME websocketpp
+# 	VERSION 0.8.2
+# 	URL https://github.com/zaphoyd/websocketpp
+# )
+if(websocketpp_POPULATED)
+	message(STATUS "Fetching websocketpp - success")
+	add_library(websocketpp INTERFACE IMPORTED)
+	target_include_directories(websocketpp INTERFACE ${websocketpp_SOURCE_DIR})
+else()
+	message(FATAL_ERROR "Fetching websocketpp - error")
 endif()
 
 #------------------------------------------------------------------------
 # Asio C++ Library
 #
 message(STATUS "Fetching ASIO")
-FetchContent_Declare(asio GIT_REPOSITORY https://github.com/chriskohlhoff/asio)
+FetchContent_Declare(asio
+	GIT_REPOSITORY	https://github.com/chriskohlhoff/asio
+	GIT_TAG			asio-1-18-1
+)
 FetchContent_GetProperties(asio)
 if(NOT asio_POPULATED)
 	FetchContent_Populate(asio)
+endif()
+
+# CPMAddPackage(
+# 	NAME asio
+# 	VERSION asio-1-18-1
+# 	URL https://github.com/chriskohlhoff/asio
+# )
+if(asio_POPULATED)
+	message(STATUS "Fetching ASIO - success")
+	add_library(asio INTERFACE IMPORTED)
+	target_include_directories(asio INTERFACE ${asio_SOURCE_DIR}/asio/include)
+else()
+	message(FATAL_ERROR "Fetching ASIO - error")
 endif()
 
 #------------------------------------------------------------------------
@@ -141,13 +203,12 @@ include_directories(
 	${CMAKE_CURRENT_BINARY_DIR}
 	${CMAKE_SOURCE_DIR} # obs-studio root directory
 	${CMAKE_SOURCE_DIR}/libobs
-	#${CMAKE_SOURCE_DIR}/UI
-	#${CMAKE_BINARY_DIR}/UI
 	${CMAKE_SOURCE_DIR}/UI/obs-frontend-api
 	${CMAKE_BINARY_DIR}/UI/obs-frontend-api
 	${Boost_INCLUDE_DIR}
 	${CURL_INCLUDE_DIRS}
-	${nlohmannjson_SOURCE_DIR}/single_include
+	# ${nlohmannjson_SOURCE_DIR}
+	# ${nlohmannjson_SOURCE_DIR}/single_include
 )
 
 #------------------------------------------------------------------------
