@@ -21,6 +21,7 @@ readonly VORBIS_VERSION=1.3.6
 readonly VPX_VERSION=1.9.0
 readonly X264_COMMIT=origin/stable
 readonly FFMPEG_VERSION=4.2.3
+export FFMPEG_REVISION=06
 readonly PNG_VERSION=1.6.37
 readonly THEORA_VERSION=1.1.1
 readonly LAME_VERSION=3.100
@@ -30,7 +31,8 @@ readonly SWIG_VERSION=4.0.2
 readonly PCRE_VERSION=8.44
 readonly SPEEXDSP_VERSION=1.2.0
 readonly JANSSON_VERSION=2.13.1
-readonly LUAJIT_VERSION=2.1.0-beta3
+readonly LUAJIT_VERSION=2.1
+readonly LUAJIT_COMMIT=ec6edc5c39c25e4eb3fca51b753f9995e97215da
 readonly FREETYPE_VERSION=2.10.4
 readonly RNNOISE_COMMIT=90ec41ef659fd82cfec2103e9bb7fc235e9ea66c
 # readonly SPARKLE_VERSION=1.23.0
@@ -68,10 +70,10 @@ cd ..
 declare -xr DEV_DIR="${DEV_DIR:-$(pwd)}"
 readonly WORK_DIR="${DEV_DIR}/obsdeps-src"
 declare -xr OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
-export LD_LIBRARY_PATH="${OBSDEPS}/lib"
-export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
-export LDFLAGS="-L${LD_LIBRARY_PATH}"
-export CFLAGS="-I${OBSDEPS}/include"
+# export LD_LIBRARY_PATH="${OBSDEPS}/lib"
+# export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
+# export LDFLAGS="-L${LD_LIBRARY_PATH}"
+# export CFLAGS="-I${OBSDEPS}/include"
 
 declare start
 declare end
@@ -289,19 +291,28 @@ build_vpx() {
     hr "Building vpx ${VPX_VERSION} (FFmpeg dependency)"
     cd "${WORK_DIR}"
     rm -rf libvpx-v${VPX_VERSION}
-    curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
-    mkdir -p ./libvpx-v${VPX_VERSION}
-    tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
+    if [ "$(arch)" = "arm64" ]; then
+      git clone "https://chromium.googlesource.com/webm/libvpx" libvpx-v${VPX_VERSION}
+    else
+      curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
+      mkdir -p ./libvpx-v${VPX_VERSION}
+      tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
+    fi
     cd ./libvpx-v${VPX_VERSION}
     mkdir -p build
     cd ./build
-    if [ $(echo "${MACOSX_DEPLOYMENT_TARGET}" | cut -d "." -f 1) -lt 11 ]; then
-      VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 2)+4))"
+    if [ "$(arch)" = "arm64" ]; then
+      ../configure --disable-shared --target=arm64-darwin20-gcc --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
+        --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
     else
-      VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 1)+9))"
+      if [ $(echo "${MACOSX_DEPLOYMENT_TARGET}" | cut -d "." -f 1) -lt 11 ]; then
+        VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 2)+4))"
+      else
+        VPX_TARGET="$(($(echo ${MACOSX_DEPLOYMENT_TARGET} | cut -d "." -f 1)+9))"
+      fi
+      ../configure --disable-shared  --target=x86_64-darwin${VPX_TARGET}-gcc --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
+        --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
     fi
-    ../configure --disable-shared  --target=x86_64-darwin${VPX_TARGET}-gcc --prefix="${OBSDEPS}" --libdir="${OBSDEPS}/lib" \
-      --enable-pic --enable-vp9-highbitdepth --disable-examples --disable-unit-tests --disable-docs
     make -j ${NUM_CORES}
     make install
   fi
@@ -314,6 +325,7 @@ build_x264() {
     hr "Building x264"
     cd "${WORK_DIR}"
     rm -rf x264
+    mkdir -p x264
     git clone https://code.videolan.org/videolan/x264.git
     cd ./x264
     git config advice.detachedHead false
@@ -487,12 +499,13 @@ build_ffmpeg() {
     cd ./build
     PKG_CONFIG_PATH="${PKG_CONFIG_PATH}" \
     ../configure --enable-shared --disable-static --prefix="${OBSDEPS}" --shlibdir="${OBSDEPS}/lib" \
-      --pkg-config-flags="--static" --enable-gpl --enable-version3 --enable-nonfree \
-      --enable-libx264 --enable-libopus --enable-libvorbis --enable-libvpx --enable-pthreads \
+      --pkg-config-flags="--static" --host-cflags="${CFLAGS}" --host-ldflags="${LDFLAGS}" \
+      --extra-ldflags="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+      --enable-gpl --enable-version3 --enable-nonfree --enable-pthreads \
+      --enable-libx264 --enable-libopus --enable-libvorbis --enable-libvpx \
       --enable-libsrt --enable-libtheora --enable-libmp3lame --enable-videotoolbox \
       --disable-doc --disable-libjack --disable-indev=jack --disable-outdev=sdl \
-      --disable-programs --host-cflags="${CFLAGS}" --host-ldflags="${LDFLAGS}" \
-      --extra-ldflags="-mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+      --disable-programs
     make -j ${NUM_CORES}
     find . -name \*.dylib -exec cp -a \{\} "${OBSDEPS}/lib/" \;
     mkdir -p "${OBSDEPS}/include"
@@ -623,9 +636,12 @@ build_luajit() {
     hr "Building LuaJIT ${LUAJIT_VERSION}"
     cd "${WORK_DIR}"
     rm -rf LuaJIT-${LUAJIT_VERSION}
-    curl -fkRL -O "https://luajit.org/download/LuaJIT-${LUAJIT_VERSION}.tar.gz"
-    tar -xf LuaJIT-${LUAJIT_VERSION}.tar.gz
+    # curl -fkRL -O "https://luajit.org/download/LuaJIT-${LUAJIT_VERSION}.tar.gz"
+    # tar -xf LuaJIT-${LUAJIT_VERSION}.tar.gz
+    mkdir -p LuaJIT-${LUAJIT_VERSION}
+    git clone https://github.com/LuaJIT/LuaJIT.git LuaJIT-${LUAJIT_VERSION}
     cd LuaJIT-${LUAJIT_VERSION}
+    git checkout ${LUAJIT_COMMIT}
     mkdir -p /tmp/luajit/lib
     mkdir -p /tmp/luajit/include
     # sed -i '' 's/$(DEFAULT_CC)/clang/g' src/Makefile
@@ -711,7 +727,8 @@ install_qt() {
         -skip qtquickcontrols -skip qtquickcontrols2 -skip qtquicktimeline -skip qtremoteobjects \
         -skip qtscript -skip qtscxml -skip qtsensors -skip qtserialbus -skip qtspeech \
         -skip qttranslations -skip qtwayland -skip qtwebchannel -skip qtwebengine -skip qtwebglplugin \
-        -skip qtwebsockets -skip qtwebview -skip qtwinextras -skip qtx11extras -skip qtxmlpatterns
+        -skip qtwebsockets -skip qtwebview -skip qtwinextras -skip qtx11extras -skip qtxmlpatterns \
+        QMAKE_APPLE_DEVICE_ARCHS=$(uname -m)
       make -j ${NUM_CORES}
       make install
       if [ -d /usr/local/opt/zstd ] && [ ! -f /usr/local/lib/libzstd.dylib ]; then brew link zstd; fi
