@@ -241,6 +241,7 @@ build_obs_bundle() {
 
 prepare_files_for_package() {
   cd "${BUILD_ROOT}"
+
   mkdir -p "${BUILD_ROOT}/MFCBroadcast/bin"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
@@ -270,30 +271,38 @@ prepare_files_for_package() {
 
 # Example: codesign_app appNameNoExtension /full/path/to/containing/directory
 codesign_app() {
-    hr "Code-signing $1.app"
+    hr "Code Signing $1.app"
     cd "$2"
     if [ -d "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework" ]; then
       local cef_path="./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework"
       for f in "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/"*.dylib; do
+        echo "* code signing $f"
         codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
       done
+      echo "* code signing $cef_path"
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "${cef_path}"
     fi
     for f in "./$1.app/Contents/Frameworks/"*Helper.app; do
+      echo "* code signing $f"
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "$f"
     done
     for f in "./$1.app/Contents/Frameworks/"*Helper*GPU*.app; do
+      echo "* code signing $f"
       codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
     done
     for f in "./$1.app/Contents/Frameworks/"*Helper*Plugin*.app; do
+      echo "* code signing $f"
       codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
     done
     for f in "./$1.app/Contents/Frameworks/"*Helper*Renderer*.app; do
+      echo "* code signing $f"
       codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
     done
     if [ -d "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin" ]; then
+      echo "* code signing $f"
       codesign --force --options runtime --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"
     fi
+    echo "* code signing $1.app"
     codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
     codesign -dvv "./$1.app"
 }
@@ -304,20 +313,22 @@ codesign_apps() {
     # codesign_app OBS "${BUILD_ROOT}"
     # codesign_app OBS-Sidekick "${BUILD_ROOT}"
 
+    hr "Code Signing MFC Broadcast Plugin"
     for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
+      echo "* code signing $f"
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
     done
   fi
 }
 
 generate_package() {
-  hr "Generating installation package"
+  hr "Generating Installation Package"
   packagesbuild "${BUILD_ROOT}/sidekick.pkgproj"
 }
 
 codesign_package() {
   if [ -z "${NO_CODESIGN}" ]; then
-    hr "Code-signing package"
+    hr "Code Signing Package"
     mv "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/Sidekick-unsigned.pkg"
     productsign --sign "${PRODUCTSIGN_IDENT:--}" "${BUILD_ROOT}/Sidekick-unsigned.pkg" "${BUILD_ROOT}/Sidekick.pkg"
     # Validate signature
@@ -337,7 +348,7 @@ notarize_package() {
         if [ -n "${ASC_PROVIDER_SHORTNAME}" ]; then
           ASC_PROVIDER_SHORTNAME=$(xcrun altool --list-providers -p "@keychain:AC_PASSWORD" 2>/dev/null | grep -Eoe '[a-zA-Z0-9]+\s+[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+' | grep -Eoe '^[a-zA-Z0-9]+')
         fi
-        hr "Notarizing package"
+        hr "Notarizing Package"
         xcnotary notarize "${BUILD_ROOT}/Sidekick.pkg" --developer-account "${NOTARIZATION_USERNAME}" --developer-password-keychain-item "AC_PASSWORD" --provider "${ASC_PROVIDER_SHORTNAME}"
         # System Policy (Gatekeeper) assessment
         if spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"; then NOTARIZED=yes; fi
@@ -373,7 +384,7 @@ print_summary() {
   minutes=$(( (runtime % 3600) / 60 ))
   seconds=$(( (runtime % 3600) % 60 ))
 
-  hr "Finished building Sidekick"
+  hr "Finished Building Sidekick"
 
   echo
   echo "${bold}Package location:${reset}"
@@ -397,13 +408,13 @@ main() {
   print_env
   sudo xcode-select --reset
 
-  hr "Compiling macdylibbundler"
+  hr "Compiling MacDylibBundler"
   (cd "${SIDEKICK_ROOT}/scripts/macdylibbundler" && mkdir -p build && cd build && cmake .. && make)
 
-  hr "Building MFC CEF Login app bundle"
+  hr "Building MFC CEF Login App Bundle"
   ${DYLIBBUNDLER} -f -q -cd -of -a "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin/MFCCefLogin.app"
 
-  hr "Building OBS app bundle"
+  hr "Building OBS App Bundle"
   (build_obs_bundle)
 
   # cd "${BUILD_ROOT}"
