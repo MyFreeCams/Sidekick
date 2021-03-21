@@ -25,6 +25,10 @@ THE SOFTWARE.
 
 #include "DylibBundler.h"
 
+#include "Dependency.h"
+#include "Settings.h"
+#include "Utils.h"
+
 #include <cstdlib>
 #include <iostream>
 #include <map>
@@ -39,19 +43,13 @@ THE SOFTWARE.
 #include <sys/types.h>
 #endif
 
-#include "Dependency.h"
-#include "Settings.h"
-#include "Utils.h"
-
 using namespace std;
 
 vector<Dependency> deps;
 map<string, vector<Dependency>> deps_per_file;
 map<string, bool> deps_collected;
 set<string> frameworks;
-set<string> rpaths;
-map<string, bool> rpaths_collected;
-bool qt_plugins_called = false;
+bool bundleQtPlugins_called = false;
 
 void addDependency(const string& path, const string& dependent_file)
 {
@@ -79,58 +77,45 @@ void addDependency(const string& path, const string& dependent_file)
 
     if (!in_deps && dependency.IsFramework())
         frameworks.insert(dependency.OriginalPath());
+
     if (!in_deps)
         deps.push_back(dependency);
     if (!in_deps_per_file)
         deps_per_file[dependent_file].push_back(dependency);
 }
 
-void collectDependenciesRpaths(const string& dependent_file)
+void collectDependencies(const string& dependent_file)
 {
-    if (deps_collected.find(dependent_file) != deps_collected.end()
-        && Settings::fileHasRpath(dependent_file))
-    {
+    if (deps_collected.find(dependent_file) != deps_collected.end())
         return;
-    }
 
-    map<string,string> cmds_values;
-    string dylib = "LC_LOAD_DYLIB";
-    string rpath = "LC_RPATH";
-    cmds_values[dylib] = "name";
-    cmds_values[rpath] = "path";
-    map<string,vector<string>> cmds_results;
+    map<string, string> cmds_values;
+    map<string, vector<string>> cmds_results;
+
+    cmds_values["LC_LOAD_DYLIB"] = "name";
+    cmds_values["LC_RPATH"] = "path";
 
     parseLoadCommands(dependent_file, cmds_values, cmds_results);
 
-    if (rpaths_collected.find(dependent_file) == rpaths_collected.end())
+    for (const auto& rpath : cmds_results["LC_RPATH"])
     {
-        auto rpath_results = cmds_results[rpath];
-        for (const auto& rpath_result : rpath_results)
-        {
-            rpaths.insert(rpath_result);
-            Settings::addRpathForFile(dependent_file, rpath_result);
-            if (Settings::verboseOutput())
-                cout << "  rpath: " << rpath_result << endl;
-        }
-        rpaths_collected[dependent_file] = true;
+        Settings::addRpathForFile(dependent_file, rpath);
+        if (Settings::verboseOutput())
+            cout << "  rpath: " << rpath << endl;
     }
 
-    if (deps_collected.find(dependent_file) == deps_collected.end())
+    for (const auto& dep_path : cmds_results["LC_LOAD_DYLIB"])
     {
-        auto dylib_results = cmds_results[dylib];
-        for (const auto& dylib_result : dylib_results)
-        {
-            // skip system/ignored prefixes
-            if (Settings::isPrefixBundled(dylib_result))
-                addDependency(dylib_result, dependent_file);
-        }
-        deps_collected[dependent_file] = true;
+        // skip system/ignored prefixes
+        if (Settings::isPrefixBundled(dep_path))
+            addDependency(dep_path, dependent_file);
     }
+
+    deps_collected[dependent_file] = true;
 }
 
 void collectSubDependencies()
 {
-    size_t dep_counter = deps.size();
     if (Settings::verboseOutput())
     {
         cout << "(pre sub) # OF FILES: " << Settings::filesToFixCount() << endl;
@@ -138,6 +123,7 @@ void collectSubDependencies()
     }
 
     size_t deps_size = deps.size();
+    size_t dep_counter = deps_size;
     while (true)
     {
         deps_size = deps.size();
@@ -146,10 +132,13 @@ void collectSubDependencies()
             string original_path = deps[n].OriginalPath();
             if (Settings::verboseOutput())
                 cout << "  (collect sub deps) original path: " << original_path << endl;
+
             if (isRpath(original_path))
                 original_path = searchFilenameInRpaths(original_path);
-            collectDependenciesRpaths(original_path);
+
+            collectDependencies(original_path);
         }
+
         // if no more dependencies were added on this iteration, stop searching
         if (deps.size() == deps_size)
             break;
@@ -160,45 +149,39 @@ void collectSubDependencies()
         cout << "(post sub) # OF FILES: " << Settings::filesToFixCount() << endl;
         cout << "(post sub) # OF DEPS: " << deps.size() << endl;
     }
+
     if (Settings::bundleLibs() && Settings::bundleFrameworks())
     {
-        if (!qt_plugins_called || (deps.size() != dep_counter))
+        if (!bundleQtPlugins_called || (deps.size() != dep_counter))
             bundleQtPlugins();
     }
 }
 
 void changeLibPathsOnFile(const string& file_to_fix)
 {
-    if (deps_collected.find(file_to_fix) == deps_collected.end()
-        || rpaths_collected.find(file_to_fix) == rpaths_collected.end())
-    {
-        collectDependenciesRpaths(file_to_fix);
-    }
+    if (deps_collected.find(file_to_fix) == deps_collected.end())
+        collectDependencies(file_to_fix);
 
     cout << "* Fixing dependencies on " << file_to_fix << "\n";
 
-    vector<Dependency> dependencies = deps_per_file[file_to_fix];
-    for (auto& dependency : dependencies)
-    {
-        dependency.FixDependentFile(file_to_fix);
-    }
+    for (auto& dep : deps_per_file[file_to_fix])
+        dep.FixDependentFile(file_to_fix);
 }
 
 void fixRpathsOnFile(const string& original_file, const string& file_to_fix)
 {
-    vector<string> rpaths_to_fix;
     if (!Settings::fileHasRpath(original_file))
         return;
 
-    rpaths_to_fix = Settings::getRpathsForFile(original_file);
+    vector<string> rpaths_to_fix = Settings::getRpathsForFile(original_file);
     for (const auto& rpath_to_fix : rpaths_to_fix)
     {
-        string command = string("install_name_tool -rpath ")
-                       + rpath_to_fix + " " + Settings::insideLibPath() + " " + file_to_fix;
+        string command = "install_name_tool -rpath " + rpath_to_fix + " "
+                       + Settings::insideLibPath() + " " + file_to_fix;
         if (systemp(command) != 0)
         {
             cerr << "\n\n/!\\ ERROR: An error occured while trying to fix rpath "
-                      << rpath_to_fix << " of " << file_to_fix << endl;
+                 << rpath_to_fix << " of " << file_to_fix << endl;
             exit(1);
         }
     }
@@ -207,19 +190,8 @@ void fixRpathsOnFile(const string& original_file, const string& file_to_fix)
 void bundleDependencies()
 {
     for (const auto& dep : deps)
-    {
         dep.Print();
-    }
-
     cout << "\n";
-    if (Settings::verboseOutput())
-    {
-        cout << "rpaths:" << endl;
-        for (const auto& rpath : rpaths)
-        {
-            cout << "* " << rpath << endl;
-        }
-    }
 
     // copy & fix up dependencies
     if (Settings::bundleLibs())
@@ -232,9 +204,9 @@ void bundleDependencies()
             fixRpathsOnFile(dep.OriginalPath(), dep.InstallPath());
         }
     }
+
     // fix up selected files
-    const auto files = Settings::filesToFix();
-    for (const auto& file : files)
+    for (const auto& file : Settings::filesToFix())
     {
         changeLibPathsOnFile(file);
         fixRpathsOnFile(file, file);
@@ -290,10 +262,10 @@ void bundleQtPlugins()
 
     if (!qtCoreFound)
         return;
-    if (!qt_plugins_called)
+    if (!bundleQtPlugins_called)
         createQtConf(Settings::resourcesFolder());
 
-    qt_plugins_called = true;
+    bundleQtPlugins_called = true;
 
     const auto fixupPlugin = [original_file](const string& plugin)
     {
@@ -306,11 +278,11 @@ void bundleQtPlugins()
         {
             mkdir(dest + plugin);
             copyFile(qt_plugins_prefix + plugin, dest);
-            vector<string> files = lsDir(dest + plugin+"/");
+            vector<string> files = lsDir(dest + plugin + "/");
             for (const auto& file : files)
             {
                 Settings::addFileToFix(dest + plugin+"/"+file);
-                collectDependenciesRpaths(dest + plugin+"/"+file);
+                collectDependencies(dest + plugin+"/"+file);
                 changeId(dest + plugin+"/"+file, "@rpath/" + plugin+"/"+file);
             }
         }
@@ -327,7 +299,7 @@ void bundleQtPlugins()
         mkdir(dest + "platforms");
         copyFile(qt_plugins_prefix + "platforms/libqcocoa.dylib", dest + "platforms");
         Settings::addFileToFix(dest + "platforms/libqcocoa.dylib");
-        collectDependenciesRpaths(dest + "platforms/libqcocoa.dylib");
+        collectDependencies(dest + "platforms/libqcocoa.dylib");
         changeId(dest + "platforms/libqcocoa.dylib", "@rpath/platforms/libqcocoa.dylib");
     }
 
@@ -336,7 +308,7 @@ void bundleQtPlugins()
     fixupPlugin("imageformats");
     fixupPlugin("iconengines");
     if (!qtSvgFound)
-        systemp(string("rm -f ") + dest + "imageformats/libqsvg.dylib");
+        systemp("rm -f " + dest + "imageformats/libqsvg.dylib");
     if (qtGuiFound)
     {
         fixupPlugin("platforminputcontexts");

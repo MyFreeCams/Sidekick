@@ -44,10 +44,8 @@ string getFrameworkPath(const string& in);
 
 string stripLSlash(const string& in);
 
-// trim from end (in place)
-void rtrim_in_place(string& s);
-// trim from end (copying)
-string rtrim(string s);
+// trim from end
+string& rtrim(string& s);
 
 // execute a command in the native shell and return output in string
 string systemOutput(const string& cmd);

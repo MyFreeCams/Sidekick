@@ -25,6 +25,9 @@ THE SOFTWARE.
 
 #include "Dependency.h"
 
+#include "Settings.h"
+#include "Utils.h"
+
 #include <algorithm>
 #include <cstdlib>
 #include <functional>
@@ -35,19 +38,15 @@ THE SOFTWARE.
 #include <sys/types.h>
 #endif
 
-#include "Settings.h"
-#include "Utils.h"
-
 using namespace std;
 
-Dependency::Dependency(string path, const string& dependent_file)
-    : is_framework(false)
+Dependency::Dependency(string path, const string& dependent_file) : is_framework(false)
 {
     char buffer[PATH_MAX];
-    rtrim_in_place(path);
     string original_file;
     string warning_msg;
 
+    rtrim(path);
     if (isRpath(path))
     {
         original_file = searchFilenameInRpaths(path, dependent_file);
@@ -157,9 +156,7 @@ bool Dependency::MergeIfIdentical(Dependency& dependency)
     if (dependency.OriginalFilename() == filename)
     {
         for (const auto& symlink : symlinks)
-        {
             dependency.AddSymlink(symlink);
-        }
         return true;
     }
     return false;
@@ -189,7 +186,7 @@ void Dependency::CopyToBundle() const
 
     if (is_framework)
     {
-        string headers_symlink = dest_path + string("/Headers");
+        string headers_symlink = dest_path + "/Headers";
         string headers_path;
         char buffer[PATH_MAX];
         if (realpath(rtrim(headers_symlink).c_str(), buffer))
@@ -208,24 +205,18 @@ void Dependency::FixDependentFile(const string& dependent_file) const
 {
     changeInstallName(dependent_file, OriginalPath(), InnerPath());
     for (const auto& symlink : symlinks)
-    {
         changeInstallName(dependent_file, symlink, InnerPath());
-    }
 
     if (!Settings::missingPrefixes()) return;
 
     changeInstallName(dependent_file, filename, InnerPath());
     for (const auto& symlink : symlinks)
-    {
         changeInstallName(dependent_file, symlink, InnerPath());
-    }
 }
 
 void Dependency::Print() const
 {
     cout << "\n* " << filename << " from " << prefix << endl;
     for (const auto& symlink : symlinks)
-    {
         cout << "    symlink --> " << symlink << endl;
-    }
 }

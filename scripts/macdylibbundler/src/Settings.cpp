@@ -25,13 +25,13 @@ THE SOFTWARE.
 
 #include "Settings.h"
 
+#include "Utils.h"
+
 #include <cstdlib>
 #include <map>
 #include <utility>
 
 #include <sys/param.h>
-
-#include "Utils.h"
 
 using std::map;
 using std::string;
@@ -149,7 +149,7 @@ bool isPrefixBundled(const string& prefix)
         return false;
     if (prefix.find("/usr/lib/") == 0)
         return false;
-    if (prefix.find("/System/Library/") != string::npos)
+    if (prefix.find("/System/Library/") == 0)
         return false;
     if (isPrefixIgnored(prefix))
         return false;

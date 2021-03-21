@@ -25,6 +25,8 @@ THE SOFTWARE.
 
 #include "Utils.h"
 
+#include "Settings.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -37,8 +39,6 @@ THE SOFTWARE.
 #include <sys/types.h>
 #endif
 #include <unistd.h>
-
-#include "Settings.h"
 
 using namespace std;
 
@@ -69,14 +69,9 @@ string stripLSlash(const string& in)
     return in;
 }
 
-void rtrim_in_place(string& s)
+string& rtrim(string& s)
 {
-    s.erase(find_if(s.rbegin(), s.rend(), [](unsigned char c) { return !isspace(c); }).base(), s.end());
-}
-
-string rtrim(string s)
-{
-    rtrim_in_place(s);
+    s.erase(find_if(s.rbegin(), s.rend(), [](unsigned char c) { return !std::isspace(c); }).base(), s.end());
     return s;
 }
 
@@ -129,9 +124,9 @@ void tokenize(const string& str, const char* delim, vector<string>* vectorarg)
     string delimiters(delim);
 
     // skip delimiters at beginning
-    string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+    auto lastPos = str.find_first_not_of(delimiters, 0);
     // find first non-delimiter
-    string::size_type pos = str.find_first_of(delimiters, lastPos);
+    auto pos = str.find_first_of(delimiters, lastPos);
 
     while (pos != string::npos || lastPos != string::npos)
     {
@@ -158,7 +153,7 @@ bool fileExists(const string& filename)
     if (access(filename.c_str(), F_OK) != -1)
         return true;
     string delims = " \f\n\r\t\v";
-    string rtrimmed = filename.substr(0, filename.find_last_not_of(delims)+1);
+    string rtrimmed = filename.substr(0, filename.find_last_not_of(delims) + 1);
     string ftrimmed = rtrimmed.substr(rtrimmed.find_first_not_of(delims));
     if (access(ftrimmed.c_str(), F_OK) != -1)
         return true;
@@ -173,12 +168,13 @@ bool isRpath(const string& path)
 string bundleExecutableName(const string& app_bundle_path)
 {
     string cmd = "/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' " + app_bundle_path + "Contents/Info.plist";
-    return rtrim(systemOutput(cmd));
+    string output = systemOutput(cmd);
+    return rtrim(output);
 }
 
 void changeId(const string& binary_file, const string& new_id)
 {
-    string command = string("install_name_tool -id \"") + new_id + "\" \"" + binary_file + "\"";
+    string command = "install_name_tool -id \"" + new_id + "\" \"" + binary_file + "\"";
     if (systemp(command) != 0)
     {
         cerr << "\n\nError: An error occured while trying to change identity of library " << binary_file << endl;
@@ -188,7 +184,7 @@ void changeId(const string& binary_file, const string& new_id)
 
 void changeInstallName(const string& binary_file, const string& old_name, const string& new_name)
 {
-    string command = string("install_name_tool -change \"") + old_name + "\" \"" + new_name + "\" \"" + binary_file + "\"";
+    string command = "install_name_tool -change \"" + old_name + "\" \"" + new_name + "\" \"" + binary_file + "\"";
     if (systemp(command) != 0)
     {
         cerr << "\n\nError: An error occured while trying to fix dependencies of " << binary_file << endl;
@@ -206,8 +202,8 @@ void copyFile(const string& from, const string& to)
     }
 
     // copy file/directory
-    string overwrite_permission = string(overwrite ? "-f " : "-n ");
-    string command = string("cp -R ") + overwrite_permission + from + string(" \"") + to + "\"";
+    string overwrite_permission = overwrite ? "-f " : "-n ";
+    string command = "cp -R " + overwrite_permission + from + " \"" + to + "\"";
     if (from != to && systemp(command) != 0)
     {
         cerr << "\n\nError: An error occured while trying to copy file " << from << " to " << to << endl;
@@ -215,7 +211,7 @@ void copyFile(const string& from, const string& to)
     }
 
     // give file/directory write permission
-    string command2 = string("chmod -R +w \"") + to + "\"";
+    string command2 = "chmod -R +w \"" + to + "\"";
     if (systemp(command2) != 0)
     {
         cerr << "\n\nError: An error occured while trying to set write permissions on file " << to << endl;
@@ -225,8 +221,8 @@ void copyFile(const string& from, const string& to)
 
 bool deleteFile(const string& path, bool overwrite)
 {
-    string overwrite_permission = string(overwrite ? "-f \"" : " \"");
-    string command = string("rm -r ") + overwrite_permission + path +"\"";
+    string overwrite_permission = overwrite ? "-f \"" : " \"";
+    string command = "rm -r " + overwrite_permission + path +"\"";
     if (systemp(command) != 0)
     {
         cerr << "\n\nError: An error occured while trying to delete " << path << endl;
@@ -245,7 +241,7 @@ bool mkdir(const string& path)
 {
     if (Settings::verboseOutput())
         cout << "Creating directory " << path << endl;
-    string command = string("mkdir -p \"") + path + "\"";
+    string command = "mkdir -p \"" + path + "\"";
     if (systemp(command) != 0)
     {
         cerr << "\n/!\\ ERROR: An error occured while creating " << path << endl;
@@ -294,8 +290,7 @@ void createDestDir()
 
 string getUserInputDirForFile(const string& filename, const string& dependent_file)
 {
-    vector<string> search_paths = Settings::userSearchPaths();
-    for (auto& search_path : search_paths)
+    for (auto& search_path : Settings::userSearchPaths())
     {
         if (!search_path.empty() && search_path[search_path.size() - 1] != '/')
             search_path += "/";
@@ -314,6 +309,7 @@ string getUserInputDirForFile(const string& filename, const string& dependent_fi
     {
         if (Settings::quietOutput())
             cerr << "\n/!\\ WARNING: Dependency " << filename << " of " << dependent_file << " not found\n";
+
         cout << "\nPlease specify the directory where this file is located (or enter 'quit' to abort): ";
         fflush(stdout);
 
@@ -327,17 +323,18 @@ string getUserInputDirForFile(const string& filename, const string& dependent_fi
         if (!prefix.empty() && prefix[prefix.size()-1] != '/')
             prefix += "/";
 
-        if (!fileExists(prefix+filename))
+        string fullpath = prefix + filename;
+        if (fileExists(fullpath))
         {
-            cerr << (prefix+filename) << " does not exist. Try again...\n";
-            continue;
-        }
-        else
-        {
-            cerr << (prefix+filename) << " was found\n"
+            cerr << fullpath << " was found\n"
                  << "/!\\ WARNING: dylibbundler MAY NOT CORRECTLY HANDLE THIS DEPENDENCY: Check the executable with 'otool -L'\n";
             Settings::addUserSearchPath(prefix);
             return prefix;
+        }
+        else
+        {
+            cerr << fullpath << " does not exist. Try again...\n";
+            continue;
         }
     }
 }
@@ -355,10 +352,13 @@ void otool(const string& flags, const string& file, vector<string>& lines)
         cerr << "\n\n/!\\ ERROR: Cannot find file " << file << " to read its load commands\n";
         exit(1);
     }
+
     tokenize(output, "\n", &lines);
 }
 
-void parseLoadCommands(const string& file, const map<string, string>& cmds_values, map<string, vector<string>>& cmds_results)
+void parseLoadCommands(const string& file,
+                       const map<string, string>& cmds_values,
+                       map<string, vector<string>>& cmds_results)
 {
     vector<string> raw_lines;
     otool("-l", file, raw_lines);
@@ -368,9 +368,10 @@ void parseLoadCommands(const string& file, const map<string, string>& cmds_value
         vector<string> lines;
         string cmd = cmd_value.first;
         string value = cmd_value.second;
-        string cmd_line = string("cmd ") + cmd;
-        string value_line = string(value) + " ";
+        string cmd_line = "cmd " + cmd;
+        string value_line = value + " ";
         bool searching = false;
+
         for (const auto& raw_line : raw_lines)
         {
             if (raw_line.find(cmd_line) != string::npos)
@@ -406,16 +407,15 @@ void parseLoadCommands(const string& file, const map<string, string>& cmds_value
 
 string searchFilenameInRpaths(const string& rpath_file, const string& dependent_file)
 {
+    string fullpath;
+    string suffix = rpath_file.substr(rpath_file.rfind('/') + 1);
+
     if (Settings::verboseOutput())
     {
         if (dependent_file != rpath_file)
             cout << "  dependent file: " << dependent_file << endl;
         cout << "    dependency: " << rpath_file << endl;
     }
-
-    string fullpath;
-    string suffix = rpath_file.substr(rpath_file.rfind('/')+1);
-    char fullpath_buffer[PATH_MAX];
 
     const auto check_path = [&](string path)
     {
@@ -428,9 +428,9 @@ string searchFilenameInRpaths(const string& rpath_file, const string& dependent_
                 if (Settings::appBundleProvided())
                     path = regex_replace(path, regex("@executable_path/"), Settings::executableFolder());
             }
-            if (dependent_file != rpath_file)
+            else if (path.find("@loader_path") != string::npos)
             {
-                if (path.find("@loader_path") != string::npos)
+                if (dependent_file != rpath_file)
                     path = regex_replace(path, regex("@loader_path/"), file_prefix);
             }
             if (Settings::verboseOutput())
@@ -446,10 +446,10 @@ string searchFilenameInRpaths(const string& rpath_file, const string& dependent_
         {
             if (Settings::appBundleProvided())
             {
-                string pathE = regex_replace(path, regex("@rpath/"), Settings::executableFolder());
+                path = regex_replace(path, regex("@rpath/"), Settings::executableFolder());
                 if (Settings::verboseOutput())
-                    cout << "    path to search: " << pathE << endl;
-                if (realpath(pathE.c_str(), buffer))
+                    cout << "    path to search: " << path << endl;
+                if (realpath(path.c_str(), buffer))
                 {
                     fullpath = buffer;
                     Settings::rpathToFullPath(rpath_file, fullpath);
@@ -479,8 +479,7 @@ string searchFilenameInRpaths(const string& rpath_file, const string& dependent_
     }
     else if (!check_path(rpath_file))
     {
-        auto rpaths_for_file = Settings::getRpathsForFile(dependent_file);
-        for (auto rpath : rpaths_for_file)
+        for (auto rpath : Settings::getRpathsForFile(dependent_file))
         {
             if (rpath[rpath.size()-1] != '/')
                 rpath += "/";
@@ -494,10 +493,9 @@ string searchFilenameInRpaths(const string& rpath_file, const string& dependent_
 
     if (fullpath.empty())
     {
-        vector<string> search_paths = Settings::searchPaths();
-        for (const auto& search_path : search_paths)
+        for (const auto& search_path : Settings::searchPaths())
         {
-            if (fileExists(search_path+suffix))
+            if (fileExists(search_path + suffix))
             {
                 if (Settings::verboseOutput())
                     cout << "FOUND " << suffix << " in " << search_path << endl;
@@ -511,11 +509,15 @@ string searchFilenameInRpaths(const string& rpath_file, const string& dependent_
                 cout << "  ** rpath fullpath: not found" << endl;
             if (!Settings::quietOutput())
                 cerr << "\n/!\\ WARNING: Can't get path for '" << rpath_file << "'\n";
+
             fullpath = getUserInputDirForFile(suffix, dependent_file) + suffix;
+
             if (Settings::quietOutput() && fullpath.empty())
                 cerr << "\n/!\\ WARNING: Can't get path for '" << rpath_file << "'\n";
-            if (realpath(fullpath.c_str(), fullpath_buffer))
-                fullpath = fullpath_buffer;
+
+            char buffer[PATH_MAX];
+            if (realpath(fullpath.c_str(), buffer))
+                fullpath = buffer;
         }
         else if (Settings::verboseOutput())
         {
@@ -540,6 +542,7 @@ void initSearchPaths()
     char* dyldLibPath = getenv("DYLD_LIBRARY_PATH");
     if (dyldLibPath != nullptr)
         searchPaths = dyldLibPath;
+
     dyldLibPath = getenv("DYLD_FALLBACK_FRAMEWORK_PATH");
     if (dyldLibPath != nullptr)
     {
@@ -547,6 +550,7 @@ void initSearchPaths()
             searchPaths += ":";
         searchPaths += dyldLibPath;
     }
+
     dyldLibPath = getenv("DYLD_FALLBACK_LIBRARY_PATH");
     if (dyldLibPath != nullptr)
     {
@@ -554,6 +558,7 @@ void initSearchPaths()
             searchPaths += ":";
         searchPaths += dyldLibPath;
     }
+
     if (!searchPaths.empty())
     {
         stringstream ss(searchPaths);
