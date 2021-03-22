@@ -1,12 +1,51 @@
 #!/usr/bin/env bash
 set -e # exit if something fails
 
-IS_DEBUG=0
+declare -i IS_DEBUG=0
 readonly _DEPOT_TOOLS_COMMIT=master
 readonly _WEBRTC_VERSION=89
 readonly _BRANCH_NUMBER=4389
 readonly ARGS_RELEASE='use_rtti=true is_debug=false is_official_build=true libcxx_abi_unstable=false chrome_pgo_phase=0 rtc_use_h264=true ffmpeg_branding="Chrome" is_chrome_branded=false'
 readonly ARGS_DEBUG='use_rtti=true is_debug=true libcxx_abi_unstable=false rtc_use_h264=true ffmpeg_branding="Chrome"'
+
+readonly OBSAGENTS_ROOT="${OBSAGENTS_ROOT:-$(pwd)}"
+cd ../../..
+readonly OBS_ROOT="${OBS_ROOT:-$(pwd)}"
+cd ..
+readonly DEV_DIR="${DEV_DIR:-$(pwd)}"
+
+if [ -z ${DEPOT_TOOLS_COMMIT+x} ]; then DEPOT_TOOLS_COMMIT=${_DEPOT_TOOLS_COMMIT}; fi
+if [ -z ${WEBRTC_VERSION+x} ]; then WEBRTC_VERSION=${_WEBRTC_VERSION}; fi
+if [ -z ${BRANCH_NUMBER+x} ]; then BRANCH_NUMBER=${_BRANCH_NUMBER}; fi
+if [ "${BUILD_TYPE}" = "Debug" ]; then IS_DEBUG=1; fi
+if [ -z ${WEBRTC_ARGS+x} ]; then
+  if [ ${IS_DEBUG} -eq 1 ]; then WEBRTC_ARGS="${ARGS_DEBUG}"; else WEBRTC_ARGS="${ARGS_RELEASE}"; fi
+fi
+if [ ${WEBRTC_VERSION} -lt 73 ]; then WEBRTC_BRANCH=${WEBRTC_VERSION}; else WEBRTC_BRANCH=m${WEBRTC_VERSION}; fi
+if [ ${WEBRTC_VERSION} -gt 79 ]; then WEBRTC_BRANCH=${BRANCH_NUMBER}; fi
+if [ "$1" = "clean" ]; then install_depot_tools; else find_depot_tools; fi
+if [ -z ${WEBRTC_ROOT_DIR+x} ]; then
+  if [ -n "${WEBRTC}" ]; then export WEBRTC_ROOT_DIR="${WEBRTC}"; else export WEBRTC_ROOT_DIR="${DEV_DIR}/webrtc"; fi
+fi
+
+declare start
+declare end
+declare -i start_ts
+declare -i end_ts
+declare -i runtime
+declare -i hours
+declare -i minutes
+declare -i seconds
+
+init() {
+  start=$(date '+%Y-%m-%d %H:%M:%S')
+  start_ts=$(date +%s)
+  echo "${start}"
+  echo
+  echo "WebRTC: building m${WEBRTC_VERSION}"
+  echo "WebRTC: root: ${WEBRTC_ROOT_DIR}"
+  echo "WebRTC: args: ${WEBRTC_ARGS}"
+}
 
 checkout_depot_tools_commit() {
   if [ "${DEPOT_TOOLS_COMMIT}" != "master" ]; then
@@ -78,33 +117,7 @@ write_webrtc_version() {
 }
 
 main() {
-  export OBSAGENTS_ROOT="${OBSAGENTS_ROOT:-$(pwd)}"
-  cd ../../..
-  export OBS_ROOT="${OBS_ROOT:-$(pwd)}"
-  cd ..
-  export DEV_DIR="${DEV_DIR:-$(pwd)}"
 
-  if [ -z ${DEPOT_TOOLS_COMMIT+x} ]; then DEPOT_TOOLS_COMMIT=${_DEPOT_TOOLS_COMMIT}; fi
-  if [ -z ${WEBRTC_VERSION+x} ]; then WEBRTC_VERSION=${_WEBRTC_VERSION}; fi
-  if [ -z ${BRANCH_NUMBER+x} ]; then BRANCH_NUMBER=${_BRANCH_NUMBER}; fi
-  if [ "${BUILD_TYPE}" = "Debug" ]; then IS_DEBUG=1; fi
-  if [ -z ${WEBRTC_ARGS+x} ]; then
-    if [ ${IS_DEBUG} -eq 1 ]; then WEBRTC_ARGS="${ARGS_DEBUG}"; else WEBRTC_ARGS="${ARGS_RELEASE}"; fi
-  fi
-  if [ ${WEBRTC_VERSION} -lt 73 ]; then WEBRTC_BRANCH=${WEBRTC_VERSION}; else WEBRTC_BRANCH=m${WEBRTC_VERSION}; fi
-  if [ ${WEBRTC_VERSION} -gt 79 ]; then WEBRTC_BRANCH=${BRANCH_NUMBER}; fi
-  if [ "$1" = "clean" ]; then install_depot_tools; else find_depot_tools; fi
-  if [ -z ${WEBRTC_ROOT_DIR+x} ]; then
-    if [ -n "${WEBRTC}" ]; then export WEBRTC_ROOT_DIR="${WEBRTC}"; else export WEBRTC_ROOT_DIR="${DEV_DIR}/webrtc"; fi
-  fi
-
-  start=$(date '+%Y-%m-%d %H:%M:%S')
-  start_ts=$(date +%s)
-  echo "${start}"
-  echo
-  echo "WebRTC: building m${WEBRTC_VERSION}"
-  echo "WebRTC: root: ${WEBRTC_ROOT_DIR}"
-  echo "WebRTC: args: ${WEBRTC_ARGS}"
 
   rm -rf "${WEBRTC_ROOT_DIR}"
   mkdir -p "${WEBRTC_ROOT_DIR}/lib"

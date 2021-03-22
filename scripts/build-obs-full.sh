@@ -17,10 +17,12 @@ readonly _CEF_VERSION=88.2.9+g5c8711a+chromium-88.0.4324.182
 # readonly MACOS_CEF_BUILD_VERSION=4183
 readonly MACOS_CEF_BUILD_VERSION=4324
 
+readonly PREV_CFLAGS="${CFLAGS}"
+readonly PREV_CXXFLAGS="${CXXFLAGS}"
 readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
   -Wno-typedef-redefinition -Wno-enum-conversion -Wno-deprecated \
   -Wno-unused-private-field -Wno-sign-compare -Wno-vla"
-readonly _CXXFLAGS="${CFLAGS} -Wno-pragmas -Wno-deprecated-declarations"
+readonly _CXXFLAGS="-Wno-pragmas -Wno-deprecated-declarations"
 
 declare -xr MACOSX_DEPLOYMENT_TARGET=10.13
 #declare -xr CMAKE_OSX_ARCHITECTURES=arm64;x86_64
@@ -46,7 +48,7 @@ declare -xr QT_VERSION=${QT_VERSION:-${_QT_VERSION}}
 declare -xr VLC_VERSION=${VLC_VERSION:-${_VLC_VERSION}}
 declare -xr CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
 declare -xr CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
-declare -r LEGACY_BROWSER="$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "ON" || echo "OFF")"
+readonly LEGACY_BROWSER="$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "ON" || echo "OFF")"
 REFRESH_OBS=${REFRESH_OBS:=${_RESET_OBS}}
 declare -xr RESET_OBS=${RESET_OBS:=${REFRESH_OBS}}
 
@@ -57,44 +59,45 @@ readonly _OBS_ROOT="$(pwd)"
 declare -xr OBS_ROOT=${_OBS_ROOT}
 cd .. || exit
 readonly _DEV_DIR="$(pwd)"
-declare -xr DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
+readonly DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
 
-declare -xr BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
-declare -xr BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
+readonly BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
+readonly BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
 
+readonly HOMEBREW_PREFIX="$(test "$(arch)" = "arm64" && echo "/opt/homebrew" || echo "/usr/local")"
 declare -xr OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
 declare -xr DepsPath="${OBSDEPS}"
 declare -xr X264_INCLUDE_DIR="${X264_INCLUDE_DIR:-${OBSDEPS}/include}"
 # declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-/usr/include}"
-# declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-/usr/local/opt/curl-openssl/include}"
+# declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-${HOMEBREW_PREFIX}/opt/curl-openssl/include}"
 declare -xr VLCPath="${DEV_DIR}/vlc-${VLC_VERSION}"
-# declare -xr QTDIR="${QTDIR:-/usr/local/opt/qt}"
+# declare -xr QTDIR="${QTDIR:-${HOMEBREW_PREFIX}/opt/qt}"
 declare -xr QTDIR="${QTDIR:-${OBSDEPS}}"
 readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64}"
 declare -xr CEF_ROOT="${CEF_ROOT:-${_CEF_DIR}}"
 declare -xr CEF_ROOT_DIR="${CEF_ROOT_DIR:-${CEF_ROOT}}"
-declare -xr BOOST_ROOT="${BOOST_ROOT:-/usr/local/opt/boost}"
-readonly _OPENSSL_DIR="${OPENSSL:-/usr/local/opt/openssl@1.1}"
+declare -xr BOOST_ROOT="${BOOST_ROOT:-${HOMEBREW_PREFIX}/opt/boost}"
+readonly _OPENSSL_DIR="${OPENSSL:-${HOMEBREW_PREFIX}/opt/openssl@1.1}"
 declare -xr OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
 readonly _WEBRTC_DIR="${WEBRTC:-${DEV_DIR}/webrtc}"
 declare -xr WEBRTC_ROOT_DIR="${WEBRTC_ROOT_DIR:-${_WEBRTC_DIR}}"
 
-export CFLAGS="-I${OBSDEPS}/include"
-export LDFLAGS="-L${OBSDEPS}/lib"
-export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig"
+readonly red=$'\e[1;31m'
+readonly grn=$'\e[1;32m'
+readonly blu=$'\e[1;34m'
+readonly mag=$'\e[1;35m'
+readonly cyn=$'\e[1;36m'
+readonly bold=$'\e[1m'
+readonly reset=$'\e[0m'
 
 declare start
 declare end
 declare -i start_ts
 declare -i end_ts
-
-red=$'\e[1;31m'
-# grn=$'\e[1;32m'
-# blu=$'\e[1;34m'
-# mag=$'\e[1;35m'
-# cyn=$'\e[1;36m'
-bold=$'\e[1m'
-reset=$'\e[0m'
+declare -i runtime
+declare -i hours
+declare -i minutes
+declare -i seconds
 
 exists() {
   command -v "$1" >/dev/null 2>&1
@@ -140,8 +143,6 @@ print_start() {
 }
 
 install_ninja() {
-  export CFLAGS="${CFLAGS} ${_CFLAGS}"
-  export CXXFLAGS=${_CXXFLAGS}
   if ! exists ninja; then
     echo "Ninja not found in PATH"
     if [ -f "${NINJA_PATH}" ]; then
@@ -213,8 +214,11 @@ cmake_generate() {
   fi
   mkdir -p "${BUILD_DIR}"
   cd "${BUILD_DIR}"
-  export CFLAGS="${CFLAGS} ${_CFLAGS}"
-  export CXXFLAGS=${_CXXFLAGS}
+  export CFLAGS="${CFLAGS} -I${OBSDEPS}/include"
+  export LDFLAGS="${LDFLAGS} -L${OBSDEPS}/lib"
+  export PKG_CONFIG_PATH="${OBSDEPS}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+  # export CFLAGS="${CFLAGS} ${_CFLAGS}"
+  # export CXXFLAGS="${CXXFLAGS} ${_CXXFLAGS}"
   cmake \
     -G "${GENERATOR}" \
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
@@ -249,10 +253,10 @@ cmake_generate() {
 print_summary() {
   end=$(date '+%Y-%m-%d %H:%M:%S')
   end_ts=$(date +%s)
-  declare -i runtime=$((end_ts-start_ts))
-  declare -i hours=$((runtime / 3600))
-  declare -i minutes=$(( (runtime % 3600) / 60 ))
-  declare -i seconds=$(( (runtime % 3600) % 60 ))
+  runtime=$((end_ts-start_ts))
+  hours=$((runtime / 3600))
+  minutes=$(( (runtime % 3600) / 60 ))
+  seconds=$(( (runtime % 3600) % 60 ))
 
   echo
   echo   "BUILD_TYPE:      ${BUILD_TYPE}"
@@ -260,6 +264,8 @@ print_summary() {
   echo   "Start:           ${start}"
   echo   "End:             ${end}"
   printf "Elapsed:         (hh:mm:ss) %02d:%02d:%02d\n" ${hours} ${minutes} ${seconds}
+  export CFLAGS="${PREV_CFLAGS}"
+  export CXXFLAGS="${PREV_CXXFLAGS}"
 }
 
 main() {

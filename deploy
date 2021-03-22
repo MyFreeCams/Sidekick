@@ -1,18 +1,17 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e # exit if something fails
 
-export BUILD_DIR="${BUILD_DIR:-xAuto}"
-export SIDEKICK_ROOT=$(pwd)
+BUILD_DIR="${BUILD_DIR:-xAuto}"
+SIDEKICK_ROOT="$(pwd)"
 cd ../../.. || exit
-readonly _OBS_ROOT=$(pwd)
-export OBS_ROOT=${_OBS_ROOT}
-export BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
+OBS_ROOT="$(pwd)"
+BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
 cd "${SIDEKICK_ROOT}"
 
-readonly cyn=$'\e[1;36m'
-readonly bold=$'\e[1m'
-readonly reset=$'\e[0m'
+cyn=$'\e[1;36m'
+bold=$'\e[1m'
+reset=$'\e[0m'
 
 main() {
   sudo echo "${cyn}Deploying Sidekick${reset}"
