@@ -8,10 +8,12 @@ readonly _QT_VERSION='5.15.2'
 # readonly _CEF_VERSION='75.1.14+gc81164e+chromium-75.0.3770.100'
 # readonly _CEF_VERSION='85.0.0+g93b66a0+chromium-85.0.4183.121'
 # readonly _CEF_VERSION='85.3.12+g3e94ebf+chromium-85.0.4183.121'
-readonly _CEF_VERSION='88.2.9+g5c8711a+chromium-88.0.4324.182'
+# readonly _CEF_VERSION='88.2.9+g5c8711a+chromium-88.0.4324.182'
+readonly _CEF_VERSION='89.0.12+g2b76680+chromium-89.0.4389.90'
 # readonly MACOS_CEF_BUILD_VERSION='3770'
 # readonly MACOS_CEF_BUILD_VERSION='4183'
-readonly MACOS_CEF_BUILD_VERSION='4324'
+# readonly MACOS_CEF_BUILD_VERSION='4324'
+readonly MACOS_CEF_BUILD_VERSION='4389'
 readonly _BOOST_VERSION='1.69.0'
 readonly _OPENSSL_VERSION='1.1.1'
 
@@ -42,9 +44,9 @@ export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-${_MACOSX_DEPLOYMEN
 declare -xr CMAKE_BUILD_TYPE="${BUILD_TYPE:-Release}"
 declare -xr BUILD_TYPE="${CMAKE_BUILD_TYPE}"
 
-readonly MACOS_VERSION="$(/usr/bin/sw_vers -productVersion)"
-readonly MACOS_MAJOR="$(/bin/echo ${MACOS_VERSION} | /usr/bin/cut -d '.' -f 1)"
-readonly MACOS_MINOR="$(/bin/echo ${MACOS_VERSION} | /usr/bin/cut -d '.' -f 2)"
+readonly MACOS_VERSION=$(/usr/bin/sw_vers -productVersion)
+readonly MACOS_MAJOR=$(/bin/echo ${MACOS_VERSION} | /usr/bin/cut -d '.' -f 1)
+readonly MACOS_MINOR=$(/bin/echo ${MACOS_VERSION} | /usr/bin/cut -d '.' -f 2)
 # export CFLAGS="${CFLAGS} -arch=arm64 -arch=x86_64"
 
 declare -xr VLC_VERSION="${VLC_VERSION:-${_VLC_VERSION}}"
@@ -68,9 +70,11 @@ cd ../../..
 readonly OBS_ROOT="$(pwd)"
 cd ..
 readonly DEV_DIR="${DEV_DIR:-$(pwd)}"
-readonly WORK_DIR="${DEV_DIR}/obsdeps-src"
+readonly WORK_DIR="${WORK_DIR:-${DEV_DIR}/obsdeps-src}"
 readonly OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
-readonly HOMEBREW_PREFIX="$(test "$(arch)" = "arm64" && echo "/opt/homebrew" || echo "/usr/local")"
+readonly HOST_ARCH=$(uname -m)
+readonly HOMEBREW_PREFIX=$(test "${HOST_ARCH}" = "arm64" && echo "/opt/homebrew" || echo "/usr/local")
+readonly CEF_ARCH=$(test "${HOST_ARCH}" = "arm64" && echo "arm64" || echo "x64")
 
 readonly red=$'\e[1;31m'
 readonly grn=$'\e[1;32m'
@@ -107,7 +111,7 @@ init() {
   /bin/echo "OBS_ROOT:          ${OBS_ROOT}"
   /bin/echo "DEV_DIR:           ${DEV_DIR}"
   start="$(/bin/date '+%Y-%m-%d %H:%M:%S')"
-  start_ts="$(/bin/date +%s)"
+  start_ts=$(/bin/date +%s)
   hr "Building dependencies in: ${DEV_DIR}" "Started ${start}"
 }
 
@@ -121,8 +125,6 @@ create_work_dirs() {
 }
 
 delete_work_dirs() {
-  # /bin/rm -rf "${OBSDEPS}/lib/pkgconfig"
-  # /bin/rm -rf "${OBSDEPS}/share"
   /bin/rm -rf "${WORK_DIR}"
 }
 
@@ -132,22 +134,34 @@ delete_work_dirs() {
 #   # /bin/rm "${OBSDEPS}"/lib/*.a
 # }
 
-check_curl() {
+# check_curl() {
+#   if [ "${MACOS_MAJOR}" -lt "11" ] && [ "${MACOS_MINOR}" -lt "15" ]; then
+#     if [ ! -d "${HOMEBREW_PREFIX}/opt/curl" ]; then
+#         hr "Installing Homebrew curl..."
+#         brew install curl
+#     fi
+#     export CURLCMD="${HOMEBREW_PREFIX}/opt/curl/bin/curl"
+#   else
+#     export CURLCMD='curl'
+#   fi
+# }
+
+curl() {
   if [ "${MACOS_MAJOR}" -lt "11" ] && [ "${MACOS_MINOR}" -lt "15" ]; then
     if [ ! -d "${HOMEBREW_PREFIX}/opt/curl" ]; then
         hr "Installing Homebrew curl..."
         brew install curl
     fi
-    export CURLCMD="${HOMEBREW_PREFIX}/opt/curl/bin/curl"
+    ${HOMEBREW_PREFIX}/opt/curl/bin/curl "$@"
   else
-    export CURLCMD="curl"
+    curl "$@"
   fi
 }
 
 uninstall_homebrew() {
   hr "Uninstalling homebrew"
   set +e
-  ${CURLCMD} -o uninstall.sh -fsSL https://raw.githubusercontent.com/Homebrew/install/master/uninstall.sh
+  curl -o uninstall.sh -fsSL https://raw.githubusercontent.com/Homebrew/install/master/uninstall.sh
   /bin/bash uninstall.sh --force
   /bin/rm uninstall.sh
   set -e
@@ -158,7 +172,7 @@ install_homebrew() {
   if [ "$1" = "clean" ]; then uninstall_homebrew; fi
   if ! exists brew; then
     hr "Installing Homebrew"
-    /bin/bash -c "$(${CURLCMD} -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
   fi
   set -e
 }
@@ -231,7 +245,7 @@ build_png() {
     hr "Building png ${PNG_VERSION} (FFmpeg dependency"
     cd "${WORK_DIR}"
     /bin/rm -rf libpng-${PNG_VERSION}
-    ${CURLCMD} -fkRL -O "https://downloads.sourceforge.net/project/libpng/libpng16/${PNG_VERSION}/libpng-${PNG_VERSION}.tar.xz"
+    curl -fkRL -O "https://downloads.sourceforge.net/project/libpng/libpng16/${PNG_VERSION}/libpng-${PNG_VERSION}.tar.xz"
     /usr/bin/tar -xf libpng-${PNG_VERSION}.tar.xz
     cd ./libpng-${PNG_VERSION}
     /bin/mkdir -p build
@@ -249,7 +263,7 @@ build_opus() {
     hr "Building opus ${OPUS_VERSION} (FFmpeg dependency)"
     cd "${WORK_DIR}"
     /bin/rm -rf opus-${OPUS_VERSION}
-    ${CURLCMD} -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-${OPUS_VERSION}.tar.gz"
+    curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-${OPUS_VERSION}.tar.gz"
     /usr/bin/tar -xf opus-${OPUS_VERSION}.tar.gz
     cd ./opus-${OPUS_VERSION}
     /bin/mkdir -p build
@@ -267,7 +281,7 @@ build_ogg() {
     hr "Building ogg ${OGG_VERSION} (FFmpeg dependency)"
     cd "${WORK_DIR}"
     /bin/rm -rf libogg-${OGG_VERSION}
-    ${CURLCMD} -fkRL -O "https://gitlab.xiph.org/xiph/ogg/-/archive/${OGG_VERSION}/ogg-${OGG_VERSION}.tar.gz"
+    curl -fkRL -O "https://gitlab.xiph.org/xiph/ogg/-/archive/${OGG_VERSION}/ogg-${OGG_VERSION}.tar.gz"
     /usr/bin/tar -xf ogg-${OGG_VERSION}.tar.gz
     cd ./ogg-${OGG_VERSION}
     /bin/mkdir -p build
@@ -286,7 +300,7 @@ build_vorbis() {
     hr "Building vorbis ${VORBIS_VERSION} (FFmpeg dependency)"
     cd "${WORK_DIR}"
     /bin/rm -rf libvorbis-${VORBIS_VERSION}
-    ${CURLCMD} -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${VORBIS_VERSION}.tar.gz"
+    curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${VORBIS_VERSION}.tar.gz"
     /usr/bin/tar -xf libvorbis-${VORBIS_VERSION}.tar.gz
     cd ./libvorbis-${VORBIS_VERSION}
     /bin/mkdir -p build
@@ -307,7 +321,7 @@ build_vpx() {
     if [ "$(arch)" = "arm64" ]; then
       /usr/bin/git clone "https://chromium.googlesource.com/webm/libvpx" libvpx-v${VPX_VERSION}
     else
-      ${CURLCMD} -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
+      curl -fkRL -O "https://chromium.googlesource.com/webm/libvpx/+archive/v${VPX_VERSION}.tar.gz"
       /bin/mkdir -p ./libvpx-v${VPX_VERSION}
       /usr/bin/tar -xf v${VPX_VERSION}.tar.gz -C ./libvpx-v${VPX_VERSION}
     fi
@@ -369,7 +383,7 @@ build_theora() {
     hr "Building libtheora ${THEORA_VERSION} (FFmpeg dependency)"
     cd "${WORK_DIR}"
     /bin/rm -rf libtheora-${THEORA_VERSION}
-    ${CURLCMD} -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.bz2"
+    curl -fkRL -O "https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.bz2"
     /usr/bin/tar -xf libtheora-${THEORA_VERSION}.tar.bz2
     cd ./libtheora-${THEORA_VERSION}
     /bin/mkdir -p build
@@ -387,7 +401,7 @@ build_lame() {
     hr "Building liblame ${LAME_VERSION} (FFmpeg dependency)"
     cd "${WORK_DIR}"
     /bin/rm -rf lame-${LAME_VERSION}
-    ${CURLCMD} -fkRL -O "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz"
+    curl -fkRL -O "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz"
     /usr/bin/tar -xf lame-${LAME_VERSION}.tar.gz
     cd ./lame-${LAME_VERSION}
     /usr/bin/sed -i '' '/lame_init_old/d' ./include/libmp3lame.sym
@@ -452,7 +466,7 @@ build_mbedtls() {
     hr "Building mbedtls ${MBEDTLS_VERSION} (FFmpeg dependency)"
     cd "${WORK_DIR}"
     /bin/rm -rf mbedtls-mbedtls-${MBEDTLS_VERSION}
-    ${CURLCMD} -fkRL -O "https://github.com/ARMmbed/mbedtls/archive/mbedtls-${MBEDTLS_VERSION}.tar.gz"
+    curl -fkRL -O "https://github.com/ARMmbed/mbedtls/archive/mbedtls-${MBEDTLS_VERSION}.tar.gz"
     /usr/bin/tar -xf mbedtls-${MBEDTLS_VERSION}.tar.gz
     cd ./mbedtls-mbedtls-${MBEDTLS_VERSION}
     /usr/bin/sed -i '' 's/\/\/\#define MBEDTLS_THREADING_PTHREAD/\#define MBEDTLS_THREADING_PTHREAD/g' include/mbedtls/config.h
@@ -479,7 +493,7 @@ build_srt() {
     hr "Building srt ${SRT_VERSION} (FFmpeg dependency)"
     cd "${WORK_DIR}"
     /bin/rm -rf srt-${SRT_VERSION}
-    ${CURLCMD} -fkRL -O "https://github.com/Haivision/srt/archive/v${SRT_VERSION}.tar.gz"
+    curl -fkRL -O "https://github.com/Haivision/srt/archive/v${SRT_VERSION}.tar.gz"
     /usr/bin/tar -xf v${SRT_VERSION}.tar.gz
     cd ./srt-${SRT_VERSION}
     /bin/mkdir -p build
@@ -505,7 +519,7 @@ build_ffmpeg() {
     export CFLAGS="-I${OBSDEPS}/include"
     cd "${WORK_DIR}"
     /bin/rm -rf FFmpeg-n${FFMPEG_VERSION}
-    ${CURLCMD} -fkRL -O "https://github.com/FFmpeg/FFmpeg/archive/n${FFMPEG_VERSION}.zip"
+    curl -fkRL -O "https://github.com/FFmpeg/FFmpeg/archive/n${FFMPEG_VERSION}.zip"
     unzip ./n${FFMPEG_VERSION}.zip
     cd ./FFmpeg-n${FFMPEG_VERSION}
     /bin/mkdir -p build
@@ -545,12 +559,12 @@ build_swig() {
     if [ -d "$(brew --cellar)/swig" ]; then brew unlink swig; fi
     cd "${WORK_DIR}"
     /bin/rm -rf swig-${SWIG_VERSION}
-    ${CURLCMD} -fkRL -O "https://downloads.sourceforge.net/project/swig/swig/swig-${SWIG_VERSION}/swig-${SWIG_VERSION}.tar.gz"
+    curl -fkRL -O "https://downloads.sourceforge.net/project/swig/swig/swig-${SWIG_VERSION}/swig-${SWIG_VERSION}.tar.gz"
     /usr/bin/tar -xf swig-${SWIG_VERSION}.tar.gz
     cd ./swig-${SWIG_VERSION}
     /bin/mkdir -p build
     cd ./build
-    ${CURLCMD} -fkRL -O "https://ftp.pcre.org/pub/pcre/pcre-${PCRE_VERSION}.tar.bz2"
+    curl -fkRL -O "https://ftp.pcre.org/pub/pcre/pcre-${PCRE_VERSION}.tar.bz2"
     ../Tools/pcre-build.sh
     ../configure --prefix="${OBSDEPS}" --disable-dependency-tracking
     /usr/bin/make -j ${NUM_CORES}
@@ -568,7 +582,7 @@ build_speexdsp() {
     hr "Building speexdsp ${SPEEXDSP_VERSION}"
     cd "${WORK_DIR}"
     /bin/rm -rf speexdsp-SpeexDSP-${SPEEXDSP_VERSION}
-    ${CURLCMD} -fkRL -O "https://github.com/xiph/speexdsp/archive/SpeexDSP-${SPEEXDSP_VERSION}.tar.gz"
+    curl -fkRL -O "https://github.com/xiph/speexdsp/archive/SpeexDSP-${SPEEXDSP_VERSION}.tar.gz"
     /usr/bin/tar -xf speexDSP-${SPEEXDSP_VERSION}.tar.gz
     cd ./speexdsp-SpeexDSP-${SPEEXDSP_VERSION}
     /usr/bin/sed -i '' "s/CFLAGS='-O3'/CFLAGS='-O3  -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}'/" ./SpeexDSP.spec.in
@@ -590,7 +604,7 @@ build_jansson() {
     hr "Building jansson ${JANSSON_VERSION}"
     cd "${WORK_DIR}"
     /bin/rm -rf jansson-${JANSSON_VERSION}
-    ${CURLCMD} -fkRL -O "https://digip.org/jansson/releases/jansson-${JANSSON_VERSION}.tar.gz"
+    curl -fkRL -O "https://digip.org/jansson/releases/jansson-${JANSSON_VERSION}.tar.gz"
     /usr/bin/tar -xf jansson-${JANSSON_VERSION}.tar.gz
     cd ./jansson-${JANSSON_VERSION}
     /bin/mkdir -p build
@@ -610,7 +624,7 @@ build_freetype() {
     hr "Building freetype ${FREETYPE_VERSION}"
     cd "${WORK_DIR}"
     /bin/rm -rf freetype-${FREETYPE_VERSION}
-    ${CURLCMD} -fkRL -O "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE_VERSION}/freetype-${FREETYPE_VERSION}.tar.xz"
+    curl -fkRL -O "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE_VERSION}/freetype-${FREETYPE_VERSION}.tar.xz"
     /usr/bin/tar -xf freetype-${FREETYPE_VERSION}.tar.xz
     cd ./freetype-${FREETYPE_VERSION}
     /bin/mkdir -p build
@@ -649,7 +663,7 @@ build_luajit() {
     hr "Building LuaJIT ${LUAJIT_VERSION}"
     cd "${WORK_DIR}"
     /bin/rm -rf LuaJIT-${LUAJIT_VERSION}
-    # ${CURLCMD} -fkRL -O "https://luajit.org/download/LuaJIT-${LUAJIT_VERSION}.tar.gz"
+    # curl -fkRL -O "https://luajit.org/download/LuaJIT-${LUAJIT_VERSION}.tar.gz"
     # /usr/bin/tar -xf LuaJIT-${LUAJIT_VERSION}.tar.gz
     /bin/mkdir -p LuaJIT-${LUAJIT_VERSION}
     /usr/bin/git clone https://github.com/LuaJIT/LuaJIT.git LuaJIT-${LUAJIT_VERSION}
@@ -709,7 +723,7 @@ install_qt() {
   # Qt 5.15.2
   if [ "${QT_VERSION%.*}" = "5.15" ]; then
     if [ -f "${HOMEBREW_PREFIX}/opt/qt/lib/cmake/Qt5/Qt5Config.cmake" ]; then
-      local QTV="$(brew ls --versions qt | grep -Eo '\d+\.\d+\.\d+')"
+      local -r QTV="$(brew ls --versions qt | grep -Eo '\d+\.\d+\.\d+')"
       if [ "${QTV}" = "${QT_VERSION}" ]; then
         hr "Qt ${QT_VERSION} already installed"
       else
@@ -723,8 +737,8 @@ install_qt() {
       if [ -d "${HOMEBREW_PREFIX}/opt/libtiff" ]; then brew unlink libtiff; fi
       if [ -d "${HOMEBREW_PREFIX}/opt/webp" ]; then brew unlink webp; fi
       /bin/rm -rf qt-everywhere-src*
-      local QT_VER_MAJOR="$(/bin/echo "${QT_VERSION}" | /usr/bin/cut -d "." -f -2)"
-      ${CURLCMD} -fkRLO "https://download.qt.io/official_releases/qt/${QT_VER_MAJOR}/${QT_VERSION}/single/qt-everywhere-src-${QT_VERSION}.tar.xz"
+      local -r QT_VER_MAJOR="$(/bin/echo "${QT_VERSION}" | /usr/bin/cut -d "." -f -2)"
+      curl -fkRLO "https://download.qt.io/official_releases/qt/${QT_VER_MAJOR}/${QT_VERSION}/single/qt-everywhere-src-${QT_VERSION}.tar.xz"
       /usr/bin/tar -xf qt-everywhere-src-${QT_VERSION}.tar.xz
       /bin/rm qt-everywhere-src-${QT_VERSION}.tar.xz
       cd qt-everywhere-src-${QT_VERSION}
@@ -741,14 +755,14 @@ install_qt() {
         -skip qtscript -skip qtscxml -skip qtsensors -skip qtserialbus -skip qtspeech \
         -skip qttranslations -skip qtwayland -skip qtwebchannel -skip qtwebengine -skip qtwebglplugin \
         -skip qtwebsockets -skip qtwebview -skip qtwinextras -skip qtx11extras -skip qtxmlpatterns \
-        QMAKE_APPLE_DEVICE_ARCHS="$(uname -m)"
+        QMAKE_APPLE_DEVICE_ARCHS="${HOST_ARCH}"
       /usr/bin/make -j ${NUM_CORES}
       /usr/bin/make install
       if [ -d "${HOMEBREW_PREFIX}/opt/zstd" ] && [ ! -f "${HOMEBREW_PREFIX}/lib/libzstd.dylib" ]; then brew link zstd; fi
       if [ -d "${HOMEBREW_PREFIX}/opt/libtiff" ] && [ ! -f "${HOMEBREW_PREFIX}/lib/libtiff.dylib" ]; then brew link libtiff; fi
       if [ -d "${HOMEBREW_PREFIX}/opt/webp" ] && [ ! -f "${HOMEBREW_PREFIX}/lib/libwebp.dylib" ]; then brew link webp; fi
     else
-      local QTV="$(grep -Eo '\d+\.\d+\.\d+' "${OBSDEPS}/lib/cmake/Qt5/Qt5ConfigVersion.cmake")"
+      local -r QTV="$(grep -Eo '\d+\.\d+\.\d+' "${OBSDEPS}/lib/cmake/Qt5/Qt5ConfigVersion.cmake")"
       if [ "${QTV}" = "${QT_VERSION}" ]; then
         hr "Qt ${QT_VERSION} already installed"
       else
@@ -761,15 +775,17 @@ install_qt() {
 }
 
 install_boost() {
-  if [ -f "${HOMEBREW_PREFIX}/opt/boost/include/boost/version.hpp" ]; then
-    hr "Boost ${BOOST_VERSION} already installed"
-  else
-    hr "Installing Boost ${BOOST_VERSION}"
-    set +e
-    brew install "${SIDEKICK_ROOT}/scripts/homebrew/boost.rb"
-    brew pin boost
-    set -e
-  fi
+  install_or_upgrade boost
+  # if [ -f "${HOMEBREW_PREFIX}/opt/boost/include/boost/version.hpp" ]; then
+  #   hr "Boost ${BOOST_VERSION} already installed"
+  # else
+  #   hr "Installing Boost ${BOOST_VERSION}"
+  #   set +e
+  #   #brew install "${SIDEKICK_ROOT}/scripts/homebrew/boost.rb"
+  #   #brew pin boost
+  #   brew install boost
+  #   set -e
+  # fi
 }
 
 install_packages_app() {
@@ -778,7 +794,7 @@ install_packages_app() {
   else
     hr "Installing Packages app"
     cd "${DEV_DIR}"
-    ${CURLCMD} -fkRL -O http://s.sudre.free.fr/Software/files/Packages.dmg
+    curl -fkRL -O http://s.sudre.free.fr/Software/files/Packages.dmg
     hdiutil attach Packages.dmg
     sudo installer -pkg /Volumes/Packages*/packages/Packages.pkg -target /
     hdiutil detach /Volumes/Packages*
@@ -793,26 +809,26 @@ install_vlc() {
     hr "Installing VLC ${VLC_VERSION}"
     cd "${DEV_DIR}"
     /bin/rm -rf "vlc-${VLC_VERSION}"
-    ${CURLCMD} -fkRL -O "https://downloads.videolan.org/vlc/${VLC_VERSION}/vlc-${VLC_VERSION}.tar.xz"
+    curl -fkRL -O "https://downloads.videolan.org/vlc/${VLC_VERSION}/vlc-${VLC_VERSION}.tar.xz"
     /usr/bin/tar -xf "vlc-${VLC_VERSION}.tar.xz"
     /bin/rm "${DEV_DIR}/vlc-${VLC_VERSION}.tar.xz"
   fi
 }
 
 install_cef() {
-  if [ -f "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64/cmake/FindCEF.cmake" ]; then
+  if [ -f "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${CEF_ARCH}/cmake/FindCEF.cmake" ]; then
     hr "CEF ${CEF_VERSION} already installed"
   else
-    hr "Installing CEF ${CEF_VERSION}"
+    hr "Installing CEF ${CEF_VERSION} (${CEF_ARCH})"
     cd "${DEV_DIR}"
-    /bin/rm -rf "cef_binary_${CEF_BUILD_VERSION}_macosx64"
+    /bin/rm -rf "cef_binary_${CEF_BUILD_VERSION}_macos${CEF_ARCH}"
     if [ "${BUILD_TYPE}" = "Debug" ]; then CEF_BUILD_TYPE=Debug; else CEF_BUILD_TYPE=Release; fi
     local CEF_VERSION_ENCODED="${CEF_BUILD_VERSION//+/%2B}"
-    ${CURLCMD} -fkRL -o "cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2" \
-      "https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION_ENCODED}_macosx64.tar.bz2"
-    /usr/bin/tar -xf "cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
-    /bin/rm "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64.tar.bz2"
-    cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64"
+    curl -fkRL -o "cef_binary_${CEF_BUILD_VERSION}_macos${CEF_ARCH}.tar.bz2" \
+      "https://cef-builds.spotifycdn.com/cef_binary_${CEF_VERSION_ENCODED}_macos${CEF_ARCH}.tar.bz2"
+    /usr/bin/tar -xf "cef_binary_${CEF_BUILD_VERSION}_macos${CEF_ARCH}.tar.bz2"
+    /bin/rm "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${CEF_ARCH}.tar.bz2"
+    cd "${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${CEF_ARCH}"
     # /bin/rm -rf tests
     # /usr/bin/sed -i '' 's/\"10.9\"/\"10.11\"/' ./cmake/cef_variables.cmake
     local old_ver='10.10'
@@ -875,7 +891,8 @@ build_ffmpeg_deps() {
 
 main() {
   init
-  check_curl
+  # check_curl
+  curl
   install_homebrew "$@"
   install_build_tools
   create_work_dirs

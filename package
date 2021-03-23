@@ -6,10 +6,12 @@ readonly _BUILD_DIR=xAuto
 readonly _BUILD_TYPE=RelWithDebInfo
 # readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
 # readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
-readonly _CEF_VERSION=88.2.9+g5c8711a+chromium-88.0.4324.182
+# readonly _CEF_VERSION=88.2.9+g5c8711a+chromium-88.0.4324.182
+readonly _CEF_VERSION=89.0.12+g2b76680+chromium-89.0.4389.90
 # readonly MACOS_CEF_BUILD_VERSION=3770
 # readonly MACOS_CEF_BUILD_VERSION=4183
-readonly MACOS_CEF_BUILD_VERSION=4324
+# readonly MACOS_CEF_BUILD_VERSION=4324
+readonly MACOS_CEF_BUILD_VERSION=4389
 
 readonly _SIDEKICK_ROOT=$(pwd)
 export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
@@ -92,15 +94,15 @@ hr() {
 fetch_git_tags() {
   cd "${SIDEKICK_ROOT}"
   git fetch --tags
-  readonly _GIT_TAG=$(git describe --abbrev=0 --always)
+  local -r _GIT_TAG=$(git describe --abbrev=0 --always)
   export GIT_TAG=${_GIT_TAG}
-  readonly _GIT_COMMIT=$(git log -1 --format=%h)
+  local -r _GIT_COMMIT=$(git log -1 --format=%h)
   export GIT_COMMIT=${_GIT_COMMIT}
-  readonly _GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  local -r _GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
   export GIT_BRANCH=${_GIT_BRANCH}
-  readonly _FILE_DATE=$(date +%Y-%m-%d.%H-%M-%S)
+  local -r _FILE_DATE=$(date +%Y-%m-%d.%H-%M-%S)
   export FILE_DATE=${_FILE_DATE}
-  readonly _YYYYMMDD=$(date +%Y%m%d)
+  local -r _YYYYMMDD=$(date +%Y%m%d)
   export YYYYMMDD=${_YYYYMMDD}
   export PACKAGE_LOCATION="${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
   if [ "${BUILD_TYPE}" = "RelWithDebInfo" ] || [ "${BUILD_TYPE}" = "Release" ]; then
@@ -165,21 +167,26 @@ print_env() {
   fi
 }
 
-build_obs_bundle() {
-  cd "${BUILD_ROOT}"
-  rm -rf ./OBS.app 2> /dev/null
+create_directories() {
   mkdir -p ./OBS.app/Contents/MacOS
   mkdir -p ./OBS.app/Contents/Plugins
   mkdir -p ./OBS.app/Contents/Resources
   mkdir -p ./OBS.app/Contents/Frameworks
+}
 
+copy_files() {
   cp -R ./rundir/${BUILD_TYPE}/bin/ ./OBS.app/Contents/MacOS/
   cp -R ./rundir/${BUILD_TYPE}/data ./OBS.app/Contents/Resources/
   cp -R ./rundir/${BUILD_TYPE}/obs-plugins/ ./OBS.app/Contents/Plugins/
-
-  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
   cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/AppIcon.icns" ./OBS.app/Contents/Resources/
+  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" ./OBS.app/Contents/Resources/
+  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
+  plutil -insert CFBundleVersion -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
+  plutil -insert CFBundleShortVersionString -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
+  plutil -insert SUPublicDSAKeyFile -string OBSPublicDSAKey.pem ./OBS.app/Contents/Info.plist
+}
 
+move_scripting_plugins() {
   # Scripting plugins (obslua & obspython) are required to be placed in same directory as binary
   if [ -d ./OBS.app/Contents/Resources/data/obs-scripting ]; then
     for f in ./OBS.app/Contents/Resources/data/obs-scripting/*; do
@@ -187,32 +194,31 @@ build_obs_bundle() {
     done
     rm -rf ./OBS.app/Contents/Resources/data/obs-scripting
   fi
+}
 
+bundle_dylibs_fix_install_names() {
+  local -a plugins
   for f in ./OBS.app/Contents/Plugins/*.*; do
-    PLUGINS+="-x ./OBS.app/Contents/Plugins/${f##*/} "
+    plugins+=( ./OBS.app/Contents/Plugins/${f##*/} )
   done
-
-  for f in ./OBS.app/Contents/MacOS/*.so; do
-    PLUGINS+="-x ./OBS.app/Contents/MacOS/${f##*/} "
+  for f in ./OBS.app/Contents/MacOS/*; do
+    plugins+=( ./OBS.app/Contents/MacOS/${f##*/} )
   done
-
-  if [ -f ./OBS.app/Contents/MacOS/obs-ffmpeg-mux ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/obs-ffmpeg-mux "; fi
-  # if [ -f ./OBS.app/Contents/MacOS/libobs-opengl.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/libobs-opengl.so "; fi
-  # if [ -f ./OBS.app/Contents/MacOS/obslua.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/obslua.so "; fi
-  # if [ -f ./OBS.app/Contents/MacOS/_obspython.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/_obspython.so "; fi
+  if [ ${MACOS_CEF_BUILD_VERSION} -le 3770 ]; then
+    plugins+=( ./OBS.app/Contents/PlugIns/obs-browser-page )
+  fi
 
   # Fix install names & rpaths on dependencies and bundle dylibs
-  ${DYLIBBUNDLER} -f -q -cd -of -a ./OBS.app ${PLUGINS}
+  ${DYLIBBUNDLER} -f -q -cd -of -a ./OBS.app "${plugins[@]/#/-x }"
 
-  set +e
   find ./OBS.app -name .gitignore -exec rm -f \{\} \;
   rm -f ./OBS.app/Contents/MacOS/libobs.0.dylib 2> /dev/null
   rm -f ./OBS.app/Contents/MacOS/libobs-frontend-api.dylib 2> /dev/null
   rm -f ./OBS.app/Contents/MacOS/libobs-scripting.dylib 2> /dev/null
-  # rm -f ./OBS.app/Contents/MacOS/*.dylib 2> /dev/null
-  # rm -f ./OBS.app/Contents/MacOS/libobsglad.0.dylib 2> /dev/null
   mv -f ./OBS.app/Contents/MacOS/libobs-opengl.so ./OBS.app/Contents/Frameworks
+}
 
+copy_qtnetwork() {
   # Copy QtNetwork for plugin support
   cp -pfR "${QTDIR}/lib/QtNetwork.framework" ./OBS.app/Contents/Frameworks/
   chmod -R +w ./OBS.app/Contents/Frameworks/QtNetwork.framework
@@ -226,22 +232,100 @@ build_obs_bundle() {
     "${QTDIR}/lib/QtCore.framework/Versions/5/QtCore" \
     @executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore \
     ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
+}
 
-  # Copy Chromium Embedded Framework (CEF) to app bundle
+copy_cef() {
   if [ -f ./rundir/${BUILD_TYPE}/obs-plugins/obs-browser.so ]; then
     hr "Copying Chromium Embedded Framework (CEF)"
     cp -pfR "${CEF_ROOT}/${CEF_BUILD_TYPE}/Chromium Embedded Framework.framework" ./OBS.app/Contents/Frameworks/
   fi
-
-  cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" ./OBS.app/Contents/Resources/
-  plutil -insert CFBundleVersion -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
-  plutil -insert CFBundleShortVersionString -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
-  plutil -insert SUPublicDSAKeyFile -string OBSPublicDSAKey.pem ./OBS.app/Contents/Info.plist
 }
+
+build_obs_bundle() {
+  create_directories
+  copy_files
+  move_scripting_plugins
+  bundle_dylibs_fix_install_names
+  copy_qtnetwork
+  copy_cef
+}
+
+# build_obs_bundle() {
+#   cd "${BUILD_ROOT}"
+#   rm -rf ./OBS.app 2> /dev/null
+#   mkdir -p ./OBS.app/Contents/MacOS
+#   mkdir -p ./OBS.app/Contents/Plugins
+#   mkdir -p ./OBS.app/Contents/Resources
+#   mkdir -p ./OBS.app/Contents/Frameworks
+
+#   cp -R ./rundir/${BUILD_TYPE}/bin/ ./OBS.app/Contents/MacOS/
+#   cp -R ./rundir/${BUILD_TYPE}/data ./OBS.app/Contents/Resources/
+#   cp -R ./rundir/${BUILD_TYPE}/obs-plugins/ ./OBS.app/Contents/Plugins/
+
+#   cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/Info.plist" ./OBS.app/Contents/
+#   cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/AppIcon.icns" ./OBS.app/Contents/Resources/
+
+#   # Scripting plugins (obslua & obspython) are required to be placed in same directory as binary
+#   if [ -d ./OBS.app/Contents/Resources/data/obs-scripting ]; then
+#     for f in ./OBS.app/Contents/Resources/data/obs-scripting/*; do
+#       mv "$f" ./OBS.app/Contents/MacOS/
+#     done
+#     rm -rf ./OBS.app/Contents/Resources/data/obs-scripting
+#   fi
+
+#   for f in ./OBS.app/Contents/Plugins/*.*; do
+#     PLUGINS+="-x ./OBS.app/Contents/Plugins/${f##*/} "
+#   done
+
+#   for f in ./OBS.app/Contents/MacOS/*.so; do
+#     PLUGINS+="-x ./OBS.app/Contents/MacOS/${f##*/} "
+#   done
+
+#   if [ -f ./OBS.app/Contents/MacOS/obs-ffmpeg-mux ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/obs-ffmpeg-mux "; fi
+#   # if [ -f ./OBS.app/Contents/MacOS/libobs-opengl.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/libobs-opengl.so "; fi
+#   # if [ -f ./OBS.app/Contents/MacOS/obslua.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/obslua.so "; fi
+#   # if [ -f ./OBS.app/Contents/MacOS/_obspython.so ]; then PLUGINS+="-x ./OBS.app/Contents/MacOS/_obspython.so "; fi
+
+#   # Fix install names & rpaths on dependencies and bundle dylibs
+#   ${DYLIBBUNDLER} -f -q -cd -of -a ./OBS.app ${PLUGINS}
+
+#   set +e
+#   find ./OBS.app -name .gitignore -exec rm -f \{\} \;
+#   rm -f ./OBS.app/Contents/MacOS/libobs.0.dylib 2> /dev/null
+#   rm -f ./OBS.app/Contents/MacOS/libobs-frontend-api.dylib 2> /dev/null
+#   rm -f ./OBS.app/Contents/MacOS/libobs-scripting.dylib 2> /dev/null
+#   # rm -f ./OBS.app/Contents/MacOS/*.dylib 2> /dev/null
+#   # rm -f ./OBS.app/Contents/MacOS/libobsglad.0.dylib 2> /dev/null
+#   mv -f ./OBS.app/Contents/MacOS/libobs-opengl.so ./OBS.app/Contents/Frameworks
+
+#   # Copy QtNetwork for plugin support
+#   cp -pfR "${QTDIR}/lib/QtNetwork.framework" ./OBS.app/Contents/Frameworks/
+#   chmod -R +w ./OBS.app/Contents/Frameworks/QtNetwork.framework
+#   chmod 644 ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Resources/Info.plist
+#   rm -rf ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Headers
+#   rm -rf ./OBS.app/Contents/Frameworks/QtNetwork.framework/Headers
+#   install_name_tool -id \
+#     @rpath/QtNetwork \
+#     ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
+#   install_name_tool -change \
+#     "${QTDIR}/lib/QtCore.framework/Versions/5/QtCore" \
+#     @executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore \
+#     ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
+
+#   # Copy Chromium Embedded Framework (CEF) to app bundle
+#   if [ -f ./rundir/${BUILD_TYPE}/obs-plugins/obs-browser.so ]; then
+#     hr "Copying Chromium Embedded Framework (CEF)"
+#     cp -pfR "${CEF_ROOT}/${CEF_BUILD_TYPE}/Chromium Embedded Framework.framework" ./OBS.app/Contents/Frameworks/
+#   fi
+
+#   cp -pf "${SIDEKICK_ROOT}/scripts/install/osx/OBSPublicDSAKey.pem" ./OBS.app/Contents/Resources/
+#   plutil -insert CFBundleVersion -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
+#   plutil -insert CFBundleShortVersionString -string "$GIT_TAG" ./OBS.app/Contents/Info.plist
+#   plutil -insert SUPublicDSAKeyFile -string OBSPublicDSAKey.pem ./OBS.app/Contents/Info.plist
+# }
 
 prepare_files_for_package() {
   cd "${BUILD_ROOT}"
-
   mkdir -p "${BUILD_ROOT}/MFCBroadcast/bin"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" "${BUILD_ROOT}/MFCBroadcast/bin/"
   cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
@@ -251,7 +335,6 @@ prepare_files_for_package() {
   if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" ]; then
     cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
   fi
-
   for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
     for g in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
       install_name_tool -change \
@@ -260,7 +343,6 @@ prepare_files_for_package() {
         "${BUILD_ROOT}/MFCBroadcast/bin/${g##*/}"
     done
   done
-
   if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg" ]; then
     rm -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
   fi
@@ -271,40 +353,43 @@ prepare_files_for_package() {
 
 # Example: codesign_app appNameNoExtension /full/path/to/containing/directory
 codesign_app() {
-    hr "Code Signing $1.app"
-    cd "$2"
-    if [ -d "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework" ]; then
-      local cef_path="./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework"
-      for f in "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework/Libraries/"*.dylib; do
-        echo "* code signing $f"
-        codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
-      done
-      echo "* code signing $cef_path"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "${cef_path}"
-    fi
-    for f in "./$1.app/Contents/Frameworks/"*Helper.app; do
+  hr "Code Signing $1.app"
+  cd "$2"
+  /usr/bin/xattr -crs "./$1.app"
+  if [ -d "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework" ]; then
+    local helpers="${OBS_ROOT}/CI/scripts/macos/helpers"
+    local frameworks="./$1.app/Contents/Frameworks"
+    local cef_path="${frameworks}/Chromium Embedded Framework.framework"
+    for f in "${cef_path}/Libraries/"*.dylib; do
       echo "* code signing $f"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "$f"
+      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
     done
-    for f in "./$1.app/Contents/Frameworks/"*Helper*GPU*.app; do
-      echo "* code signing $f"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
-    done
-    for f in "./$1.app/Contents/Frameworks/"*Helper*Plugin*.app; do
-      echo "* code signing $f"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
-    done
-    for f in "./$1.app/Contents/Frameworks/"*Helper*Renderer*.app; do
-      echo "* code signing $f"
-      codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/helpers/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
-    done
-    if [ -d "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin" ]; then
-      echo "* code signing $f"
-      codesign --force --options runtime --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"
-    fi
-    echo "* code signing $1.app"
-    codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
-    codesign -dvv "./$1.app"
+    echo "* code signing $cef_path"
+    codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "${cef_path}"
+  fi
+  for f in "${frameworks}/"*Helper.app; do
+    echo "* code signing $f"
+    codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "$f"
+  done
+  for f in "${frameworks}/"*Helper*GPU*.app; do
+    echo "* code signing $f"
+    codesign --force --options runtime --entitlements "${helpers}/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+  done
+  for f in "${frameworks}/"*Helper*Plugin*.app; do
+    echo "* code signing $f"
+    codesign --force --options runtime --entitlements "${helpers}/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+  done
+  for f in "${frameworks}/"*Helper*Renderer*.app; do
+    echo "* code signing $f"
+    codesign --force --options runtime --entitlements "${helpers}/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+  done
+  if [ -d "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin" ]; then
+    echo "* code signing $f"
+    codesign --force --options runtime --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"
+  fi
+  echo "* code signing $1.app"
+  codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
+  codesign -dvv "./$1.app"
 }
 
 codesign_apps() {
