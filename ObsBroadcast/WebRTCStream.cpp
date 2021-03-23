@@ -350,7 +350,6 @@ void WebRTCStream::ConfigureStreamParameters()
     obs_data_release(pAudioSettings);
 
     obs_encoder_t* pVideoEncoder = obs_output_get_video_encoder(m_pOutput);
-    auto pVideoOutputInfo = video_output_get_info(obs_get_video());
     double fps = video_output_get_frame_rate(obs_get_video());
     m_nFrameRate = std::min((int)round(fps), 30);
     obs_data_t* pVideoSettings = obs_encoder_get_settings(pVideoEncoder);

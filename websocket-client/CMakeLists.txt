@@ -48,82 +48,107 @@ endif()
 #------------------------------------------------------------------------
 # Asio C++ Library
 #
-message(STATUS "Fetching ASIO")
-FetchContent_Declare(asio
-	GIT_REPOSITORY	https://github.com/chriskohlhoff/asio
-	GIT_TAG			asio-1-18-1
-)
-FetchContent_GetProperties(asio)
-if(NOT asio_POPULATED)
-	FetchContent_Populate(asio)
+if(NOT DEFINED chriskohlhoff::asio)
+	message(STATUS "Fetching ASIO")
+	FetchContent_Declare(asio
+		GIT_REPOSITORY	https://github.com/chriskohlhoff/asio
+		GIT_TAG			asio-1-18-1
+	)
+	FetchContent_GetProperties(asio)
+	if(NOT asio_POPULATED)
+		FetchContent_Populate(asio)
+	endif()
+	if(asio_POPULATED)
+		message(STATUS "Fetching ASIO - success")
+		add_library(chriskohlhoff::asio INTERFACE IMPORTED)
+		target_include_directories(chriskohlhoff::asio INTERFACE ${asio_SOURCE_DIR}/asio/include)
+	else()
+		message(FATAL_ERROR "Fetching ASIO - error")
+	endif()
 endif()
-if(asio_POPULATED)
-	message(STATUS "Fetching ASIO - success")
-	add_library(chriskohlhoff::asio INTERFACE IMPORTED)
-	target_include_directories(chriskohlhoff::asio INTERFACE ${asio_SOURCE_DIR}/asio/include)
-else()
-	message(FATAL_ERROR "Fetching ASIO - error")
-endif()
+
+#------------------------------------------------------------------------
+# Boost
+#
+# if(NOT DEFINED Boost::headers)
+# 	set(Boost_USE_DEBUG_LIBS OFF)
+# 	set(Boost_USE_RELEASE_LIBS ON)
+# 	#set(Boost_USE_STATIC_LIBS ON)
+# 	set(Boost_USE_MULTITHREADED ON)
+# 	set(Boost_USE_DEBUG_RUNTIME OFF)
+# 	#set(BOOST_NO_EXCEPTIONS ON)
+# 	find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
+# 	PRINT(Boost)
+# endif()
 
 #------------------------------------------------------------------------
 # CURL
 #
-find_package(CURL REQUIRED)
-PRINT(CURL)
+if(NOT DEFINED CURL::libcurl)
+	find_package(CURL REQUIRED)
+	PRINT(CURL)
+endif()
 
 #------------------------------------------------------------------------
 # Nlohmann JSON (Modern JSON for C++)
 #
-FetchContent_Declare(nlohmannjson
-	URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
-	URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
-)
-FetchContent_GetProperties(nlohmannjson)
-if(NOT nlohmannjson_POPULATED)
-	message(STATUS "Fetching nlohmann json")
-	FetchContent_Populate(nlohmannjson)
-	if(nlohmannjson_POPULATED)
-		message(STATUS "Fetching nlohmann json - success")
-	else()
-		message(FATAL_ERROR "Fetching nlohmann json - error")
+if(NOT DEFINED nlohmann::json)
+	FetchContent_Declare(nlohmannjson
+		URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
+		URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
+	)
+	FetchContent_GetProperties(nlohmannjson)
+	if(NOT nlohmannjson_POPULATED)
+		message(STATUS "Fetching nlohmann json")
+		FetchContent_Populate(nlohmannjson)
+		if(nlohmannjson_POPULATED)
+			message(STATUS "Fetching nlohmann json - success")
+		else()
+			message(FATAL_ERROR "Fetching nlohmann json - error")
+		endif()
 	endif()
-endif()
-if(nlohmannjson_POPULATED)
-	if(NOT DEFINED nlohman::json)
-		add_library(nlohmann::json INTERFACE IMPORTED)
-		target_include_directories(nlohmann::json INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
+	if(nlohmannjson_POPULATED)
+		if(NOT DEFINED nlohman::json)
+			add_library(nlohmann::json INTERFACE IMPORTED)
+			target_include_directories(nlohmann::json INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
+		endif()
 	endif()
 endif()
 
 #------------------------------------------------------------------------
 # OpenSSL
 #
-find_package(OpenSSL 1.1 REQUIRED)
-if(NOT ${OPENSSL_FOUND})
-	message(FATAL_ERROR "OpenSSL not found")
+if(NOT DEFINED OPENSSL_LIBRARIES)
+	find_package(OpenSSL 1.1 REQUIRED)
+	if(NOT ${OPENSSL_FOUND})
+		message(FATAL_ERROR "OpenSSL not found")
+	endif()
+	PRINT(OPENSSL)
 endif()
-PRINT(OPENSSL)
 
 #------------------------------------------------------------------------
 # WebSocket++ (websocketpp)
 #
-message(STATUS "Fetching websocketpp")
-FetchContent_Declare(websocketpp
-	GIT_REPOSITORY 	https://github.com/zaphoyd/websocketpp
-	GIT_TAG 		0.8.2
-)
-FetchContent_GetProperties(websocketpp)
-if(NOT websocketpp_POPULATED)
-	FetchContent_Populate(websocketpp)
-endif()
-if(websocketpp_POPULATED)
-	message(STATUS "Fetching websocketpp - success")
-	add_library(zaphoyd::websocketpp INTERFACE IMPORTED)
-	target_include_directories(zaphoyd::websocketpp INTERFACE ${websocketpp_SOURCE_DIR})
-else()
-	message(FATAL_ERROR "Fetching websocketpp - error")
+if(NOT DEFINED zaphoyd::websocketpp)
+	message(STATUS "Fetching websocketpp")
+	FetchContent_Declare(websocketpp
+		GIT_REPOSITORY 	https://github.com/zaphoyd/websocketpp
+		GIT_TAG 		0.8.2
+	)
+	FetchContent_GetProperties(websocketpp)
+	if(NOT websocketpp_POPULATED)
+		FetchContent_Populate(websocketpp)
+	endif()
+	if(websocketpp_POPULATED)
+		message(STATUS "Fetching websocketpp - success")
+		add_library(zaphoyd::websocketpp INTERFACE IMPORTED)
+		target_include_directories(zaphoyd::websocketpp INTERFACE ${websocketpp_SOURCE_DIR})
+	else()
+		message(FATAL_ERROR "Fetching websocketpp - error")
+	endif()
 endif()
 
+# create library target
 add_library(${MyTarget} SHARED
 	${websocketclient_HEADERS}
 	${websocketclient_SOURCES}
@@ -134,11 +159,12 @@ MFCDefines(${MyTarget})
 target_compile_definitions(${MyTarget} PUBLIC WEBSOCKETCLIENT_EXPORTS)
 target_include_directories(${MyTarget} PRIVATE ${OPENSSL_INCLUDE_DIR})
 
-target_link_libraries(${MyTarget}
+target_link_libraries(${MyTarget} PRIVATE
 	libobs
 	MFClibfcs
 	MFCLibPlugins
 	${OPENSSL_LIBRARIES}
+	# Boost::headers
 	chriskohlhoff::asio
 	CURL::libcurl
 	nlohmann::json

@@ -81,7 +81,7 @@ set(Boost_USE_RELEASE_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_DEBUG_RUNTIME OFF)
 # set(BOOST_NO_EXCEPTIONS ON)
-find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
+# find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
 # if(APPLE)
 # 	find_package(Boost 1.69 COMPONENTS date_time thread-mt QUIET)
 # 	if(NOT Boost_FOUND)
@@ -90,13 +90,13 @@ find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
 # else()
 # 	find_package(Boost 1.69 COMPONENTS date_time thread REQUIRED)
 # endif()
-PRINT(Boost)
+# PRINT(Boost)
 
 #------------------------------------------------------------------------
 # CURL
 #
-find_package(CURL REQUIRED)
-PRINT(CURL)
+# find_package(CURL REQUIRED)
+# PRINT(CURL)
 
 #------------------------------------------------------------------------
 # Qt
@@ -106,8 +106,8 @@ if(QTDIR)
 	set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${Qt5_DIR}")
 	set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH}" "${QTDIR}")
 endif()
-find_package(Qt5 COMPONENTS Core Widgets Gui Svg REQUIRED)
-PRINT(Qt5)
+# find_package(Qt5 COMPONENTS Core Widgets Gui Svg REQUIRED)
+# PRINT(Qt5)
 
 #------------------------------------------------------------------------
 # Nlohmann JSON (Modern JSON for C++)

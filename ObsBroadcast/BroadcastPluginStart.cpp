@@ -335,6 +335,7 @@ bool obs_module_load(void)
 
     obs_register_output(&wowza_output_info);
     static SidekickTimer* s_pTimer = new SidekickTimer();
+    (void)s_pTimer;  // not using, silence compiler
 
     // Register event handler to catch streaming start/stop events
     obs_frontend_add_event_callback(onObsEvent, nullptr);
@@ -391,9 +392,11 @@ void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const 
 {
     static std::vector< std::string > s_vQueuedMsgs;
     static char szData[16384]{};
+#if SIDEKICK_CONSOLE
     QTextEdit* pConsole = nullptr;
     QTextDocument* pDoc = nullptr;
     QScrollBar* pScroll = nullptr;
+#endif
     va_list vaList;
 
     va_start(vaList, pszFmt);
@@ -859,7 +862,6 @@ void onObsProfileChange(obs_frontend_event eventType)
 
     bool isWebRTC = false, isRtmp = false, isCustom = false, isMfc = false; 
     std::string svcName, sOldProfile(g_ctx.profileName), sUser, streamUrl, sProt("unknown");
-    SidekickActiveState curState = g_ctx.activeState;
     static bool s_bFirstProfileLoad = true;
     size_t updatesSent = 0;
 

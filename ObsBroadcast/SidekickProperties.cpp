@@ -118,8 +118,8 @@ void Ui_SKProps::setupUi(QDialog* pDlg)
     int nBtnHeight  = ((BUTTONSZ_HEIGHT * m_nHeight) / DLGSZ_HEIGHT);
     int nCloseBtnX  = (nOffsetX + (nLinkOffsetW * 2) + 18) - nBtnWidth;
     int nCloseBtnY  = nOffsetY + ((OFFSET_Y_CLOSE_BTN * m_nHeight) / DLGSZ_HEIGHT);
-    int nHelpBtnX   = nOffsetX + 12;
-    int nHelpBtnY   = nCloseBtnY;
+    //int nHelpBtnX   = nOffsetX + 12;
+    //int nHelpBtnY   = nCloseBtnY;
 
     int nLabelY = nOffsetY + ((m_nHeight * OFFSET_Y_LINK_LBL) / DLGSZ_HEIGHT);
 

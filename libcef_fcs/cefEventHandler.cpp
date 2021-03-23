@@ -15,11 +15,8 @@
  */
 #include "cefEventHandler.h"
 
-#include "include/cef_client.h"
-#include "include/internal/cef_types.h"
-#include "libfcs/Log.h"
-#include "libfcs/MfcJson.h"
-#include "libPlugins/IPCShared.h"
+#include <sstream>
+#include <string>
 
 // cef include files
 #include "include/base/cef_bind.h"
@@ -35,7 +32,13 @@ namespace {
 cefEventHandler* g_pEvent = NULL;
 }
 #else
-// #include <list>
+#include <list>
+#include "include/cef_client.h"
+#include "include/internal/cef_types.h"
+#include "libfcs/Log.h"
+#include "libfcs/MfcJson.h"
+#include "libPlugins/IPCShared.h"
+
 cefEventHandler* cefEventHandler::sm_pThis = NULL;
 extern MFC_Shared_Mem::CMessageManager g_LocalRenderMemManager;
 #endif

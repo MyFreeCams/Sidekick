@@ -16,7 +16,7 @@ set(SRC_LIBFCS
 	FcMsg.h
 	fcs.h
 	fcslib_string.h
-	# fcslib_util.h
+	fcslib_util.h
 	fcs_b64.h
 	fcs_b64.cpp
 	FcUserIds.h
@@ -24,8 +24,8 @@ set(SRC_LIBFCS
 	ILog.h
 	jsmin.h
 	jsmin.cpp
-	# json_ConvertUTF.h
-	# json_ConvertUTF.cpp
+	json_ConvertUTF.h
+	json_ConvertUTF.cpp
 	JSON_parser.h
 	JSON_parser.cpp
 	Log.h
@@ -62,7 +62,7 @@ endif()
 if(APPLE)
 	list(REMOVE_ITEM CMAKE_CXX_FLAGS -fno-exceptions -fno-rtti -Werror -funwind-tables -fno-asynchronous-unwind-tables)
 	# Turn on RTTI.
-	target_compile_options(${MyTarget} PUBLIC -fexceptions -frtti -Wno-unused-variable -Wno-unused-parameter -Wno-error)
+	target_compile_options(${MyTarget} PRIVATE -fexceptions -frtti -Wno-unused-variable -Wno-unused-parameter -Wno-error)
 elseif(WIN32)
 	# Turn on RTTI. Disable warnings as errors.
 	target_compile_options(${MyTarget} PUBLIC /GR /WX-)

@@ -168,6 +168,8 @@ print_env() {
 }
 
 create_directories() {
+  cd "${BUILD_ROOT}"
+  rm -rf ./OBS.app
   mkdir -p ./OBS.app/Contents/MacOS
   mkdir -p ./OBS.app/Contents/Plugins
   mkdir -p ./OBS.app/Contents/Resources
@@ -175,6 +177,7 @@ create_directories() {
 }
 
 copy_files() {
+  cd "${BUILD_ROOT}"
   cp -R ./rundir/${BUILD_TYPE}/bin/ ./OBS.app/Contents/MacOS/
   cp -R ./rundir/${BUILD_TYPE}/data ./OBS.app/Contents/Resources/
   cp -R ./rundir/${BUILD_TYPE}/obs-plugins/ ./OBS.app/Contents/Plugins/
@@ -187,6 +190,7 @@ copy_files() {
 }
 
 move_scripting_plugins() {
+  cd "${BUILD_ROOT}"
   # Scripting plugins (obslua & obspython) are required to be placed in same directory as binary
   if [ -d ./OBS.app/Contents/Resources/data/obs-scripting ]; then
     for f in ./OBS.app/Contents/Resources/data/obs-scripting/*; do
@@ -197,19 +201,24 @@ move_scripting_plugins() {
 }
 
 bundle_dylibs_fix_install_names() {
+  cd "${BUILD_ROOT}"
   local -a plugins
   for f in ./OBS.app/Contents/Plugins/*.*; do
-    plugins+=( ./OBS.app/Contents/Plugins/${f##*/} )
+    plugins+=("./OBS.app/Contents/Plugins/${f##*/}")
   done
-  for f in ./OBS.app/Contents/MacOS/*; do
-    plugins+=( ./OBS.app/Contents/MacOS/${f##*/} )
+  plugins+=("./OBS.app/Contents/MacOS/obs-ffmpeg-mux")
+  for f in ./OBS.app/Contents/MacOS/*.so; do
+    plugins+=("./OBS.app/Contents/MacOS/${f##*/}")
+  done
+  for f in ./OBS.app/Contents/MacOS/*.dylib; do
+    plugins+=("./OBS.app/Contents/MacOS/${f##*/}")
   done
   if [ ${MACOS_CEF_BUILD_VERSION} -le 3770 ]; then
-    plugins+=( ./OBS.app/Contents/PlugIns/obs-browser-page )
+    plugins+=("./OBS.app/Contents/Plugins/obs-browser-page")
   fi
 
   # Fix install names & rpaths on dependencies and bundle dylibs
-  ${DYLIBBUNDLER} -f -q -cd -of -a ./OBS.app "${plugins[@]/#/-x }"
+  ${DYLIBBUNDLER} -f -q -cd -of -a ./OBS.app $(echo "${plugins[@]/#/-x }")
 
   find ./OBS.app -name .gitignore -exec rm -f \{\} \;
   rm -f ./OBS.app/Contents/MacOS/libobs.0.dylib 2> /dev/null
@@ -219,6 +228,7 @@ bundle_dylibs_fix_install_names() {
 }
 
 copy_qtnetwork() {
+  cd "${BUILD_ROOT}"
   # Copy QtNetwork for plugin support
   cp -pfR "${QTDIR}/lib/QtNetwork.framework" ./OBS.app/Contents/Frameworks/
   chmod -R +w ./OBS.app/Contents/Frameworks/QtNetwork.framework
@@ -235,52 +245,44 @@ copy_qtnetwork() {
 }
 
 copy_cef() {
+  cd "${BUILD_ROOT}"
   if [ -f ./rundir/${BUILD_TYPE}/obs-plugins/obs-browser.so ]; then
     hr "Copying Chromium Embedded Framework (CEF)"
     cp -pfR "${CEF_ROOT}/${CEF_BUILD_TYPE}/Chromium Embedded Framework.framework" ./OBS.app/Contents/Frameworks/
   fi
 }
 
-build_obs_bundle() {
-  create_directories
-  copy_files
-  move_scripting_plugins
-  bundle_dylibs_fix_install_names
-  copy_qtnetwork
-  copy_cef
-}
-
 prepare_files_for_package() {
   cd "${BUILD_ROOT}"
-  mkdir -p "${BUILD_ROOT}/MFCBroadcast/bin"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so" "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libx264"* "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libssl"* "${BUILD_ROOT}/MFCBroadcast/bin/"
-  cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libcrypto"* "${BUILD_ROOT}/MFCBroadcast/bin/"
-  if [ -f "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" ]; then
-    cp -pf "${BUILD_ROOT}/OBS-Sidekick.app/Contents/Frameworks/libipc.dylib" "${BUILD_ROOT}/MFCBroadcast/bin/"
+  mkdir -p ./MFCBroadcast/bin
+  cp -pf ./OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so ./MFCBroadcast/bin/
+  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib ./MFCBroadcast/bin/
+  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libx264* ./MFCBroadcast/bin/
+  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libssl* ./MFCBroadcast/bin/
+  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libcrypto* ./MFCBroadcast/bin/
+  if [ -f ./OBS-Sidekick.app/Contents/Frameworks/libipc.dylib ]; then
+    cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libipc.dylib ./MFCBroadcast/bin/
   fi
-  for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
-    for g in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
+  for f in ./MFCBroadcast/bin/*; do
+    for g in ./MFCBroadcast/bin/*; do
       install_name_tool -change \
-        "@executable_path/../Frameworks/${f##*/}" \
-        "@loader_path/${f##*/}" \
-        "${BUILD_ROOT}/MFCBroadcast/bin/${g##*/}"
+        @executable_path/../Frameworks/${f##*/} \
+        @loader_path/${f##*/} \
+        ./MFCBroadcast/bin/${g##*/}
     done
   done
-  if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg" ]; then
-    rm -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${YYYYMMDD}.pkg"
+  if [ -f ./MFC-Sidekick-Setup-${YYYYMMDD}.pkg ]; then
+    rm -f ./MFC-Sidekick-Setup-${YYYYMMDD}.pkg
   fi
-  if [ -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg" ]; then
-    rm -f "${BUILD_ROOT}/MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg"
+  if [ -f ./MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg ]; then
+    rm -f ./MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg
   fi
 }
 
 # Example: codesign_app appNameNoExtension /full/path/to/containing/directory
 codesign_app() {
   hr "Code Signing $1.app"
-  cd "$2"
+  pushd "$2"
   /usr/bin/xattr -crs "./$1.app"
   if [ -d "./$1.app/Contents/Frameworks/Chromium Embedded Framework.framework" ]; then
     local helpers="${OBS_ROOT}/CI/scripts/macos/helpers"
@@ -316,16 +318,18 @@ codesign_app() {
   echo "* code signing $1.app"
   codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
   codesign -dvv "./$1.app"
+  popd
 }
 
 codesign_apps() {
   if [ -z "${NO_CODESIGN}" ]; then
+    cd "${BUILD_ROOT}"
     codesign_app MFCCefLogin "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/MFCCefLogin"
     # codesign_app OBS "${BUILD_ROOT}"
     # codesign_app OBS-Sidekick "${BUILD_ROOT}"
 
     hr "Code Signing MFC Broadcast Plugin"
-    for f in "${BUILD_ROOT}/MFCBroadcast/bin/"*; do
+    for f in ./MFCBroadcast/bin/*; do
       echo "* code signing $f"
       codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
     done
@@ -333,6 +337,7 @@ codesign_apps() {
 }
 
 generate_package() {
+  cd "${BUILD_ROOT}"
   hr "Generating Installation Package"
   packagesbuild "${BUILD_ROOT}/sidekick.pkgproj"
 }
@@ -357,7 +362,7 @@ notarize_package() {
       if xcnotary precheck "${BUILD_ROOT}/Sidekick.pkg"; then
         echo "Notarization precheck - success"
         if [ -n "${ASC_PROVIDER_SHORTNAME}" ]; then
-          ASC_PROVIDER_SHORTNAME=$(xcrun altool --list-providers -p "@keychain:AC_PASSWORD" 2>/dev/null | grep -Eoe '[a-zA-Z0-9]+\s+[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+-[a-f0-9]+' | grep -Eoe '^[a-zA-Z0-9]+')
+          ASC_PROVIDER_SHORTNAME=$(xcrun altool --list-providers -p "@keychain:AC_PASSWORD" 2>/dev/null | grep -Eoe '[\w]+\s+[a-f\d]+-[a-f\d]+-[a-f\d]+-[a-f\d]+-[a-f\d]+' | grep -Eoe '^[\w]+')
         fi
         hr "Notarizing Package"
         xcnotary notarize "${BUILD_ROOT}/Sidekick.pkg" --developer-account "${NOTARIZATION_USERNAME}" --developer-password-keychain-item "AC_PASSWORD" --provider "${ASC_PROVIDER_SHORTNAME}"
@@ -373,18 +378,19 @@ notarize_package() {
 
 cleanup() {
   set +e
-  cp -pf "${BUILD_ROOT}/Sidekick.pkg" "${PACKAGE_WITH_COMMIT_LOCATION}"
-  cp -pf "${BUILD_ROOT}/Sidekick.pkg" "${PACKAGE_LOCATION}"
+  cd "${BUILD_ROOT}"
+  cp -pf ./Sidekick.pkg "${PACKAGE_WITH_COMMIT_LOCATION}"
+  cp -pf ./Sidekick.pkg "${PACKAGE_LOCATION}"
   # Restore previously selected Xcode
   local DEFAULT_XCODE=$(xcode-select -p)
   if [ "${DEFAULT_XCODE}" != "${CURRENT_XCODE}" ]; then
     echo "Restoring previous Xcode"
     sudo xcode-select --switch "${CURRENT_XCODE}"
   fi
-  # rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"
-  rm -f "${BUILD_ROOT}/OBS.app/Contents/Plugins/MFCBroadcast.so" 2> /dev/null
-  rm -f "${BUILD_ROOT}/OBS.app/Contents/Plugins/websocketclient.dylib" 2> /dev/null
-  rm -f "${BUILD_ROOT}/OBS.app/Contents/Frameworks/websocketclient.dylib" 2> /dev/null
+  # rm -rf ./OBS-Sidekick.app
+  rm -f ./OBS.app/Contents/Plugins/MFCBroadcast.so 2> /dev/null
+  rm -f ./OBS.app/Contents/Plugins/websocketclient.dylib 2> /dev/null
+  rm -f ./OBS.app/Contents/Frameworks/websocketclient.dylib 2> /dev/null
 }
 
 print_summary() {
@@ -432,8 +438,6 @@ main() {
   bundle_dylibs_fix_install_names
   copy_qtnetwork
   copy_cef
-
-  # cd "${BUILD_ROOT}"
 
   # Create copy to use for Sidekick Installer packaging
   rm -rf "${BUILD_ROOT}/OBS-Sidekick.app"

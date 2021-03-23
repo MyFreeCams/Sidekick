@@ -94,35 +94,62 @@ endif()
 #
 
 #------------------------------------------------------------------------
+# Boost
+#
+if(NOT DEFINED Boost::headers)
+	set(Boost_USE_DEBUG_LIBS OFF)
+	set(Boost_USE_RELEASE_LIBS ON)
+	#set(Boost_USE_STATIC_LIBS ON)
+	set(Boost_USE_MULTITHREADED ON)
+	set(Boost_USE_DEBUG_RUNTIME OFF)
+	#set(BOOST_NO_EXCEPTIONS ON)
+	find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
+	PRINT(Boost)
+endif()
+
+#------------------------------------------------------------------------
+# CURL
+#
+if(NOT DEFINED CURL::libcurl)
+	find_package(CURL REQUIRED)
+	PRINT(CURL)
+endif()
+
+#------------------------------------------------------------------------
 # Nlohmann JSON (Modern JSON for C++)
 #
-FetchContent_Declare(nlohmannjson
-	URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
-	URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
-)
-FetchContent_GetProperties(nlohmannjson)
-if(NOT nlohmannjson_POPULATED)
-	message(STATUS "Fetching nlohmann json")
-	FetchContent_Populate(nlohmannjson)
-	if(nlohmannjson_POPULATED)
-		message(STATUS "Fetching nlohmann json - success")
-	else()
-		message(FATAL_ERROR "Fetching nlohmann json - error")
+if(NOT DEFINED nlohmann::json)
+	FetchContent_Declare(nlohmannjson
+		URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
+		URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
+	)
+	FetchContent_GetProperties(nlohmannjson)
+	if(NOT nlohmannjson_POPULATED)
+		message(STATUS "Fetching nlohmann json")
+		FetchContent_Populate(nlohmannjson)
+		if(nlohmannjson_POPULATED)
+			message(STATUS "Fetching nlohmann json - success")
+		else()
+			message(FATAL_ERROR "Fetching nlohmann json - error")
+		endif()
 	endif()
-endif()
-if(nlohmannjson_POPULATED)
-	if(NOT DEFINED nlohman::json)
-		add_library(nlohmann::json INTERFACE IMPORTED)
-		target_include_directories(nlohmann::json INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
+	if(nlohmannjson_POPULATED)
+		if(NOT DEFINED nlohman::json)
+			add_library(nlohmann::json INTERFACE IMPORTED)
+			target_include_directories(nlohmann::json INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
+		endif()
 	endif()
 endif()
 
 #------------------------------------------------------------------------
 # Qt
 #
-find_package(Qt5 COMPONENTS Core Widgets Gui Svg REQUIRED)
-PRINT(Qt5)
+if(NOT DEFINED Qt5::Widgets)
+	find_package(Qt5 COMPONENTS Core Widgets Gui Svg REQUIRED)
+	PRINT(Qt5)
+endif()
 
+# create library target
 add_library(${MyTarget} STATIC ${SRC_OBS})
 MFCDefines(${MyTarget})
 target_compile_options(${MyTarget} PUBLIC ${MyTarget_OPTIONS})
@@ -131,8 +158,8 @@ target_compile_options(${MyTarget} PUBLIC ${MyTarget_OPTIONS})
 target_link_libraries(${MyTarget} PUBLIC
 	obs-frontend-api
 	Boost::headers
-	Boost::date_time
-	Boost::system
+	# Boost::date_time
+	# Boost::system
 	# Boost::thread
 	# Boost::disable_autolinking
 	CURL::libcurl

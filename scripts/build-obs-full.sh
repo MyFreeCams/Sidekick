@@ -256,6 +256,7 @@ cmake_generate() {
     -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
     -DCMAKE_BUILD_PARALLEL_LEVEL=${CMAKE_BUILD_PARALLEL_LEVEL} \
     -DCMAKE_OSX_ARCHITECTURES="${CMAKE_OSX_ARCHITECTURES}" \
+    -DPROJECT_ARCH="${CMAKE_OSX_ARCHITECTURES}" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" \
     -DDepsPath="${OBSDEPS}" \
     -DSWIGDIR="${OBSDEPS}" \
@@ -309,7 +310,7 @@ main() {
 
   # build_dependencies
   reset_obs
-  apply_patches
+  # apply_patches
   edit_cmakelists
   cmake_generate
   cmake --build . --config ${BUILD_TYPE}

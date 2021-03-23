@@ -276,10 +276,6 @@ public:
     {
         std::vector<std::string> sdpLines;
         Split(sdp, "\r\n", sdpLines);
-        int aLine = FindLine(sdpLines, "m=audio ");
-        int vLine = FindLine(sdpLines, "m=video ");
-        int audioStart = aLine > 0 ? aLine : 0;
-        int audioEnd = vLine > audioStart ? vLine : sdpLines.size();
         std::string aBitrate = std::to_string(bitrateKbps);
         std::string maxAvgBitrate = std::to_string(bitrateKbps * 1000);
         std::smatch match;
