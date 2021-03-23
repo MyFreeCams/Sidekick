@@ -147,7 +147,8 @@ exit /b
   set QT_SHA1=d42b99beef90da3947c0d544f9a1a58d29192aaa
   set CEF_MINIMAL_SHA1=c9dcb8edfa159cc0dc14202315af97d5166fffe8
   set CEF_SHA1=adf10a3d049760ff8a19590019ba157a089128c2
-  set BOOST_SHA1=15208c018da1e552da7c07b9b1e5cf855bebe8b0
+  REM set BOOST_SHA1=15208c018da1e552da7c07b9b1e5cf855bebe8b0
+  set BOOST_SHA1=9c913b8dc6a341b51c68da85ef2eeaa840ba0155
   set OPENSSL_SHA1=0ab77ad572ff97699d61bb47d191d6f8271beb68
   set VIRTUALCAM_GUID=A3FCE0F5-3493-419F-958A-ABA1250EC20B
   goto :eof
@@ -171,7 +172,8 @@ exit /b
   set VLC_URL=https://download.videolan.org/pub/videolan/vlc/%VLC_VERSION%/vlc-%VLC_VERSION%.tar.xz
   set QT_URL=https://cdn-fastly.obsproject.com/downloads/Qt_%QT_VERSION%.7z
   set CEF_URL=https://cef-builds.spotifycdn.com/cef_binary_%CEF_VERSION_URL_ENCODED%_windows64.tar.bz2
-  set BOOST_URL=https://downloads.sourceforge.net/project/boost/boost-binaries/%BOOST_VERSION%/boost_%BOOST_VERSION:.=_%-msvc-14.1-64.exe
+  REM set BOOST_URL=https://downloads.sourceforge.net/project/boost/boost-binaries/%BOOST_VERSION%/boost_%BOOST_VERSION:.=_%-msvc-14.1-64.exe
+  set BOOST_URL=https://downloads.sourceforge.net/project/boost/boost-binaries/%BOOST_VERSION%/boost_%BOOST_VERSION:.=_%-msvc-14.2-64.exe
   set OPENSSL_URL=https://slproweb.com%OPENSSL_URL_PATH%
   goto :eof
 

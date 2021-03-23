@@ -66,7 +66,10 @@ readonly DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
 readonly BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
 readonly BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
 
-readonly HOMEBREW_PREFIX="$(test "$(arch)" = "arm64" && echo "/opt/homebrew" || echo "/usr/local")"
+readonly HOST_ARCH=$(uname -m)
+readonly HOMEBREW_PREFIX=$(test "${HOST_ARCH}" = "arm64" && echo "/opt/homebrew" || echo "/usr/local")
+readonly CEF_ARCH=$(test "${HOST_ARCH}" = "arm64" && echo "arm64" || echo "x64")
+
 declare -xr OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
 declare -xr DepsPath="${OBSDEPS}"
 declare -xr X264_INCLUDE_DIR="${X264_INCLUDE_DIR:-${OBSDEPS}/include}"
@@ -75,7 +78,7 @@ declare -xr X264_INCLUDE_DIR="${X264_INCLUDE_DIR:-${OBSDEPS}/include}"
 declare -xr VLCPath="${DEV_DIR}/vlc-${VLC_VERSION}"
 # declare -xr QTDIR="${QTDIR:-${HOMEBREW_PREFIX}/opt/qt}"
 declare -xr QTDIR="${QTDIR:-${OBSDEPS}}"
-readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64}"
+readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${CEF_ARCH}}"
 declare -xr CEF_ROOT="${CEF_ROOT:-${_CEF_DIR}}"
 declare -xr CEF_ROOT_DIR="${CEF_ROOT_DIR:-${CEF_ROOT}}"
 declare -xr BOOST_ROOT="${BOOST_ROOT:-${HOMEBREW_PREFIX}/opt/boost}"
