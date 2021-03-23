@@ -76,9 +76,9 @@ target_link_libraries(${MyTarget} PRIVATE
 	MFCLibPlugins
 	${OPENSSL_LIBRARIES}
 	CURL::libcurl
-	nlohmannjson
-	asio
-	websocketpp
+	nlohmann::json
+	chriskohlhoff::asio
+	zaphoyd::websocketpp
 )
 
 if(APPLE)

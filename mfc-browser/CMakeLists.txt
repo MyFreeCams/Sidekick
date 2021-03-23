@@ -45,8 +45,8 @@ if(APPLE)
 endif()
 
 # add boost
-include_directories(${Boost_INCLUDE_DIR})
-link_directories(${Boost_LIBRARY_DIRS})
+#include_directories(${Boost_INCLUDE_DIR})
+#link_directories(${Boost_LIBRARY_DIRS})
 
 configure_file(
 	"${CMAKE_CURRENT_SOURCE_DIR}/browser-config.h.in"
@@ -171,6 +171,7 @@ MFCDefines(${MyTarget})
 
 target_link_libraries(${MyTarget}
 	${obs-browser_LIBRARIES}
+	Boost::Boost
 	)
 if(USE_QT_LOOP)
 	target_compile_definitions(${MyTarget} PRIVATE USE_QT_LOOP)

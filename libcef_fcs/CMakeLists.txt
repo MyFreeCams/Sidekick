@@ -7,7 +7,7 @@
 #  PROJECT_SOURCE_DIR: ../../../..    #
 #######################################
 
-set(CEF_TARGET MFCLibCef)
+set(CEF_TARGET "MFCLibCef")
 
 #
 # Source files.
@@ -45,31 +45,20 @@ set(LIBCEF_FCS_CEF_SRCS
 	cefJSExtensions.cpp
 	cefLogin_app.h
 )
-# source_group(libcef_fcs\\cef FILES ${LIBCEF_FCS_CEF_SRCS})
-
-set(OBS_CEF_LOGINSRCS_MAC
+set(LIBCEF_FCS_CEF_SRCS_MAC
 	CefEventHandler_mac.mm
 )
-# source_group(libcef_fcs\\cef\\mac FILES ${OBS_CEF_LOGINSRCS_MAC})
-
-set(OBS_CEF_LOGINSRCS_WINDOWS
+set(LIBCEF_FCS_CEF_SRCS_WINDOWS
 	CefLogin_handler_win.cpp
 )
-# source_group(libcef_fcs\\cef\\win FILES ${OBS_CEF_LOGINSRCS_WINDOWS})
+APPEND_PLATFORM_SOURCES(LIBCEF_FCS_CEF_SRCS)
+source_group(libcef_fcs FILES ${LIBCEF_FCS_CEF_SRCS})
 
-if(APPLE)
-	add_library(${CEF_TARGET}
-		${LIBCEF_FCS_SRCS}
-		${LIBCEF_FCS_CEF_SRCS}
-		${OBS_CEF_LOGINSRCS_MAC}
-	)
-elseif(WIN32)
-	add_library(${CEF_TARGET}
-		${LIBCEF_FCS_SRCS}
-		${LIBCEF_FCS_CEF_SRCS}
-		${OBS_CEF_LOGINSRCS_WINDOWS}
-	)
-endif()
+add_library(${CEF_TARGET}
+	${LIBCEF_FCS_SRCS}
+	${LIBCEF_FCS_CEF_SRCS}
+)
+
 SET_LIBRARY_TARGET_PROPERTIES(${CEF_TARGET})
 
 if(APPLE)
@@ -85,8 +74,6 @@ endif()
 # Remove the default "lib" prefix from the resulting library.
 set_target_properties(${CEF_TARGET} PROPERTIES PREFIX "")
 
-target_compile_definitions(${CEF_TARGET} PUBLIC
-	BOOST_ALL_NO_LIB
-)
+# target_compile_definitions(${CEF_TARGET} PUBLIC BOOST_ALL_NO_LIB)
 
 MFCDefines(${CEF_TARGET})

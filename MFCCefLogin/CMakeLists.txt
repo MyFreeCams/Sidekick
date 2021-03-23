@@ -158,8 +158,11 @@ if(OS_MAC)
 		libcef_dll_wrapper
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
-		# ${Boost_LIBRARIES}
-		nlohmannjson
+		Boost::headers
+		# Boost::date_time
+		# Boost::system
+		# Boost::thread
+		nlohmann::json
 	)
 	set_target_properties(${CEF_TARGET} PROPERTIES
 		MACOSX_BUNDLE TRUE
@@ -178,6 +181,7 @@ if(OS_MAC)
 		# XCODE_ATTRIBUTE_EXECUTABLE_NAME ${CEF_TARGET}
 		XCODE_ATTRIBUTE_LD_RUNPATH_SEARCH_PATHS "@executable_path/../Frameworks"
 	)
+	# target_compile_definitions(${CEF_TARGET} PUBLIC BOOST_ALL_NO_LIB)
 	MFCDefines(${CEF_TARGET})
 
 	# Copy the CEF framework into the Frameworks directory.
@@ -223,9 +227,13 @@ if(OS_MAC)
 			libcef_dll_wrapper
 			${CEF_STANDARD_LIBS}
 			MFCLibCef
-			${Boost_LIBRARIES}
 			#libipc
-                        nlohmannjson
+			Boost::headers
+			Boost::date_time
+			Boost::system
+			# Boost::thread
+			# Boost::disable_autolinking
+			nlohmann::json
 		)
 		set_target_properties(${_helper_target} PROPERTIES
 			MACOSX_BUNDLE_INFO_PLIST ${_helper_info_plist}
@@ -242,6 +250,7 @@ if(OS_MAC)
 		target_compile_definitions(${_helper_target} PUBLIC
 			MFC_LOG_LEVEL=${MFC_LOG_LEVEL}
 			MFC_LOG_OUTPUT_MASK=${MFC_LOG_OUTPUT_MASK}
+			# BOOST_ALL_NO_LIB
 		)
 		MFCDefines(${_helper_target})
 
@@ -297,8 +306,11 @@ if(OS_WINDOWS)
 		libcef_dll_wrapper
 		${CEF_STANDARD_LIBS}
 		MFCLibCef
-		${Boost_LIBRARIES}
-		nlohmannjson
+		Boost::headers
+		Boost::date_time
+		Boost::system
+		# ${Boost_LIBRARIES}
+		nlohmann::json
 	)
 	# Turn on RTTI & disable warnings as errors
 	target_compile_options(${CEF_TARGET} PUBLIC /MT /GR /WX-)

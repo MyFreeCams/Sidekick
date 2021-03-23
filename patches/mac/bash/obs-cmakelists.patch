@@ -1,0 +1,31 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 426d0628b..9a34dcea6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -5,8 +5,26 @@ if (UNIX AND POLICY CMP0072)
+ 	cmake_policy(SET CMP0072 NEW)
+ endif()
+ 
++# Deployment target/architectures for macOS
++if(APPLE AND NOT DEFINED CMAKE_OSX_ARCHITECTURES)
++	# on macOS "uname -m" returns the architecture (x86_64 or arm64)
++	execute_process(
++		COMMAND uname -m
++		RESULT_VARIABLE result
++		OUTPUT_VARIABLE OBS_OSX_NATIVE_ARCHITECTURE
++		OUTPUT_STRIP_TRAILING_WHITESPACE
++	)
++	message(STATUS "native arch: ${OBS_OSX_NATIVE_ARCHITECTURE}")
++	set(CMAKE_OSX_ARCHITECTURES "${OBS_OSX_NATIVE_ARCHITECTURE}" CACHE STRING "")
++endif()
++
+ project(obs-studio)
+ 
++if(APPLE)
++	set(PROJECT_ARCH "${CMAKE_OSX_ARCHITECTURES}")
++	message(STATUS "PROJECT_ARCH: ${PROJECT_ARCH}")
++endif()
++
+ option(DEBUG_FFMPEG_MUX "Debug FFmpeg muxer subprocess" FALSE)
+ 
+ set_property(GLOBAL PROPERTY USE_FOLDERS ON)

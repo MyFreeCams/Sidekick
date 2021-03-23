@@ -27,8 +27,6 @@ readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
 readonly _CXXFLAGS="-Wno-pragmas -Wno-deprecated-declarations"
 
 declare -xr MACOSX_DEPLOYMENT_TARGET=10.13
-#declare -xr CMAKE_OSX_ARCHITECTURES=arm64;x86_64
-declare -xr CMAKE_OSX_ARCHITECTURES=x86_64
 declare -xr CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE}}
 declare -xr BUILD_TYPE=${CMAKE_BUILD_TYPE}
 readonly _NUM_CORES=$(sysctl -n hw.ncpu)
@@ -69,6 +67,8 @@ readonly BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
 readonly HOST_ARCH=$(uname -m)
 readonly HOMEBREW_PREFIX=$(test "${HOST_ARCH}" = "arm64" && echo "/opt/homebrew" || echo "/usr/local")
 readonly CEF_ARCH=$(test "${HOST_ARCH}" = "arm64" && echo "arm64" || echo "x64")
+#declare -xr CMAKE_OSX_ARCHITECTURES=arm64;x86_64
+declare -xr CMAKE_OSX_ARCHITECTURES="${HOST_ARCH}"
 
 declare -xr OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
 declare -xr DepsPath="${OBSDEPS}"
@@ -192,14 +192,41 @@ reset_obs() {
   fi
 }
 
+apply_patches() {
+  cd "${OBS_ROOT}"
+  for f in "${SIDEKICK_ROOT}/patches/mac/bash/"*.patch; do
+    echo "-- applying patch $f"
+    git apply -p1 --ignore-whitespace --whitespace=nowarn "$f"
+    if [ $? -eq 0 ]; then
+      echo "-- applying patch $f - success"
+    else
+      git apply -p1 -R --check --ignore-whitespace --whitespace=nowarn "$f"
+      if [ $? -eq 0 ]; then
+        echo "-- applying patch $f - already applied"
+      else
+        echo "-- applying patch $f - error"
+      fi
+    fi
+  done
+}
+
 edit_cmakelists() {
   # Append add_subdirectory(plugins/MyFreeCams) to ${OBS_ROOT}/CMakeLists.txt
-  echo "-- Editing ${OBS_ROOT}/CMakeLists.txt"
-  if grep -Fxq "add_subdirectory(plugins/MyFreeCams)" "${OBS_ROOT}/CMakeLists.txt"; then
-    echo "-- Editing ${OBS_ROOT}/CMakeLists.txt - already modified"
+  # echo "-- Editing ${OBS_ROOT}/CMakeLists.txt"
+  # if grep -Fxq "add_subdirectory(plugins/MyFreeCams)" "${OBS_ROOT}/CMakeLists.txt"; then
+  #   echo "-- Editing ${OBS_ROOT}/CMakeLists.txt - already modified"
+  # else
+  #   sed -i '' -e '/add_subdirectory(libobs)/a\'$'\n''add_subdirectory(plugins/MyFreeCams)'$'\n''' "${OBS_ROOT}/CMakeLists.txt"
+  #   echo "-- Editing ${OBS_ROOT}/CMakeLists.txt - success"
+  # fi
+
+  # Append add_subdirectory(MyFreeCams) to ${OBS_ROOT}/plugins/CMakeLists.txt
+  echo "-- Editing ${OBS_ROOT}/plugins/CMakeLists.txt"
+  if grep -Fxq "add_subdirectory(MyFreeCams)" "${OBS_ROOT}/plugins/CMakeLists.txt"; then
+    echo "-- Editing ${OBS_ROOT}/plugins/CMakeLists.txt - already modified"
   else
-    sed -i '' -e '/add_subdirectory(libobs)/a\'$'\n''add_subdirectory(plugins/MyFreeCams)'$'\n''' "${OBS_ROOT}/CMakeLists.txt"
-    echo "-- Editing ${OBS_ROOT}/CMakeLists.txt - success"
+    echo -e "add_subdirectory(MyFreeCams)\n" >> "${OBS_ROOT}/plugins/CMakeLists.txt"
+    echo "-- Editing ${OBS_ROOT}/plugins/CMakeLists.txt - success"
   fi
 
   # Create CMakeLists.txt in ${OBS_ROOT}/plugins/MyFreeCams
@@ -282,6 +309,7 @@ main() {
 
   # build_dependencies
   reset_obs
+  apply_patches
   edit_cmakelists
   cmake_generate
   cmake --build . --config ${BUILD_TYPE}

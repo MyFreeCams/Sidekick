@@ -72,9 +72,12 @@ cd ..
 readonly DEV_DIR="${DEV_DIR:-$(pwd)}"
 readonly WORK_DIR="${WORK_DIR:-${DEV_DIR}/obsdeps-src}"
 readonly OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
+
 readonly HOST_ARCH=$(uname -m)
 readonly HOMEBREW_PREFIX=$(test "${HOST_ARCH}" = "arm64" && echo "/opt/homebrew" || echo "/usr/local")
 readonly CEF_ARCH=$(test "${HOST_ARCH}" = "arm64" && echo "arm64" || echo "x64")
+#declare -xr CMAKE_OSX_ARCHITECTURES=arm64;x86_64
+declare -xr CMAKE_OSX_ARCHITECTURES="${HOST_ARCH}"
 
 readonly red=$'\e[1;31m'
 readonly grn=$'\e[1;32m'
@@ -154,7 +157,7 @@ curl() {
     fi
     ${HOMEBREW_PREFIX}/opt/curl/bin/curl "$@"
   else
-    curl "$@"
+    /usr/bin/curl "$@"
   fi
 }
 
@@ -843,6 +846,7 @@ install_cef() {
     /bin/mkdir -p build && cd ./build
     cmake -DCMAKE_CXX_FLAGS="-std=c++11 -stdlib=libc++ -Wno-deprecated-declarations" \
       -DCMAKE_EXE_LINKER_FLAGS="-std=c++11 -stdlib=libc++" \
+      -DCMAKE_OSX_ARCHITECTURES="${CMAKE_OSX_ARCHITECTURES}" -DPROJECT_ARCH="${CMAKE_OSX_ARCHITECTURES}" \
       -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET}" -DCMAKE_BUILD_TYPE=${CEF_BUILD_TYPE} ..
     /usr/bin/make -j ${NUM_CORES}
     /bin/mkdir -p libcef_dll
@@ -892,7 +896,7 @@ build_ffmpeg_deps() {
 main() {
   init
   # check_curl
-  curl
+  curl --version > /dev/null
   install_homebrew "$@"
   install_build_tools
   create_work_dirs

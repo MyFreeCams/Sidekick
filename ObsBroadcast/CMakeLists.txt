@@ -151,10 +151,7 @@ target_include_directories(${MyTarget} PRIVATE
 	${LIBX264_INCLUDE_DIRS}
 )
 
-target_compile_definitions(${MyTarget} PUBLIC
-	BOOST_ALL_NO_LIB
-	#BOOST_LIB_DIAGNOSTIC
-)
+# target_compile_definitions(${MyTarget} PUBLIC BOOST_ALL_NO_LIB)
 
 if(WIN32)
 	target_compile_options(${MyTarget} PUBLIC "/GS-")
@@ -171,12 +168,14 @@ target_link_libraries(${MyTarget} PRIVATE
 	MFClibfcs
 	MFCLibPlugins
 	websocketclient
+	Boost::headers
+	# Boost::disable_autolinking
 	CURL::libcurl
+	nlohmann::json
 	Qt5::Widgets
 	Qt5::Gui
 	Qt5::Svg
 	WebRTC::WebRTC
-	nlohmannjson
 	${LIBX264_LIBRARIES}
 	${MyTarget_PLATFORM_LIBRARIES}
 )

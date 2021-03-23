@@ -121,19 +121,22 @@ elseif(WIN32)
 	)
 endif()
 
-target_compile_definitions(${MyTarget} PUBLIC
-	BOOST_ALL_NO_LIB
-)
+target_compile_definitions(${MyTarget} PUBLIC BOOST_ALL_NO_LIB)
 
 #add_dependencies(${MyTarget} obs)
 
 target_link_libraries(${MyTarget} PRIVATE
-	CURL::libcurl
 	obs-frontend-api
+	Boost::headers
+	Boost::date_time
+	Boost::system
+	# Boost::thread
+	# Boost::disable_autolinking
+	CURL::libcurl
 	Qt5::Widgets
 	Qt5::Gui
 	Qt5::Svg
-	nlohmannjson
+	nlohmann::json
 )
 
 MFCDefines(${MyTarget})

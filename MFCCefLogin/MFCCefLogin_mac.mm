@@ -44,12 +44,7 @@ const char* __progname = "MFCCefLogin";
 
 // Receives notifications from the application.
 @interface fcsLoginAppDelegate : NSObject <NSApplicationDelegate>
-{
-@private
-    bool with_chrome_runtime_;
-}
 
-- (id)initWithChromeRuntime:(bool)with_chrome_runtime;
 - (void)createApplication:(id)object;
 - (void)tryToTerminateApplication:(NSApplication*)app;
 @end
@@ -125,26 +120,13 @@ const char* __progname = "MFCCefLogin";
 @end
 
 @implementation fcsLoginAppDelegate
-- (id)initWithChromeRuntime:(bool)with_chrome_runtime
-{
-    if (self = [super init])
-        with_chrome_runtime_ = with_chrome_runtime;
-
-    return self;
-}
 
 // Create the application on the UI thread.
 - (void)createApplication:(id)object
 {
-    if (!with_chrome_runtime_)
-    {
-        // Chrome will create the top-level menu programmatically in
-        // chrome/browser/ui/cocoa/main_menu_builder.h
-        // TODO(chrome-runtime): Expose a way to customize this menu.
-        [[NSBundle mainBundle] loadNibNamed:@"MainMenu"
-                                      owner:NSApp
-                            topLevelObjects:nil];
-    }
+    [[NSBundle mainBundle] loadNibNamed:@"MainMenu"
+                                  owner:NSApp
+                        topLevelObjects:nil];
 
     // Set the delegate for application events.
     [[NSApplication sharedApplication] setDelegate:self];
@@ -232,7 +214,7 @@ int main(int argc, char *argv[])
         CefInitialize(main_args, settings, app.get(), NULL);
 
         // Create the application delegate.
-        NSObject* delegate = [[fcsLoginAppDelegate alloc] initWithChromeRuntime:with_chrome_runtime];
+        NSObject* delegate = [[fcsLoginAppDelegate alloc] init];
         [delegate performSelectorOnMainThread:@selector(createApplication:)
                                    withObject:nil
                                 waitUntilDone:NO];

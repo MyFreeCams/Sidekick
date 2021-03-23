@@ -68,6 +68,7 @@ target_link_libraries(${MyTarget} PUBLIC
 	obs-frontend-api
 	Qt5::Widgets
 	CURL::libcurl
+	#Boost::Boost
 )
 
 if(APPLE)
