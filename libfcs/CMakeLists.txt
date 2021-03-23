@@ -7,20 +7,25 @@
 #  PROJECT_SOURCE_DIR: ../../../..    #
 #######################################
 
-set(MyTarget MFClibfcs)
+set(MyTarget "MFClibfcs")
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 set(SRC_LIBFCS
 	Compat.h
+	FcMsg.h
+	fcs.h
+	fcslib_string.h
+	# fcslib_util.h
 	fcs_b64.h
 	fcs_b64.cpp
-	fcslib_string.h
-	fcslib_util.h
+	FcUserIds.h
 	gettimeofday.cpp
 	ILog.h
 	jsmin.h
 	jsmin.cpp
+	# json_ConvertUTF.h
+	# json_ConvertUTF.cpp
 	JSON_parser.h
 	JSON_parser.cpp
 	Log.h

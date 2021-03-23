@@ -94,10 +94,52 @@ endif()
 #
 
 #------------------------------------------------------------------------
+# Boost
+#
+set(Boost_USE_DEBUG_LIBS OFF)
+set(Boost_USE_RELEASE_LIBS ON)
+#set(Boost_USE_STATIC_LIBS ON)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_DEBUG_RUNTIME OFF)
+#set(BOOST_NO_EXCEPTIONS ON)
+find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
+PRINT(Boost)
+
+#------------------------------------------------------------------------
+# Nlohmann JSON (Modern JSON for C++)
+#
+FetchContent_Declare(nlohmannjson
+	URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
+	URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
+)
+FetchContent_GetProperties(nlohmannjson)
+if(NOT nlohmannjson_POPULATED)
+	message(STATUS "Fetching nlohmann json")
+	FetchContent_Populate(nlohmannjson)
+	if(nlohmannjson_POPULATED)
+		message(STATUS "Fetching nlohmann json - success")
+	else()
+		message(FATAL_ERROR "Fetching nlohmann json - error")
+	endif()
+endif()
+if(nlohmannjson_POPULATED)
+	if(NOT DEFINED nlohman::json)
+		add_library(nlohmann::json INTERFACE IMPORTED)
+		target_include_directories(nlohmann::json INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
+	endif()
+endif()
+
+#------------------------------------------------------------------------
+# Qt
+#
+find_package(Qt5 COMPONENTS Core Widgets Gui Svg REQUIRED)
+PRINT(Qt5)
+
+#------------------------------------------------------------------------
 # WebRTC
 #
 find_package(WebRTC REQUIRED)
-PRINT(WEBRTC)
+PRINT(WebRTC)
 configure_file(
 	"${CMAKE_CURRENT_SOURCE_DIR}/webrtc_version.h.in"
 	"${CMAKE_CURRENT_BINARY_DIR}/webrtc_version.h"
@@ -107,7 +149,7 @@ configure_file(
 # x264
 #
 find_package(Libx264 REQUIRED)
-PRINT(LIBX264)
+PRINT(Libx264)
 
 # add platform link dependancies.
 if(APPLE)
@@ -144,31 +186,28 @@ add_library(${MyTarget} MODULE
 	${MyTarget_RESOURCE_FILES}
 )
 
-#add_dependencies(${MyTarget} obs obs-frontend-api MFCLibPlugins)
-
 target_include_directories(${MyTarget} PRIVATE
 	${WEBRTC_INCLUDE_DIRS}
 	${LIBX264_INCLUDE_DIRS}
 )
 
-# target_compile_definitions(${MyTarget} PUBLIC BOOST_ALL_NO_LIB)
+MFCDefines(${MyTarget})
 
 if(WIN32)
 	target_compile_options(${MyTarget} PUBLIC "/GS-")
 endif()
 
-MFCDefines(${MyTarget})
+target_link_directories(${MyTarget} PRIVATE ${MyTarget_PLATFORM_LINK_DIRS})
 
-#
-# linking
-#
-target_link_libraries(${MyTarget} PRIVATE
+target_link_libraries(${MyTarget}
 	libobs
 	obs-frontend-api
 	MFClibfcs
 	MFCLibPlugins
 	websocketclient
 	Boost::headers
+	Boost::date_time
+	Boost::system
 	# Boost::disable_autolinking
 	CURL::libcurl
 	nlohmann::json
@@ -178,10 +217,6 @@ target_link_libraries(${MyTarget} PRIVATE
 	WebRTC::WebRTC
 	${LIBX264_LIBRARIES}
 	${MyTarget_PLATFORM_LIBRARIES}
-)
-
-target_link_directories(${MyTarget} PRIVATE
-	${MyTarget_PLATFORM_LINK_DIRS}
 )
 
 #

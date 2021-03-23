@@ -131,24 +131,6 @@ delete_work_dirs() {
   /bin/rm -rf "${WORK_DIR}"
 }
 
-# cleanup() {
-#   # /bin/rm "${OBSDEPS}/bin/x264"
-#   # /bin/rm "${OBSDEPS}"/lib/*.la
-#   # /bin/rm "${OBSDEPS}"/lib/*.a
-# }
-
-# check_curl() {
-#   if [ "${MACOS_MAJOR}" -lt "11" ] && [ "${MACOS_MINOR}" -lt "15" ]; then
-#     if [ ! -d "${HOMEBREW_PREFIX}/opt/curl" ]; then
-#         hr "Installing Homebrew curl..."
-#         brew install curl
-#     fi
-#     export CURLCMD="${HOMEBREW_PREFIX}/opt/curl/bin/curl"
-#   else
-#     export CURLCMD='curl'
-#   fi
-# }
-
 curl() {
   if [ "${MACOS_MAJOR}" -lt "11" ] && [ "${MACOS_MINOR}" -lt "15" ]; then
     if [ ! -d "${HOMEBREW_PREFIX}/opt/curl" ]; then
@@ -203,6 +185,12 @@ restore_brews() {
   fi
   if [ -d "${HOMEBREW_PREFIX}/opt/webp" ] && [ ! -f "${HOMEBREW_PREFIX}/lib/libwebp.dylib" ]; then
     brew link webp
+  fi
+  if [ -d "${HOMEBREW_PREFIX}/opt/swig" ] && [ ! -f "${HOMEBREW_PREFIX}/lib/swig" ]; then
+    brew link swig
+  fi
+  if [ -d "${HOMEBREW_PREFIX}/opt/pcre" ] && [ ! -f "${HOMEBREW_PREFIX}/lib/pcre" ]; then
+    brew link pcre
   fi
   set -e
 }
@@ -560,6 +548,7 @@ build_swig() {
   else
     hr "Building swig ${SWIG_VERSION}"
     if [ -d "$(brew --cellar)/swig" ]; then brew unlink swig; fi
+    if [ -d "$(brew --cellar)/pcre" ]; then brew unlink pcre; fi
     cd "${WORK_DIR}"
     /bin/rm -rf swig-${SWIG_VERSION}
     curl -fkRL -O "https://downloads.sourceforge.net/project/swig/swig/swig-${SWIG_VERSION}/swig-${SWIG_VERSION}.tar.gz"
@@ -750,7 +739,8 @@ install_qt() {
       /bin/mkdir -p build
       cd build
       ../configure --prefix="${OBSDEPS}" -release -opensource -confirm-license -system-zlib \
-        -qt-libpng -qt-libjpeg -qt-freetype -qt-pcre -nomake examples -nomake tests -no-rpath -no-glib -pkg-config -dbus-runtime \
+        -qt-libpng -qt-libjpeg -qt-freetype -qt-pcre -nomake examples -nomake tests \
+        -no-rpath -no-glib -pkg-config -dbus-runtime \
         -skip qt3d -skip qtactiveqt -skip qtandroidextras -skip qtcharts -skip qtconnectivity -skip qtdatavis3d \
         -skip qtdeclarative -skip qtdoc -skip qtgamepad -skip qtgraphicaleffects -skip qtlocation \
         -skip qtlottie -skip qtmultimedia -skip qtnetworkauth -skip qtpurchasing -skip qtquick3d \
@@ -758,7 +748,7 @@ install_qt() {
         -skip qtscript -skip qtscxml -skip qtsensors -skip qtserialbus -skip qtspeech \
         -skip qttranslations -skip qtwayland -skip qtwebchannel -skip qtwebengine -skip qtwebglplugin \
         -skip qtwebsockets -skip qtwebview -skip qtwinextras -skip qtx11extras -skip qtxmlpatterns \
-        QMAKE_APPLE_DEVICE_ARCHS="${HOST_ARCH}"
+        -device-option QMAKE_APPLE_DEVICE_ARCHS="${HOST_ARCH}"
       /usr/bin/make -j ${NUM_CORES}
       /usr/bin/make install
       if [ -d "${HOMEBREW_PREFIX}/opt/zstd" ] && [ ! -f "${HOMEBREW_PREFIX}/lib/libzstd.dylib" ]; then brew link zstd; fi
@@ -895,7 +885,6 @@ build_ffmpeg_deps() {
 
 main() {
   init
-  # check_curl
   curl --version > /dev/null
   install_homebrew "$@"
   install_build_tools
@@ -914,10 +903,8 @@ main() {
   install_packages_app
   install_vlc
   install_cef
-  install_or_upgrade akeru-inc/tap/xcnotary
   restore_brews
   delete_work_dirs
-  # cleanup
   build_webrtc "$@"
   print_summary "$@"
 }

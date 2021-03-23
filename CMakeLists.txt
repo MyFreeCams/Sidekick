@@ -81,14 +81,15 @@ set(Boost_USE_RELEASE_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_DEBUG_RUNTIME OFF)
 # set(BOOST_NO_EXCEPTIONS ON)
-if(APPLE)
-	find_package(Boost 1.69 COMPONENTS date_time thread-mt QUIET)
-	if(NOT Boost_FOUND)
-		find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
-	endif()
-else()
-	find_package(Boost 1.69 COMPONENTS date_time thread REQUIRED)
-endif()
+find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
+# if(APPLE)
+# 	find_package(Boost 1.69 COMPONENTS date_time thread-mt QUIET)
+# 	if(NOT Boost_FOUND)
+# 		find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
+# 	endif()
+# else()
+# 	find_package(Boost 1.69 COMPONENTS date_time thread REQUIRED)
+# endif()
 PRINT(Boost)
 
 #------------------------------------------------------------------------
@@ -111,26 +112,31 @@ PRINT(Qt5)
 #------------------------------------------------------------------------
 # Nlohmann JSON (Modern JSON for C++)
 #
-message(STATUS "Fetching nlohmann json")
+# FetchContent_Declare(nlohmannjson
+# 	URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
+# 	URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
+# )
+# FetchContent_GetProperties(nlohmannjson)
+# if(NOT nlohmannjson_POPULATED)
+# 	message(STATUS "Fetching nlohmann json")
+# 	FetchContent_Populate(nlohmannjson)
+# 	if(nlohmannjson_POPULATED)
+# 		message(STATUS "Fetching nlohmann json - success")
+# 	else()
+# 		message(FATAL_ERROR "Fetching nlohmann json - error")
+# 	endif()
+# endif()
+# if(nlohmannjson_POPULATED)
+# 	if(NOT DEFINED nlohman::json)
+# 		add_library(nlohmann::json INTERFACE IMPORTED)
+# 		target_include_directories(nlohmann::json INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
+# 	endif()
+# endif()
+
 # FetchContent_Declare(nlohmannjson
 # 	GIT_REPOSITORY	https://github.com/nlohmann/json
 # 	GIT_TAG			v3.9.1
 # )
-FetchContent_Declare(nlohmannjson
-	URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
-	URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
-)
-FetchContent_GetProperties(nlohmannjson)
-if(NOT nlohmannjson_POPULATED)
-	FetchContent_Populate(nlohmannjson)
-endif()
-if(nlohmannjson_POPULATED)
-	message(STATUS "Fetching nlohmann json - success")
-	add_library(nlohmann::json INTERFACE IMPORTED)
-	target_include_directories(nlohmann::json INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
-else()
-	message(FATAL_ERROR "Fetching nlohmann json - error")
-endif()
 
 # CPMAddPackage(
 # 	NAME	nlohmannjson
@@ -150,54 +156,54 @@ endif()
 #------------------------------------------------------------------------
 # WebSocket++ (websocketpp)
 #
-message(STATUS "Fetching websocketpp")
-FetchContent_Declare(websocketpp
-	GIT_REPOSITORY 	https://github.com/zaphoyd/websocketpp
-	GIT_TAG 		0.8.2
-)
-FetchContent_GetProperties(websocketpp)
-if(NOT websocketpp_POPULATED)
-	FetchContent_Populate(websocketpp)
-endif()
+# message(STATUS "Fetching websocketpp")
+# FetchContent_Declare(websocketpp
+# 	GIT_REPOSITORY 	https://github.com/zaphoyd/websocketpp
+# 	GIT_TAG 		0.8.2
+# )
+# FetchContent_GetProperties(websocketpp)
+# if(NOT websocketpp_POPULATED)
+# 	FetchContent_Populate(websocketpp)
+# endif()
+# if(websocketpp_POPULATED)
+# 	message(STATUS "Fetching websocketpp - success")
+# 	add_library(zaphoyd::websocketpp INTERFACE IMPORTED)
+# 	target_include_directories(zaphoyd::websocketpp INTERFACE ${websocketpp_SOURCE_DIR})
+# else()
+# 	message(FATAL_ERROR "Fetching websocketpp - error")
+# endif()
 
 # CPMAddPackage(
 # 	NAME websocketpp
 # 	VERSION 0.8.2
 # 	URL https://github.com/zaphoyd/websocketpp
 # )
-if(websocketpp_POPULATED)
-	message(STATUS "Fetching websocketpp - success")
-	add_library(zaphoyd::websocketpp INTERFACE IMPORTED)
-	target_include_directories(zaphoyd::websocketpp INTERFACE ${websocketpp_SOURCE_DIR})
-else()
-	message(FATAL_ERROR "Fetching websocketpp - error")
-endif()
 
 #------------------------------------------------------------------------
 # Asio C++ Library
 #
-message(STATUS "Fetching ASIO")
-FetchContent_Declare(asio
-	GIT_REPOSITORY	https://github.com/chriskohlhoff/asio
-	GIT_TAG			asio-1-18-1
-)
-FetchContent_GetProperties(asio)
-if(NOT asio_POPULATED)
-	FetchContent_Populate(asio)
-endif()
+# message(STATUS "Fetching ASIO")
+# FetchContent_Declare(asio
+# 	GIT_REPOSITORY	https://github.com/chriskohlhoff/asio
+# 	GIT_TAG			asio-1-18-1
+# )
+# FetchContent_GetProperties(asio)
+# if(NOT asio_POPULATED)
+# 	FetchContent_Populate(asio)
+# endif()
+# if(asio_POPULATED)
+# 	message(STATUS "Fetching ASIO - success")
+# 	add_library(chriskohlhoff::asio INTERFACE IMPORTED)
+# 	target_include_directories(chriskohlhoff::asio INTERFACE ${asio_SOURCE_DIR}/asio/include)
+# else()
+# 	message(FATAL_ERROR "Fetching ASIO - error")
+# endif()
 
 # CPMAddPackage(
 # 	NAME asio
 # 	VERSION asio-1-18-1
 # 	URL https://github.com/chriskohlhoff/asio
 # )
-if(asio_POPULATED)
-	message(STATUS "Fetching ASIO - success")
-	add_library(chriskohlhoff::asio INTERFACE IMPORTED)
-	target_include_directories(chriskohlhoff::asio INTERFACE ${asio_SOURCE_DIR}/asio/include)
-else()
-	message(FATAL_ERROR "Fetching ASIO - error")
-endif()
 
 #------------------------------------------------------------------------
 # Common include directories

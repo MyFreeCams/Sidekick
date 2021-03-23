@@ -9,13 +9,20 @@
 
 set(CEF_TARGET "MFCLibCef")
 
+set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
+
 #
 # Source files.
 #
 set(LIBCEF_FCS_SRCS
 	../libfcs/Compat.h
-	../libfcs/fcs_b64.h
-	../libfcs/fcs_b64.cpp
+	# ../libfcs/FcMsg.h
+	# ../libfcs/fcs.h
+	# ../libfcs/fcs_b64.h
+	# ../libfcs/fcs_b64.cpp
+	# ../libfcs/fcslib_string.h
+	# ../libfcs/fcslib_util.h
+	../libfcs/FcUserIds.h
 	../libfcs/gettimeofday.cpp
 	../libfcs/ILog.h
 	../libfcs/jsmin.h
@@ -24,17 +31,17 @@ set(LIBCEF_FCS_SRCS
 	../libfcs/JSON_parser.cpp
 	../libfcs/Log.h
 	../libfcs/Log.cpp
-	../libfcs/md5.h
-	../libfcs/md5.cpp
+	# ../libfcs/md5.h
+	# ../libfcs/md5.cpp
 	../libfcs/MfcJson.h
 	../libfcs/MfcJson.cpp
-	../libfcs/MfcLog.h
-	../libfcs/MfcLog.cpp
-	../libfcs/MfcTimer.h
-	../libfcs/UtilCommon.h
-	../libfcs/UtilCommon.cpp
-	../libfcs/UtilString.h
-	../libfcs/UtilString.cpp
+	# ../libfcs/MfcLog.h
+	# ../libfcs/MfcLog.cpp
+	# ../libfcs/MfcTimer.h
+	# ../libfcs/UtilCommon.h
+	# ../libfcs/UtilCommon.cpp
+	# ../libfcs/UtilString.h
+	# ../libfcs/UtilString.cpp
 )
 source_group(libfcs FILES ${LIBCEF_FCS_SRCS})
 

@@ -19,9 +19,6 @@ configure_file(
 	${CMAKE_CURRENT_BINARY_DIR}/build_version.h
 )
 
-find_package(Qt5 COMPONENTS Core Widgets Gui Svg REQUIRED)
-PRINT(Qt5)
-
 set(SRC_OBS_COMMON
 	${CMAKE_CURRENT_BINARY_DIR}/build_version.h
 	CollectSystemInfo.h
@@ -54,30 +51,9 @@ set(SRC_OBS_Mac
 	SysParam_Mac.h
 	SysParam_Mac.cpp
 )
-
 if(APPLE)
-	set_source_files_properties(${SRC_OBS_COMMON} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+	set_source_files_properties(${SRC_OBS_COMMON} ${SRC_OBS_Mac} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()
-
-#
-# include directories for target_include_directories
-#
-set(MyTarget_Include
-)
-set(MyTarget_Include_Win
-)
-set(MyTarget_Include_Mac
-)
-
-#
-# defines for target_compile_definitions
-#
-set(MyTarget_DEFINES
-)
-set(MyTarget_DEFINES_Win
-)
-set(MyTarget_DEFINES_Mac
-)
 
 #
 # compile options.
@@ -94,38 +70,65 @@ set(MyTarget_OPTIONS_Mac
 )
 
 if(APPLE)
-	add_library(${MyTarget} STATIC
+	set(SRC_OBS
 		${SRC_OBS_COMMON}
 		${SRC_OBS_Mac}
 	)
-	target_include_directories(${MyTarget} PUBLIC
-		${MyTarget_Include}
-		${MyTarget_Include_Mac}
-	)
-	target_compile_options(${MyTarget} PUBLIC
+	set(MyTarget_OPTIONS
 		${MyTarget_OPTIONS}
 		${MyTarget_OPTIONS_Mac}
 	)
 elseif(WIN32)
-	add_library(${MyTarget} STATIC
+	set(SRC_OBS
 		${SRC_OBS_COMMON}
 		${SRC_OBS_Win}
 	)
-	target_include_directories(${MyTarget} PUBLIC
-		${MyTarget_Include}
-		${MyTarget_Include_Win}
-	)
-	target_compile_options(${MyTarget} PUBLIC
+	set(MyTarget_OPTIONS
 		${MyTarget_OPTIONS}
 		${MyTarget_OPTIONS_Win}
 	)
 endif()
 
-target_compile_definitions(${MyTarget} PUBLIC BOOST_ALL_NO_LIB)
+#
+# Dependencies
+#
 
-#add_dependencies(${MyTarget} obs)
+#------------------------------------------------------------------------
+# Nlohmann JSON (Modern JSON for C++)
+#
+FetchContent_Declare(nlohmannjson
+	URL			https://github.com/nlohmann/json/releases/download/v3.9.1/include.zip
+	URL_HASH	SHA256=6bea5877b1541d353bd77bdfbdb2696333ae5ed8f9e8cc22df657192218cad91
+)
+FetchContent_GetProperties(nlohmannjson)
+if(NOT nlohmannjson_POPULATED)
+	message(STATUS "Fetching nlohmann json")
+	FetchContent_Populate(nlohmannjson)
+	if(nlohmannjson_POPULATED)
+		message(STATUS "Fetching nlohmann json - success")
+	else()
+		message(FATAL_ERROR "Fetching nlohmann json - error")
+	endif()
+endif()
+if(nlohmannjson_POPULATED)
+	if(NOT DEFINED nlohman::json)
+		add_library(nlohmann::json INTERFACE IMPORTED)
+		target_include_directories(nlohmann::json INTERFACE ${nlohmannjson_SOURCE_DIR}/single_include)
+	endif()
+endif()
 
-target_link_libraries(${MyTarget} PRIVATE
+#------------------------------------------------------------------------
+# Qt
+#
+find_package(Qt5 COMPONENTS Core Widgets Gui Svg REQUIRED)
+PRINT(Qt5)
+
+add_library(${MyTarget} STATIC ${SRC_OBS})
+MFCDefines(${MyTarget})
+target_compile_options(${MyTarget} PUBLIC ${MyTarget_OPTIONS})
+# target_compile_definitions(${MyTarget} PUBLIC BOOST_ALL_NO_LIB)
+
+target_link_libraries(${MyTarget} PUBLIC
 	obs-frontend-api
 	Boost::headers
 	Boost::date_time
@@ -138,5 +141,3 @@ target_link_libraries(${MyTarget} PRIVATE
 	Qt5::Svg
 	nlohmann::json
 )
-
-MFCDefines(${MyTarget})
