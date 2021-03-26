@@ -743,7 +743,7 @@ install_qt() {
         -skip qtscript -skip qtscxml -skip qtsensors -skip qtserialbus -skip qtspeech \
         -skip qttranslations -skip qtwayland -skip qtwebchannel -skip qtwebengine -skip qtwebglplugin \
         -skip qtwebsockets -skip qtwebview -skip qtwinextras -skip qtx11extras -skip qtxmlpatterns \
-        -device-option QMAKE_APPLE_DEVICE_ARCHS="${HOST_ARCH}"
+        QMAKE_APPLE_DEVICE_ARCHS="${HOST_ARCH}"
       /usr/bin/make -j ${NUM_CORES}
       /usr/bin/make install
       if [ -d "${HOMEBREW_PREFIX}/opt/zstd" ] && [ ! -f "${HOMEBREW_PREFIX}/lib/libzstd.dylib" ]; then brew link zstd; fi
