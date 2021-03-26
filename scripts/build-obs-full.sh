@@ -2,31 +2,23 @@
 
 set -e # exit if something fails
 
-readonly _BUILD_TYPE=RelWithDebInfo
-readonly _BUILD_DIR=xAuto
-readonly _GENERATOR="Unix Makefiles"
-readonly _RESET_OBS=1
+readonly _OBS_TAG='26.1.2'
+readonly _MAC_DEPLOYMENT_TARGET='10.13'
 
-readonly _OBS_TAG=26.1.2
-readonly _QT_VERSION=5.15.2
-readonly _VLC_VERSION=3.0.8
-# readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
-# readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
-# readonly _CEF_VERSION=88.2.9+g5c8711a+chromium-88.0.4324.182
-readonly _CEF_VERSION=89.0.12+g2b76680+chromium-89.0.4389.90
-# readonly MACOS_CEF_BUILD_VERSION=3770
-# readonly MACOS_CEF_BUILD_VERSION=4183
-# readonly MACOS_CEF_BUILD_VERSION=4324
-readonly MACOS_CEF_BUILD_VERSION=4389
+readonly _BUILD_DIR='xAuto'
+readonly _BUILD_TYPE='RelWithDebInfo'
+readonly _GENERATOR='Unix Makefiles'
+declare -ri _RESET_OBS=1
 
-readonly PREV_CFLAGS="${CFLAGS}"
-readonly PREV_CXXFLAGS="${CXXFLAGS}"
-readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
-  -Wno-typedef-redefinition -Wno-enum-conversion -Wno-deprecated \
-  -Wno-unused-private-field -Wno-sign-compare -Wno-vla"
-readonly _CXXFLAGS="-Wno-pragmas -Wno-deprecated-declarations"
+readonly SIDEKICK_ROOT="$(pwd)"
+readonly BUILD_DEPS="${SIDEKICK_ROOT}/scripts/build-deps-full.sh"
 
-declare -xr MACOSX_DEPLOYMENT_TARGET=10.13
+readonly _QT_VERSION=$(/usr/bin/sed -En "s/^readonly _QT_VERSION=['\"]?([0-9\.]+)['\"]?/\1/p" < "${BUILD_DEPS}")
+readonly _VLC_VERSION=$(/usr/bin/sed -En "s/^readonly _VLC_VERSION=['\"]?([0-9\.]+)['\"]?/\1/p" < "${BUILD_DEPS}")
+readonly _CEF_VERSION=$(/usr/bin/sed -En "s/^readonly _CEF_VERSION=['\"]?([0-9]+\.[0-9]+\.[0-9]+\+[a-z0-9]{8}\+chromium-[0-9]+\.[0-9]+\.[0-9]{4}\.[0-9]+)['\"]?/\1/p" < "${BUILD_DEPS}")
+declare -ri MACOS_CEF_BUILD_VERSION=$(echo "${_CEF_VERSION}" | /usr/bin/sed -En "s/[0-9]+\.[0-9]+\.[0-9]+\+[a-z0-9]{8}\+chromium-[0-9]+\.[0-9]+\.([0-9]{4})\.[0-9]+/\1/p")
+
+declare -xr MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-${_MAC_DEPLOYMENT_TARGET}}
 declare -xr CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE}}
 declare -xr BUILD_TYPE=${CMAKE_BUILD_TYPE}
 readonly _NUM_CORES=$(sysctl -n hw.ncpu)
@@ -35,8 +27,6 @@ declare -xri CMAKE_BUILD_PARALLEL_LEVEL=${NUM_CORES}
 declare -xr CMAKE_GENERATOR=${CMAKE_GENERATOR:-${_GENERATOR}}
 export GENERATOR=${GENERATOR:-${CMAKE_GENERATOR}}
 export NINJA_PATH="${DEV_DIR}/depot_tools/ninja"
-# XCODE_SELECT="$(xcode-select -p)"
-# if [ "${XCODE_SELECT}" = "/Applications/Xcode.app/Contents/Developer" ]; then CURRENT_XCODE=true; fi
 
 declare -xr BUILD_BROWSER=${BROWSER:-ON}
 declare -xr BROWSER=${BUILD_BROWSER}
@@ -49,20 +39,8 @@ declare -xr VLC_VERSION=${VLC_VERSION:-${_VLC_VERSION}}
 declare -xr CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
 declare -xr CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
 readonly LEGACY_BROWSER="$(test "${MACOS_CEF_BUILD_VERSION}" -le 3770 && echo "ON" || echo "OFF")"
-REFRESH_OBS=${REFRESH_OBS:=${_RESET_OBS}}
-declare -xr RESET_OBS=${RESET_OBS:=${REFRESH_OBS}}
-
-readonly _SIDEKICK_ROOT="$(pwd)"
-declare -xr SIDEKICK_ROOT=${_SIDEKICK_ROOT}
-cd ../../.. || exit
-readonly _OBS_ROOT="$(pwd)"
-declare -xr OBS_ROOT=${_OBS_ROOT}
-cd .. || exit
-readonly _DEV_DIR="$(pwd)"
-readonly DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
-
-readonly BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
-readonly BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
+declare -ri REFRESH_OBS=${REFRESH_OBS:=${_RESET_OBS}}
+declare -ri RESET_OBS=${RESET_OBS:=${REFRESH_OBS}}
 
 readonly HOST_ARCH=$(uname -m)
 readonly HOMEBREW_PREFIX=$(test "${HOST_ARCH}" = "arm64" && echo "/opt/homebrew" || echo "/usr/local")
@@ -70,11 +48,20 @@ readonly CEF_ARCH=$(test "${HOST_ARCH}" = "arm64" && echo "arm64" || echo "x64")
 #declare -xr CMAKE_OSX_ARCHITECTURES=arm64;x86_64
 declare -xr CMAKE_OSX_ARCHITECTURES="${HOST_ARCH}"
 
+# readonly SIDEKICK_ROOT="$(pwd)"
+cd ../../.. || exit
+readonly OBS_ROOT="$(pwd)"
+cd .. || exit
+readonly DEV_DIR="${DEV_DIR:-$(pwd)}"
+
+readonly BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
+readonly BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
+
 declare -xr OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
 declare -xr DepsPath="${OBSDEPS}"
 declare -xr X264_INCLUDE_DIR="${X264_INCLUDE_DIR:-${OBSDEPS}/include}"
 # declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-/usr/include}"
-# declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-${HOMEBREW_PREFIX}/opt/curl-openssl/include}"
+declare -xr CURL_INCLUDE_DIR="${CURL_INCLUDE_DIR:-${HOMEBREW_PREFIX}/opt/curl/include}"
 declare -xr VLCPath="${DEV_DIR}/vlc-${VLC_VERSION}"
 # declare -xr QTDIR="${QTDIR:-${HOMEBREW_PREFIX}/opt/qt}"
 declare -xr QTDIR="${QTDIR:-${OBSDEPS}}"
@@ -86,6 +73,13 @@ readonly _OPENSSL_DIR="${OPENSSL:-${HOMEBREW_PREFIX}/opt/openssl@1.1}"
 declare -xr OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
 readonly _WEBRTC_DIR="${WEBRTC:-${DEV_DIR}/webrtc}"
 declare -xr WEBRTC_ROOT_DIR="${WEBRTC_ROOT_DIR:-${_WEBRTC_DIR}}"
+
+readonly PREV_CFLAGS="${CFLAGS}"
+readonly PREV_CXXFLAGS="${CXXFLAGS}"
+readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
+  -Wno-typedef-redefinition -Wno-enum-conversion -Wno-deprecated \
+  -Wno-unused-private-field -Wno-sign-compare -Wno-vla"
+readonly _CXXFLAGS="-Wno-pragmas -Wno-deprecated-declarations"
 
 readonly red=$'\e[1;31m'
 readonly grn=$'\e[1;32m'
@@ -261,6 +255,7 @@ cmake_generate() {
     -DDepsPath="${OBSDEPS}" \
     -DSWIGDIR="${OBSDEPS}" \
     -DX264_INCLUDE_DIR="${X264_INCLUDE_DIR}" \
+    -DCURL_INCLUDE_DIR="${CURL_INCLUDE_DIR}" \
     -DVLCPath="${VLCPath}" \
     -DQTDIR="${QTDIR}" \
     -DQt5Core_DIR="${QTDIR}/lib/cmake/Qt5Core" \

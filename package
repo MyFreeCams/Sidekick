@@ -2,26 +2,20 @@
 
 set -e # exit if something fails
 
-readonly _BUILD_DIR=xAuto
-readonly _BUILD_TYPE=RelWithDebInfo
-# readonly _CEF_VERSION=75.1.14+gc81164e+chromium-75.0.3770.100
-# readonly _CEF_VERSION=85.3.12+g3e94ebf+chromium-85.0.4183.121
-# readonly _CEF_VERSION=88.2.9+g5c8711a+chromium-88.0.4324.182
-readonly _CEF_VERSION=89.0.12+g2b76680+chromium-89.0.4389.90
-# readonly MACOS_CEF_BUILD_VERSION=3770
-# readonly MACOS_CEF_BUILD_VERSION=4183
-# readonly MACOS_CEF_BUILD_VERSION=4324
-readonly MACOS_CEF_BUILD_VERSION=4389
+readonly _BUILD_DIR='xAuto'
+readonly _BUILD_TYPE='RelWithDebInfo'
 
-readonly _SIDEKICK_ROOT=$(pwd)
-export SIDEKICK_ROOT=${_SIDEKICK_ROOT}
+readonly SIDEKICK_ROOT="$(pwd)"
+readonly BUILD_DEPS="${SIDEKICK_ROOT}/scripts/build-deps-full.sh"
+
+readonly _CEF_VERSION=$(/usr/bin/sed -En "s/^readonly _CEF_VERSION=['\"]?([0-9]+\.[0-9]+\.[0-9]+\+[a-z0-9]{8}\+chromium-[0-9]+\.[0-9]+\.[0-9]{4}\.[0-9]+)['\"]?/\1/p" < "${BUILD_DEPS}")
+declare -ri MACOS_CEF_BUILD_VERSION=$(echo "${_CEF_VERSION}" | /usr/bin/sed -En "s/[0-9]+\.[0-9]+\.[0-9]+\+[a-z0-9]{8}\+chromium-[0-9]+\.[0-9]+\.([0-9]{4})\.[0-9]+/\1/p")
+
 export DYLIBBUNDLER="${SIDEKICK_ROOT}/scripts/macdylibbundler/build/dylibbundler"
 cd ../../.. || exit
-readonly _OBS_ROOT=$(pwd)
-export OBS_ROOT=${_OBS_ROOT}
+readonly OBS_ROOT="$(pwd)"
 cd .. || exit
-readonly _DEV_DIR=$(pwd)
-export DEV_DIR="${DEV_DIR:-${_DEV_DIR}}"
+export DEV_DIR="${DEV_DIR:-$(pwd)}"
 export OBSDEPS="${DEV_DIR}/obsdeps"
 export QTDIR="${QTDIR:-${OBSDEPS}}"
 

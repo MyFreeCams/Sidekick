@@ -2,45 +2,41 @@
 
 set -e # exit if something fails
 
-readonly _MACOSX_DEPLOYMENT_TARGET='10.13'
-readonly _VLC_VERSION='3.0.8'
-readonly _QT_VERSION='5.15.2'
+readonly _MAC_DEPLOYMENT_TARGET='10.13'
+
+readonly _BOOST_VERSION='1.69.0'
 # readonly _CEF_VERSION='75.1.14+gc81164e+chromium-75.0.3770.100'
 # readonly _CEF_VERSION='85.0.0+g93b66a0+chromium-85.0.4183.121'
 # readonly _CEF_VERSION='85.3.12+g3e94ebf+chromium-85.0.4183.121'
-# readonly _CEF_VERSION='88.2.9+g5c8711a+chromium-88.0.4324.182'
-readonly _CEF_VERSION='89.0.12+g2b76680+chromium-89.0.4389.90'
-# readonly MACOS_CEF_BUILD_VERSION='3770'
-# readonly MACOS_CEF_BUILD_VERSION='4183'
-# readonly MACOS_CEF_BUILD_VERSION='4324'
-readonly MACOS_CEF_BUILD_VERSION='4389'
-readonly _BOOST_VERSION='1.69.0'
-readonly _OPENSSL_VERSION='1.1.1'
-
-readonly OPUS_VERSION='1.3.1'
+readonly _CEF_VERSION='88.2.9+g5c8711a+chromium-88.0.4324.182'
+# readonly _CEF_VERSION='89.0.15+gdef70e4+chromium-89.0.4389.90'
+export FFMPEG_REVISION='06'
+readonly FFMPEG_VERSION='4.2.3'
+readonly FREETYPE_VERSION='2.10.4'
+readonly JANSSON_VERSION='2.13.1'
+readonly LAME_VERSION='3.100'
+readonly LUAJIT_COMMIT='ec6edc5c39c25e4eb3fca51b753f9995e97215da'
+readonly LUAJIT_VERSION='2.1'
+readonly MBEDTLS_VERSION='2.24.0'
 # readonly OGG_VERSION='1.3.4'
 readonly OGG_VERSION='68ca3841567247ac1f7850801a164f58738d8df9'
+readonly _OPENSSL_VERSION='1.1.1'
+readonly OPUS_VERSION='1.3.1'
+readonly PCRE_VERSION='8.44'
+readonly PNG_VERSION='1.6.37'
+readonly _QT_VERSION='5.15.2'
+readonly RNNOISE_COMMIT='90ec41ef659fd82cfec2103e9bb7fc235e9ea66c'
+# readonly SPARKLE_VERSION='1.23.0'
+readonly SPEEXDSP_VERSION='1.2.0'
+readonly SRT_VERSION='1.4.1'
+readonly SWIG_VERSION='4.0.2'
+readonly THEORA_VERSION='1.1.1'
+readonly _VLC_VERSION='3.0.8'
 readonly VORBIS_VERSION='1.3.6'
 readonly VPX_VERSION='1.9.0'
 readonly X264_COMMIT='origin/stable'
-readonly FFMPEG_VERSION='4.2.3'
-export FFMPEG_REVISION='06'
-readonly PNG_VERSION='1.6.37'
-readonly THEORA_VERSION='1.1.1'
-readonly LAME_VERSION='3.100'
-readonly MBEDTLS_VERSION='2.24.0'
-readonly SRT_VERSION='1.4.1'
-readonly SWIG_VERSION='4.0.2'
-readonly PCRE_VERSION='8.44'
-readonly SPEEXDSP_VERSION='1.2.0'
-readonly JANSSON_VERSION='2.13.1'
-readonly LUAJIT_VERSION='2.1'
-readonly LUAJIT_COMMIT='ec6edc5c39c25e4eb3fca51b753f9995e97215da'
-readonly FREETYPE_VERSION='2.10.4'
-readonly RNNOISE_COMMIT='90ec41ef659fd82cfec2103e9bb7fc235e9ea66c'
-# readonly SPARKLE_VERSION='1.23.0'
 
-export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-${_MACOSX_DEPLOYMENT_TARGET}}"
+export MACOSX_DEPLOYMENT_TARGET="${MACOSX_DEPLOYMENT_TARGET:-${_MAC_DEPLOYMENT_TARGET}}"
 declare -xr CMAKE_BUILD_TYPE="${BUILD_TYPE:-Release}"
 declare -xr BUILD_TYPE="${CMAKE_BUILD_TYPE}"
 
@@ -49,12 +45,13 @@ readonly MACOS_MAJOR=$(/bin/echo ${MACOS_VERSION} | /usr/bin/cut -d '.' -f 1)
 readonly MACOS_MINOR=$(/bin/echo ${MACOS_VERSION} | /usr/bin/cut -d '.' -f 2)
 # export CFLAGS="${CFLAGS} -arch=arm64 -arch=x86_64"
 
-declare -xr VLC_VERSION="${VLC_VERSION:-${_VLC_VERSION}}"
-declare -xr QT_VERSION="${QT_VERSION:-${_QT_VERSION}}"
-declare -xr CEF_VERSION="${CEF_VERSION:-${_CEF_VERSION}}"
-declare -xr CEF_BUILD_VERSION="${CEF_BUILD_VERSION:-${CEF_VERSION}}"
-declare -xr BOOST_VERSION="${BOOST_VERSION:-${_BOOST_VERSION}}"
-declare -xr OPENSSL_VERSION="${OPENSSL_VERSION:-${_OPENSSL_VERSION}}"
+readonly VLC_VERSION="${VLC_VERSION:-${_VLC_VERSION}}"
+readonly QT_VERSION="${QT_VERSION:-${_QT_VERSION}}"
+readonly CEF_VERSION="${CEF_VERSION:-${_CEF_VERSION}}"
+readonly CEF_BUILD_VERSION="${CEF_BUILD_VERSION:-${CEF_VERSION}}"
+readonly BOOST_VERSION="${BOOST_VERSION:-${_BOOST_VERSION}}"
+readonly OPENSSL_VERSION="${OPENSSL_VERSION:-${_OPENSSL_VERSION}}"
+declare -ri MACOS_CEF_BUILD_VERSION=$(echo "${_CEF_VERSION}" | /usr/bin/sed -En "s/[0-9]+\.[0-9]+\.[0-9]+\+[a-z0-9]{8}\+chromium-[0-9]+\.[0-9]+\.([0-9]{4})\.[0-9]+/\1/p")
 
 declare -i SKIP_BUILD_TOOLS=0
 if [ "$1" == "skip_build_tools" ] || [ "$2" == "skip_build_tools" ]; then
@@ -66,9 +63,9 @@ NUM_CORES=$(sysctl -n hw.ncpu)
 declare -xri CMAKE_BUILD_PARALLEL_LEVEL=${NUM_CORES}
 
 readonly SIDEKICK_ROOT="$(pwd)"
-cd ../../..
+cd ../../.. || exit
 readonly OBS_ROOT="$(pwd)"
-cd ..
+cd .. || exit
 readonly DEV_DIR="${DEV_DIR:-$(pwd)}"
 readonly WORK_DIR="${WORK_DIR:-${DEV_DIR}/obsdeps-src}"
 readonly OBSDEPS="${OBSDEPS:-${DEV_DIR}/obsdeps}"
@@ -202,7 +199,6 @@ install_build_tools() {
     install_or_upgrade automake
     install_or_upgrade pcre
     install_or_upgrade cmake
-    # install_or_upgrade freetype
     install_or_upgrade nasm
     install_or_upgrade pkg-config
     install_or_upgrade cmocka
@@ -220,9 +216,8 @@ install_core_obs_deps() {
     brew uninstall python@2.7.17
     brew untap local/python2
   fi
-  install_or_upgrade curl-openssl
+  install_or_upgrade curl
   install_or_upgrade openssl@1.1
-  # install_or_upgrade speexdsp
   install_or_upgrade fdk-aac
   brew tap akeru-inc/tap
   install_or_upgrade akeru-inc/tap/xcnotary
@@ -767,20 +762,6 @@ install_qt() {
   fi
 }
 
-install_boost() {
-  install_or_upgrade boost
-  # if [ -f "${HOMEBREW_PREFIX}/opt/boost/include/boost/version.hpp" ]; then
-  #   hr "Boost ${BOOST_VERSION} already installed"
-  # else
-  #   hr "Installing Boost ${BOOST_VERSION}"
-  #   set +e
-  #   #brew install "${SIDEKICK_ROOT}/scripts/homebrew/boost.rb"
-  #   #brew pin boost
-  #   brew install boost
-  #   set -e
-  # fi
-}
-
 install_packages_app() {
   if [ -d "/Applications/Packages.app" ] && exists packagesbuild; then
     hr "Packages app already installed"
@@ -899,7 +880,7 @@ main() {
   build_freetype
   build_rnnoise
   install_qt
-  install_boost
+  install_or_upgrade boost
   install_packages_app
   install_vlc
   install_cef
