@@ -72,6 +72,7 @@
 #endif // _PROD
 
 #ifndef MFC_AGENT_SVC_URL
+//#define MFC_AGENT_SVC_URL                       "https://sidekick.mfc.dev/agentSvc.php"
 #define MFC_AGENT_SVC_URL                       "https://sidekick.mfc.dev/yagentSvc.php"
 #endif
 
@@ -89,10 +90,12 @@
 #define DEFAULT_DEAD_COUNT                      5
 #endif
 
+// Max dead count that can be set by the REST API
 #ifndef MFC_MAX_DEADCOUNT
 #define MFC_MAX_DEADCOUNT                       10
 #endif
 
+// Max sleep interval that can be set by REST API
 #ifndef MFC_MAX_SLEEP_INTERVAL
 #define MFC_MAX_SLEEP_INTERVAL                  600
 #endif
@@ -181,11 +184,13 @@
 
 #define MFC_SERVICES_JSON_NAME                  "name"
 
+// MFC RTMP Service name
 #ifndef MFC_SERVICES_JSON_NAME_RTMP_VALUE
 //#define MFC_SERVICES_JSON_NAME_RTMP_VALUE       "MyFreeCams RTMP"
 #define MFC_SERVICES_JSON_NAME_RTMP_VALUE       "MyFreeCams"
 #endif
 
+// MFC WebRTC Service name
 #ifndef MFC_SERVICES_JSON_NAME_WEBRTC_VALUE
 #define MFC_SERVICES_JSON_NAME_WEBRTC_VALUE     "MyFreeCams WebRTC"
 #endif
@@ -230,6 +235,7 @@
 #define MFC_SERVICES_JSON_X264_PROFILE_VALUE    "high"
 #endif
 
+// MFC Broadcast Service x264 encoder options
 #define MFC_SERVICES_JSON_X264OPTS              "x264opts"
 #ifndef MFC_SERVICES_JSON_X264OPTS_VALUE
 #define MFC_SERVICES_JSON_X264OPTS_VALUE        "tune=zerolatency scenecut=0"

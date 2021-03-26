@@ -63,7 +63,7 @@ elseif(APPLE)
 	set(CMAKE_CXX_VISIBILITY_PRESET default)
 endif()
 
-include(downloadCPM)
+# include(downloadCPM)
 include(helpers)
 include(variables)
 include(FetchContent)

@@ -34,6 +34,8 @@ set(SRC_OBS_COMMON
 	MFCEdgeIngest.cpp
 	MFCPluginAPI.h
 	MFCPluginAPI.cpp
+	# ModelKey.h
+	# ModelKey.cpp
 	ObsServicesJson.h
 	ObsServicesJson.cpp
 	ObsUtil.h

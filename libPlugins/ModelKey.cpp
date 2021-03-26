@@ -1,27 +1,20 @@
-
-//system
-#include <string>
-
-// project
 #include "ModelKey.h"
 
 // boost libraries
+#include <boost/algorithm/string.hpp>
 #include <boost/archive/iterators/base64_from_binary.hpp>
 #include <boost/archive/iterators/binary_from_base64.hpp>
-#include <boost/archive/iterators/transform_width.hpp>
 #include <boost/archive/iterators/insert_linebreaks.hpp>
 #include <boost/archive/iterators/remove_whitespace.hpp>
-#include <algorithm> 
+#include <boost/archive/iterators/transform_width.hpp>
 
-#include <boost/algorithm/string.hpp>
+#include <algorithm>
+#include <string>
 
-
-
-
-std::string CModelKey::decode64(const std::string& s) {
+std::string CModelKey::decode64(const std::string& s)
+{
     using namespace boost::archive::iterators;
-    typedef transform_width<binary_from_base64<remove_whitespace
-        <std::string::const_iterator> >, 8, 6> ItBinaryT;
+    typedef transform_width<binary_from_base64< remove_whitespace<std::string::const_iterator> >, 8, 6> ItBinaryT;
 
     std::string input = s;
     try
@@ -36,11 +29,8 @@ std::string CModelKey::decode64(const std::string& s) {
         output.erase(output.end() - pad_chars, output.end());
         return output;
     }
-    catch (std::exception const&ex)
+    catch (...)
     {
         return std::string("");
     }
-
 }
-
-
