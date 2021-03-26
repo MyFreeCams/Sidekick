@@ -25,71 +25,6 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 #
-# Source files.
-#
-
-configure_file(
-	${CMAKE_CURRENT_SOURCE_DIR}/BroadcastPlugin.rc.in
-	${CMAKE_CURRENT_BINARY_DIR}/BroadcastPlugin.rc
-)
-
-# core files (non-webrtc).
-set(MyTarget_CORE_FILES
-	BroadcastPluginStart.cpp
-	HttpThread.h
-	HttpThread.cpp
-	ObsBroadcast.h
-	ObsBroadcast.cpp
-	ObsCallbackEvent.h
-	ObsCallbackEvent.cpp
-	SanitizeInputs.h
-	SDPUtil.h
-	SidekickProperties.h
-	SidekickProperties.cpp
-	SidekickTypes.h
-	webrtc_version.h
-	wowza-stream.h
-	wowza-stream.cpp
-)
-
-# webrtc files.
-set(MyTarget_WEBRTC_FILES
-	ADMWrapper.h
-	ADMWrapper.cpp
-	EncoderFactory.h
-	EncoderFactory.cpp
-	NV12Buf.h
-	NV12Buf.cpp
-	VideoTrackSource.h
-	VideoTrackSource.cpp
-	WebRTCStream.h
-	WebRTCStream.cpp
-	X264Encoder.h
-	X264Encoder.cpp
-)
-source_group(WebRTC FILES ${MyTarget_WEBRTC_FILES})
-if(APPLE)
-	set_source_files_properties(${MyTarget_WEBRTC_FILES} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-endif()
-
-# add platform sources.
-if(APPLE)
-	set(MyTarget_DLLMAIN_FILES
-		dllmain.qrc
-	)
-elseif(WIN32)
-	set(MyTarget_DLLMAIN_FILES
-		dllmain.cpp
-		dllmain.qrc
-	)
-	set(MyTarget_RESOURCE_FILES
-		${CMAKE_CURRENT_BINARY_DIR}/BroadcastPlugin.rc
-		resource.h
-		targetver.h
-	)
-endif()
-
-#
 # Dependencies
 #
 
@@ -155,10 +90,6 @@ endif()
 if(NOT DEFINED WebRTC::WebRTC)
 	find_package(WebRTC REQUIRED)
 	PRINT(WebRTC)
-	configure_file(
-		"${CMAKE_CURRENT_SOURCE_DIR}/webrtc_version.h.in"
-		"${CMAKE_CURRENT_BINARY_DIR}/webrtc_version.h"
-	)
 endif()
 
 #------------------------------------------------------------------------
@@ -167,6 +98,76 @@ endif()
 if(NOT DEFINED LIBX264_LIBRARIES)
 	find_package(Libx264 REQUIRED)
 	PRINT(Libx264)
+endif()
+
+
+#
+# Source files.
+#
+
+configure_file(
+	${CMAKE_CURRENT_SOURCE_DIR}/BroadcastPlugin.rc.in
+	${CMAKE_CURRENT_BINARY_DIR}/BroadcastPlugin.rc
+)
+configure_file(
+	${CMAKE_CURRENT_SOURCE_DIR}/webrtc_version.h.in
+	${CMAKE_CURRENT_BINARY_DIR}/webrtc_version.h
+)
+
+# core files (non-webrtc).
+set(MyTarget_CORE_FILES
+	BroadcastPluginStart.cpp
+	HttpThread.h
+	HttpThread.cpp
+	ObsBroadcast.h
+	ObsBroadcast.cpp
+	ObsCallbackEvent.h
+	ObsCallbackEvent.cpp
+	SanitizeInputs.h
+	SDPUtil.h
+	SidekickProperties.h
+	SidekickProperties.cpp
+	SidekickTypes.h
+	wowza-stream.h
+	wowza-stream.cpp
+	${CMAKE_CURRENT_BINARY_DIR}/webrtc_version.h
+)
+
+# webrtc files.
+set(MyTarget_WEBRTC_FILES
+	ADMWrapper.h
+	ADMWrapper.cpp
+	EncoderFactory.h
+	EncoderFactory.cpp
+	NV12Buf.h
+	NV12Buf.cpp
+	VideoTrackSource.h
+	VideoTrackSource.cpp
+	WebRTCStream.h
+	WebRTCStream.cpp
+	X264Encoder.h
+	X264Encoder.cpp
+)
+source_group(WebRTC FILES ${MyTarget_WEBRTC_FILES})
+if(APPLE)
+	set_source_files_properties(${MyTarget_WEBRTC_FILES} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+endif()
+
+# add platform sources.
+if(APPLE)
+	set(MyTarget_DLLMAIN_FILES
+		dllmain.qrc
+	)
+elseif(WIN32)
+	set(MyTarget_DLLMAIN_FILES
+		dllmain.cpp
+		dllmain.qrc
+	)
+	set(MyTarget_RESOURCE_FILES
+		${CMAKE_CURRENT_BINARY_DIR}/BroadcastPlugin.rc
+		resource.h
+		targetver.h
+	)
 endif()
 
 # add platform link dependancies.

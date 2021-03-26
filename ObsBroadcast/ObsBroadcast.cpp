@@ -16,6 +16,8 @@
 
 #include "ObsBroadcast.h"
 
+#include <libPlugins/MFCConfigConstants.h>
+
 #include <util/config-file.h>
 #include <util/platform.h>
 #include <util/threading.h>

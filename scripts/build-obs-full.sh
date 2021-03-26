@@ -81,6 +81,8 @@ readonly _CFLAGS="-Wno-unused-variable -Wno-unused-parameter \
   -Wno-unused-private-field -Wno-sign-compare -Wno-vla"
 readonly _CXXFLAGS="-Wno-pragmas -Wno-deprecated-declarations"
 
+export PKG_CONFIG_PATH="${HOMEBREW_PREFIX}/opt/curl/lib/pkgconfig:${PKG_CONFIG_PATH}"
+
 readonly red=$'\e[1;31m'
 readonly grn=$'\e[1;32m'
 readonly blu=$'\e[1;34m'
