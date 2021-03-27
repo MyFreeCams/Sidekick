@@ -2,32 +2,29 @@
 
 set -e # exit if something fails
 
-readonly _BUILD_DIR='xAuto'
-readonly _BUILD_TYPE='RelWithDebInfo'
-
 readonly SIDEKICK_ROOT="$(pwd)"
 readonly BUILD_DEPS="${SIDEKICK_ROOT}/scripts/build-deps-full.sh"
+readonly BUILD_OBS="${SIDEKICK_ROOT}/scripts/build-obs-full.sh"
+readonly DYLIBBUNDLER="${SIDEKICK_ROOT}/scripts/macdylibbundler/build/dylibbundler"
 
-readonly _CEF_VERSION=$(/usr/bin/sed -En "s/^readonly _CEF_VERSION=['\"]?([0-9]+\.[0-9]+\.[0-9]+\+[a-z0-9]{8}\+chromium-[0-9]+\.[0-9]+\.[0-9]{4}\.[0-9]+)['\"]?/\1/p" < "${BUILD_DEPS}")
-declare -ri MACOS_CEF_BUILD_VERSION=$(echo "${_CEF_VERSION}" | /usr/bin/sed -En "s/[0-9]+\.[0-9]+\.[0-9]+\+[a-z0-9]{8}\+chromium-[0-9]+\.[0-9]+\.([0-9]{4})\.[0-9]+/\1/p")
-
-export DYLIBBUNDLER="${SIDEKICK_ROOT}/scripts/macdylibbundler/build/dylibbundler"
 cd ../../.. || exit
 readonly OBS_ROOT="$(pwd)"
-cd .. || exit
-export DEV_DIR="${DEV_DIR:-$(pwd)}"
+if [ -z "${DEV_DIR}" ]; then
+  cd .. || exit
+  export DEV_DIR="$(pwd)"
+fi
 export OBSDEPS="${DEV_DIR}/obsdeps"
 export QTDIR="${QTDIR:-${OBSDEPS}}"
 
-export BUILD_DIR="${BUILD_DIR:-${_BUILD_DIR}}"
+export BUILD_DIR="${BUILD_DIR:-$(/usr/bin/sed -En "s/^readonly _BUILD_DIR=['\"]?([a-zA-Z0-9]+)['\"]?/\1/p" < "${BUILD_OBS}")}"
 export BUILD_ROOT="${OBS_ROOT}/${BUILD_DIR}"
 cd "${BUILD_ROOT}"
 
 if [ -f "${BUILD_ROOT}/CMakeCache.txt" ]; then
   PREV_BUILD_TYPE=$(grep -E 'CMAKE_BUILD_TYPE:[^=]+=' "${BUILD_ROOT}/CMakeCache.txt" | sed -E 's/CMAKE_BUILD_TYPE:[^=]+=//')
 fi
-readonly _BUILD_TYPE_=${PREV_BUILD_TYPE:-${_BUILD_TYPE}}
-export CMAKE_BUILD_TYPE=${BUILD_TYPE:-${_BUILD_TYPE_}}
+readonly _BUILD_TYPE=$(/usr/bin/sed -En "s/^readonly _BUILD_TYPE=['\"]?([a-zA-Z]+)['\"]?/\1/p" < "${BUILD_OBS}")
+export CMAKE_BUILD_TYPE=${BUILD_TYPE:-${PREV_BUILD_TYPE:-${_BUILD_TYPE}}}
 export BUILD_TYPE=${CMAKE_BUILD_TYPE}
 _CEF_BUILD_TYPE=Release
 if [ "${BUILD_TYPE}" = "Debug" ]; then _CEF_BUILD_TYPE=Debug; fi
@@ -38,24 +35,25 @@ if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]
   PREV_GIT_COMMIT=$(grep -E -o 'SIDEKICK_VERSION_GITCOMMIT "[^"]+' "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" | sed -E 's/SIDEKICK_VERSION_GITCOMMIT "//')
 fi
 
+readonly _CEF_VERSION=$(/usr/bin/sed -En "s/^readonly _CEF_VERSION=['\"]?([0-9]+\.[0-9]+\.[0-9]+\+[a-z0-9]{8}\+chromium-[0-9]+\.[0-9]+\.[0-9]{4}\.[0-9]+)['\"]?/\1/p" < "${BUILD_DEPS}")
 export CEF_VERSION=${CEF_VERSION:-${_CEF_VERSION}}
 export CEF_BUILD_VERSION=${CEF_BUILD_VERSION:-${CEF_VERSION}}
 
-readonly _CEF_DIR="${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macosx64}"
-export CEF_ROOT_DIR="${CEF_ROOT_DIR:-${_CEF_DIR}}"
+readonly HOST_ARCH=$(uname -m)
+readonly CEF_ARCH=$(test "${HOST_ARCH}" = "arm64" && echo "arm64" || echo "x64")
+export CEF_ROOT_DIR="${CEF_ROOT_DIR:-${CEF:-${DEV_DIR}/cef_binary_${CEF_BUILD_VERSION}_macos${CEF_ARCH}}}"
 export CEF_ROOT="${CEF_ROOT:-${CEF_ROOT_DIR}}"
 
 export BOOST_ROOT="${BOOST_ROOT:-/usr/local/opt/boost}"
-readonly _OPENSSL_DIR="${OPENSSL:-/usr/local/opt/openssl@1.1}"
-export OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${_OPENSSL_DIR}}"
+export OPENSSL_ROOT_DIR="${OPENSSL_ROOT_DIR:-${OPENSSL:-/usr/local/opt/openssl@1.1}}"
 
 # Store current xcode path
 readonly CURRENT_XCODE=$(xcode-select -p)
 
-if [ -n "${NOTARIZATION_USERNAME}" ]; then NOTARIZING=yes; else NOTARIZING=no; fi
-NOTARIZED=no
-SIGNING=no
-SIGNED=no
+if [ -n "${NOTARIZATION_USERNAME}" ]; then NOTARIZING='yes'; else NOTARIZING='no'; fi
+NOTARIZED='no'
+SIGNING='no'
+SIGNED='no'
 
 readonly red=$'\e[1;31m'
 readonly grn=$'\e[1;32m'
@@ -107,21 +105,39 @@ fetch_git_tags() {
 }
 
 find_codesign_ident() {
+  set +e
   if [ "$1" = "dev" ]; then NO_CODESIGN=1; fi
   if [ -z "${NO_CODESIGN}" ]; then
     CODESIGN_IDENT_FULL=$(security find-identity -p codesigning -v | grep 'Developer ID Application' | grep -Eoe '[A-F0-9]+\s"[^"]+"')
     if [ -z "${CODESIGN_IDENT_FULL}" ] && [ -z "${CODESIGN_IDENT}" ]; then NO_CODESIGN=1; fi
     if [ -z "${NO_CODESIGN}" ]; then
-      SIGNING=yes
+      SIGNING='yes'
       export CODESIGN_IDENT=${CODESIGN_IDENT:-$(echo "${CODESIGN_IDENT_FULL}" | grep -Eoe '^[A-F0-9]+')}
       readonly PRODUCTSIGN_IDENT_FULL=$(security find-identity -v | grep 'Developer ID Installer' | grep -Eoe '[A-F0-9]+\s"[^"]+"')
       export PRODUCTSIGN_IDENT=${PRODUCTSIGN_IDENT:-$(echo "${PRODUCTSIGN_IDENT_FULL}" | grep -Eoe '^[A-F0-9]+')}
     fi
   fi
+  set -e
 }
 
 print_env() {
   echo "${cyn}Packaging Sidekick${reset}"
+  echo
+  echo "${bold}GIT_BRANCH:              ${GIT_BRANCH}${reset}"
+  if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
+    if [ "${GIT_BRANCH}" != "${PREV_GIT_BRANCH}" ]; then
+      echo "${mag}PREV_GIT_BRANCH:         ${PREV_GIT_BRANCH}${reset}"
+    fi
+  fi
+  echo "${bold}GIT_COMMIT:              ${GIT_COMMIT}${reset}"
+  if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
+    if [ "${GIT_COMMIT}" != "${PREV_GIT_COMMIT}" ]; then
+      echo "${mag}PREV_GIT_COMMIT:         ${PREV_GIT_COMMIT}${reset}"
+    fi
+  fi
+  echo
+  echo "Signing?                 ${SIGNING}"
+  echo "Notarizing?              ${NOTARIZING}"
   echo
   echo "BUILD_TYPE:              ${BUILD_TYPE}"
   if [ -f "${BUILD_ROOT}/CMakeCache.txt" ]; then
@@ -129,29 +145,9 @@ print_env() {
       echo "PREVIOUS BUILD_TYPE:     ${PREV_BUILD_TYPE}"
     fi
   fi
-  echo "${bold}GIT_BRANCH:              ${GIT_BRANCH}${reset}"
-  if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
-    if [ "${GIT_BRANCH}" = "${PREV_GIT_BRANCH}" ]; then
-      echo "${bold}PREV_GIT_BRANCH:         ${PREV_GIT_BRANCH}${reset}"
-    else
-      echo "${mag}PREV_GIT_BRANCH:         ${PREV_GIT_BRANCH}${reset}"
-    fi
-  fi
-  echo "${bold}GIT_COMMIT:              ${GIT_COMMIT}${reset}"
-  if [ -f "${BUILD_ROOT}/plugins/MyFreeCams/Sidekick/libPlugins/build_version.h" ]; then
-    if [ "${GIT_COMMIT}" = "${PREV_GIT_COMMIT}" ]; then
-      echo "PREV_GIT_COMMIT:         ${PREV_GIT_COMMIT}"
-    else
-      echo "${mag}PREV_GIT_COMMIT:         ${PREV_GIT_COMMIT}${reset}"
-    fi
-  fi
-  echo
   echo "BUILD_ROOT:              ${BUILD_ROOT}"
   echo "OBS_ROOT:                ${OBS_ROOT}"
   echo "DEV_DIR:                 ${DEV_DIR}"
-  echo
-  echo "Signing?                 ${SIGNING}"
-  echo "Notarizing?              ${NOTARIZING}"
   if [ -z "${NO_CODESIGN}" ]; then
     echo
     echo "CODESIGN_IDENT_FULL:     ${CODESIGN_IDENT_FULL}"
@@ -196,20 +192,29 @@ move_scripting_plugins() {
 
 bundle_dylibs_fix_install_names() {
   cd "${BUILD_ROOT}"
+  # Create array of binary files to fix (exclude main executable)
   local -a plugins
-  for f in ./OBS.app/Contents/Plugins/*.*; do
-    plugins+=("./OBS.app/Contents/Plugins/${f##*/}")
-  done
-  plugins+=("./OBS.app/Contents/MacOS/obs-ffmpeg-mux")
-  for f in ./OBS.app/Contents/MacOS/*.so; do
-    plugins+=("./OBS.app/Contents/MacOS/${f##*/}")
-  done
-  for f in ./OBS.app/Contents/MacOS/*.dylib; do
-    plugins+=("./OBS.app/Contents/MacOS/${f##*/}")
-  done
-  if [ ${MACOS_CEF_BUILD_VERSION} -le 3770 ]; then
+  if [ -f ./OBS.app/Contents/MacOS/obs-ffmpeg-mux ]; then
+    plugins+=("./OBS.app/Contents/MacOS/obs-ffmpeg-mux")
+  fi
+  if [ -f ./OBS.app/Contents/Plugins/obs-browser-page ]; then
     plugins+=("./OBS.app/Contents/Plugins/obs-browser-page")
   fi
+  for f in ./OBS.app/Contents/Plugins/*.*; do
+    if [ -f "./OBS.app/Contents/Plugins/${f##*/}" ]; then
+      plugins+=("./OBS.app/Contents/Plugins/${f##*/}")
+    fi
+  done
+  for f in ./OBS.app/Contents/MacOS/*.so; do
+    if [ -f "./OBS.app/Contents/MacOS/${f##*/}" ]; then
+      plugins+=("./OBS.app/Contents/MacOS/${f##*/}")
+    fi
+  done
+  for f in ./OBS.app/Contents/MacOS/*.dylib; do
+    if [ -f "./OBS.app/Contents/MacOS/${f##*/}" ]; then
+      plugins+=("./OBS.app/Contents/MacOS/${f##*/}")
+    fi
+  done
 
   # Fix install names & rpaths on dependencies and bundle dylibs
   ${DYLIBBUNDLER} -f -q -cd -of -a ./OBS.app $(echo "${plugins[@]/#/-x }")
@@ -222,55 +227,59 @@ bundle_dylibs_fix_install_names() {
 }
 
 copy_qtnetwork() {
-  cd "${BUILD_ROOT}"
-  # Copy QtNetwork for plugin support
-  cp -pfR "${QTDIR}/lib/QtNetwork.framework" ./OBS.app/Contents/Frameworks/
-  chmod -R +w ./OBS.app/Contents/Frameworks/QtNetwork.framework
-  chmod 644 ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Resources/Info.plist
-  rm -rf ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Headers
-  rm -rf ./OBS.app/Contents/Frameworks/QtNetwork.framework/Headers
-  install_name_tool -id \
-    @rpath/QtNetwork \
-    ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
-  install_name_tool -change \
-    "${QTDIR}/lib/QtCore.framework/Versions/5/QtCore" \
-    @executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore \
-    ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
+  if ! [ -d "${BUILD_ROOT}/OBS.app/Contents/Frameworks/QtNetwork.framework" ]; then
+    cd "${BUILD_ROOT}"
+    # Copy QtNetwork for plugin support
+    cp -pfR "${QTDIR}/lib/QtNetwork.framework" ./OBS.app/Contents/Frameworks/
+    chmod -R +w ./OBS.app/Contents/Frameworks/QtNetwork.framework
+    chmod 644 ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Resources/Info.plist
+    rm -rf ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/Headers
+    rm -rf ./OBS.app/Contents/Frameworks/QtNetwork.framework/Headers
+    install_name_tool -id \
+      @rpath/QtNetwork \
+      ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
+    install_name_tool -change \
+      "${QTDIR}/lib/QtCore.framework/Versions/5/QtCore" \
+      @executable_path/../Frameworks/QtCore.framework/Versions/5/QtCore \
+      ./OBS.app/Contents/Frameworks/QtNetwork.framework/Versions/5/QtNetwork
+  fi
 }
 
 copy_cef() {
-  cd "${BUILD_ROOT}"
-  if [ -f ./rundir/${BUILD_TYPE}/obs-plugins/obs-browser.so ]; then
+  if [ -f "${BUILD_ROOT}/rundir/${BUILD_TYPE}/obs-plugins/obs-browser.so" ]; then
     hr "Copying Chromium Embedded Framework (CEF)"
-    cp -pfR "${CEF_ROOT}/${CEF_BUILD_TYPE}/Chromium Embedded Framework.framework" ./OBS.app/Contents/Frameworks/
+    cp -pfR "${CEF_ROOT}/${CEF_BUILD_TYPE}/Chromium Embedded Framework.framework" "${BUILD_ROOT}/OBS.app/Contents/Frameworks/"
   fi
 }
 
 prepare_files_for_package() {
   cd "${BUILD_ROOT}"
+  rm -rf ./MFCBroadcast
   mkdir -p ./MFCBroadcast/bin
-  cp -pf ./OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so ./MFCBroadcast/bin/
-  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib ./MFCBroadcast/bin/
-  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libx264* ./MFCBroadcast/bin/
-  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libssl* ./MFCBroadcast/bin/
-  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libcrypto* ./MFCBroadcast/bin/
+  cp -pf ./OBS-Sidekick.app/Contents/Plugins/MFCBroadcast.so ./MFCBroadcast/bin
+  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/websocketclient.dylib ./MFCBroadcast/bin
+  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libx264* ./MFCBroadcast/bin
+  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libssl* ./MFCBroadcast/bin
+  cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libcrypto* ./MFCBroadcast/bin
   if [ -f ./OBS-Sidekick.app/Contents/Frameworks/libipc.dylib ]; then
-    cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libipc.dylib ./MFCBroadcast/bin/
+    cp -pf ./OBS-Sidekick.app/Contents/Frameworks/libipc.dylib ./MFCBroadcast/bin
   fi
   for f in ./MFCBroadcast/bin/*; do
     for g in ./MFCBroadcast/bin/*; do
-      install_name_tool -change \
-        @executable_path/../Frameworks/${f##*/} \
-        @loader_path/${f##*/} \
-        ./MFCBroadcast/bin/${g##*/}
+      if [ -f ./MFCBroadcast/bin/"${g##*/}" ]; then
+        install_name_tool -change \
+          @executable_path/../Frameworks/"${f##*/}" \
+          @loader_path/"${f##*/}" \
+          ./MFCBroadcast/bin/"${g##*/}"
+      fi
     done
   done
-  if [ -f ./MFC-Sidekick-Setup-${YYYYMMDD}.pkg ]; then
-    rm -f ./MFC-Sidekick-Setup-${YYYYMMDD}.pkg
-  fi
-  if [ -f ./MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg ]; then
-    rm -f ./MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg
-  fi
+  rm -f ./MFC-Sidekick-Setup-${YYYYMMDD}.pkg
+  rm -f ./MFC-Sidekick-Setup-${GIT_BRANCH}-${GIT_COMMIT}-${YYYYMMDD}.pkg
+}
+
+codesign_cmd() {
+  /usr/bin/codesign --force --options runtime "$@"
 }
 
 # Example: codesign_app appNameNoExtension /full/path/to/containing/directory
@@ -283,34 +292,44 @@ codesign_app() {
     local frameworks="./$1.app/Contents/Frameworks"
     local cef_path="${frameworks}/Chromium Embedded Framework.framework"
     for f in "${cef_path}/Libraries/"*.dylib; do
-      echo "* code signing $f"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
+      if [ -f "$f" ]; then
+        echo "* code signing $f"
+        codesign_cmd --sign "${CODESIGN_IDENT:--}" "$f"
+      fi
     done
     echo "* code signing $cef_path"
-    codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "${cef_path}"
+    codesign_cmd --sign "${CODESIGN_IDENT:--}" --deep "${cef_path}"
   fi
   for f in "${frameworks}/"*Helper.app; do
-    echo "* code signing $f"
-    codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    if [ -d "$f" ]; then
+      echo "* code signing $f"
+      codesign_cmd --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    fi
   done
   for f in "${frameworks}/"*Helper*GPU*.app; do
-    echo "* code signing $f"
-    codesign --force --options runtime --entitlements "${helpers}/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    if [ -d "$f" ]; then
+      echo "* code signing $f"
+      codesign_cmd --entitlements "${helpers}/helper-gpu-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    fi
   done
   for f in "${frameworks}/"*Helper*Plugin*.app; do
-    echo "* code signing $f"
-    codesign --force --options runtime --entitlements "${helpers}/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    if [ -d "$f" ]; then
+      echo "* code signing $f"
+      codesign_cmd --entitlements "${helpers}/helper-plugin-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    fi
   done
   for f in "${frameworks}/"*Helper*Renderer*.app; do
-    echo "* code signing $f"
-    codesign --force --options runtime --entitlements "${helpers}/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    if [ -d "$f" ]; then
+      echo "* code signing $f"
+      codesign_cmd --entitlements "${helpers}/helper-renderer-entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "$f"
+    fi
   done
   if [ -d "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin" ]; then
     echo "* code signing $f"
-    codesign --force --options runtime --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"
+    codesign_cmd --deep --sign "${CODESIGN_IDENT:--}" "./$1.app/Contents/Resources/data/obs-mac-virtualcam.plugin"
   fi
   echo "* code signing $1.app"
-  codesign --force --options runtime --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
+  codesign_cmd --entitlements "${OBS_ROOT}/CI/scripts/macos/app/entitlements.plist" --sign "${CODESIGN_IDENT:--}" --deep "./$1.app"
   codesign -dvv "./$1.app"
   popd
 }
@@ -324,8 +343,10 @@ codesign_apps() {
 
     hr "Code Signing MFC Broadcast Plugin"
     for f in ./MFCBroadcast/bin/*; do
-      echo "* code signing $f"
-      codesign --force --options runtime --sign "${CODESIGN_IDENT:--}" "$f"
+      if [ -f "$f" ]; then
+        echo "* code signing $f"
+        codesign_cmd --sign "${CODESIGN_IDENT:--}" "$f"
+      fi
     done
   fi
 }
@@ -342,7 +363,7 @@ codesign_package() {
     mv "${BUILD_ROOT}/Sidekick.pkg" "${BUILD_ROOT}/Sidekick-unsigned.pkg"
     productsign --sign "${PRODUCTSIGN_IDENT:--}" "${BUILD_ROOT}/Sidekick-unsigned.pkg" "${BUILD_ROOT}/Sidekick.pkg"
     # Validate signature
-    if pkgutil --check-signature "${BUILD_ROOT}/Sidekick.pkg"; then SIGNED=yes; fi
+    if pkgutil --check-signature "${BUILD_ROOT}/Sidekick.pkg"; then SIGNED='yes'; fi
   fi
 }
 
@@ -361,7 +382,7 @@ notarize_package() {
         hr "Notarizing Package"
         xcnotary notarize "${BUILD_ROOT}/Sidekick.pkg" --developer-account "${NOTARIZATION_USERNAME}" --developer-password-keychain-item "AC_PASSWORD" --provider "${ASC_PROVIDER_SHORTNAME}"
         # System Policy (Gatekeeper) assessment
-        if spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"; then NOTARIZED=yes; fi
+        if spctl -a -v --type install "${BUILD_ROOT}/Sidekick.pkg"; then NOTARIZED='yes'; fi
       else
         echo "Notarization precheck - failed"
         return 1

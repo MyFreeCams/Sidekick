@@ -113,11 +113,11 @@ hr() {
 }
 
 print_env() {
+  echo "${cyn}Building Sidekick${reset}"
   echo
-  echo "${bold}Building           Sidekick${reset}"
-  echo "${red}BUILD_TYPE:        ${BUILD_TYPE}${reset}"
-  echo "GENERATOR:         ${GENERATOR}"
   echo "OBS_TAG:           ${OBS_TAG}"
+  echo "BUILD_TYPE:        ${BUILD_TYPE}"
+  echo "GENERATOR:         ${GENERATOR}"
   echo
   echo "SIDEKICK_ROOT:     ${SIDEKICK_ROOT}"
   echo "BUILD_ROOT:        ${BUILD_ROOT}"
