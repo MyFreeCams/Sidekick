@@ -18,13 +18,14 @@
 
 #include "MfcOauthApi.h"
 
+#include <libfcs/Log.h>
+
 #include <nlohmann/json.hpp>
 #include <restclient-cpp/connection.h>
 #include <restclient-cpp/restclient.h>
 
 #include <memory>
 #include <sstream>
-#include <stdexcept>
 #include <thread>
 
 #ifndef MFC_OAUTH_API_URL
@@ -138,14 +139,14 @@ bool MfcOauthApi::NewLinkCode()
 
     if (r.code != 200)
     {
-        throw std::runtime_error("Error: POST " + data + " to " + m_sCreateUrl + "\nstatus: " + std::to_string(r.code));
+        _MESG("Error: POST %s to %s\nstatus: %d", data.c_str(), m_sCreateUrl.c_str(), r.code);
         return false;
     }
 
     auto res = njson::parse(r.body);
     if (!res["result"]["success"].get<bool>())
     {
-        throw std::runtime_error("Error: POST " + data + " to " + m_sCreateUrl + "\nbody: " + res.dump());
+        _MESG("Error: POST %s to %s\nbody: %s", data.c_str(), m_sCreateUrl.c_str(), res.dump().c_str());
         return false;
     }
 
@@ -171,7 +172,7 @@ bool MfcOauthApi::CheckIfLinked()
 {
     if (m_sLinkCode.empty())
     {
-        throw std::runtime_error("Error: missing link code. |NewLinkCode()| must return true before executing |CheckIfLinked()|");
+        _MESG("Error: missing link code. |NewLinkCode()| must return true before executing |CheckIfLinked()|");
         return false;
     }
 
@@ -187,14 +188,14 @@ bool MfcOauthApi::CheckIfLinked()
     }
     else if (r.code != 200)
     {
-        throw std::runtime_error("Error: GET " + m_sQueryUrl + "\nstatus: " + std::to_string(r.code));
+        _MESG("Error: GET %s\nstatus: %d", m_sQueryUrl.c_str(), r.code);
         return false;
     }
 
     auto res = njson::parse(r.body);
     if (res["err"].get<int>() != 0)
     {
-        throw std::runtime_error("Error: GET " + m_sQueryUrl + "\nbody: " + res.dump());
+        _MESG("Error: GET %s\nbody: %s", m_sQueryUrl.c_str(), res.dump().c_str());
         return false;
     }
 
@@ -223,14 +224,14 @@ bool MfcOauthApi::FetchStreamingCredentials()
 
     if (r.code != 200)
     {
-        throw std::runtime_error("Error: POST " + data.dump() + " to " + m_sAgentServiceUrl + "\nstatus: " + std::to_string(r.code));
+        _MESG("Error: POST %s to %s\nstatus: %d", data.dump().c_str(), m_sAgentServiceUrl.c_str(), r.code);
         return false;
     }
 
     auto res = njson::parse(r.body);
     if (res["data"]["_err"].get<int>() != 0)
     {
-        throw std::runtime_error("Error: POST " + data.dump() + " to " + m_sAgentServiceUrl + "\nbody: " + r.body);
+        _MESG("Error: POST %s to %s\nbody: %s", data.dump().c_str(), m_sAgentServiceUrl.c_str(), res.dump().c_str());
         return false;
     }
 
