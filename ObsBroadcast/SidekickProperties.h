@@ -216,6 +216,8 @@ class MFCDock : public Ui_MFCDock {};
 QT_END_NAMESPACE
 
 
+class CheckIfLinked;
+
 //---/ SidekickPropertiesUI /-----------------------------------------------------------------------
 //
 // Dialog implementing the SidekickProperties page loaded from the menubar Tools -> Sidekick Setup.
@@ -237,6 +239,7 @@ public slots:
     void onClose(void);
     //void onHelp(void);
     void onLink(void);
+    void onLinked(void);
     void onUnlink(void);
     //void onWebRTC(int nState);
 
@@ -246,6 +249,9 @@ public slots:
     {
         return ui->m_pConsole;
     }
+
+private:
+    std::unique_ptr<CheckIfLinked> m_pCheck;
 };
 
 

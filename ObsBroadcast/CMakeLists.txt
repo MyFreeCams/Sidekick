@@ -28,6 +28,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 # Dependencies
 #
 
+find_library(CORE_FOUNDATION CoreFoundation)
+
 #------------------------------------------------------------------------
 # Boost
 #
@@ -82,6 +84,42 @@ endif()
 if(NOT DEFINED Qt5::Widgets)
 	find_package(Qt5 COMPONENTS Core Widgets Gui Svg REQUIRED)
 	PRINT(Qt5)
+endif()
+
+#------------------------------------------------------------------------
+# RESTClient C++
+#
+if(NOT DEFINED mrtazz::restclientcpp)
+	message(STATUS "Fetching REST Client C++")
+	FetchContent_Declare(restclientcpp
+		GIT_REPOSITORY	https://github.com/mrtazz/restclient-cpp.git
+		GIT_TAG			0.5.2
+	)
+	FetchContent_GetProperties(restclientcpp)
+	if(NOT restclientcpp_POPULATED)
+		FetchContent_Populate(restclientcpp)
+	endif()
+	if(restclientcpp_POPULATED)
+		message(STATUS "Fetching REST Client C++ - success")
+		file(WRITE
+			${restclientcpp_SOURCE_DIR}/include/restclient-cpp/version.h
+			"#define RESTCLIENT_VERSION \"0.5.2\"\n"
+		)
+		set(MyTarget_RESTCLIENT_CPP_FILES
+			${restclientcpp_SOURCE_DIR}/include/restclient-cpp/connection.h
+			${restclientcpp_SOURCE_DIR}/source/connection.cc
+			${restclientcpp_SOURCE_DIR}/include/restclient-cpp/helpers.h
+			${restclientcpp_SOURCE_DIR}/source/helpers.cc
+			${restclientcpp_SOURCE_DIR}/include/restclient-cpp/restclient.h
+			${restclientcpp_SOURCE_DIR}/source/restclient.cc
+			${restclientcpp_SOURCE_DIR}/include/restclient-cpp/version.h
+		)
+		source_group(RestAPI\\RestClientCPP FILES ${MyTarget_RESTCLIENT_CPP_FILES})
+		add_library(mrtazz::restclientcpp INTERFACE IMPORTED)
+		target_include_directories(mrtazz::restclientcpp INTERFACE ${restclientcpp_SOURCE_DIR}/include)
+	else()
+		message(FATAL_ERROR "Fetching REST Client C++ - error")
+	endif()
 endif()
 
 #------------------------------------------------------------------------
@@ -153,6 +191,20 @@ if(APPLE)
 	set_source_files_properties(${MyTarget_WEBRTC_FILES} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 endif()
 
+# rest api files.
+set(MyTarget_RESTAPI_FILES
+	MfcOauthApi.h
+	MfcOauthApi.cpp
+	MfcOauthApiCtx.h
+	MfcOauthApiCtx.cpp
+	message_box.h
+	message_box.cpp
+)
+source_group(RestAPI FILES ${MyTarget_RESTAPI_FILES})
+if(APPLE)
+	set_source_files_properties(${MyTarget_RESTAPI_FILES} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+endif()
+
 # add platform sources.
 if(APPLE)
 	set(MyTarget_DLLMAIN_FILES
@@ -174,6 +226,7 @@ endif()
 if(APPLE)
 	set(MyTarget_PLATFORM_LIBRARIES
 		objc
+		${CORE_FOUNDATION}
 	)
 elseif(WIN32)
 	set(MyTarget_PLATFORM_LIBRARIES
@@ -203,6 +256,8 @@ add_library(${MyTarget} MODULE
 	${MyTarget_WEBRTC_FILES}
 	${MyTarget_DLLMAIN_FILES}
 	${MyTarget_RESOURCE_FILES}
+	${MyTarget_RESTAPI_FILES}
+	${MyTarget_RESTCLIENT_CPP_FILES}
 )
 
 target_include_directories(${MyTarget} PRIVATE
@@ -229,6 +284,7 @@ target_link_libraries(${MyTarget} PRIVATE
 	# Boost::system
 	Boost::disable_autolinking
 	CURL::libcurl
+	mrtazz::restclientcpp
 	nlohmann::json
 	Qt5::Widgets
 	Qt5::Gui

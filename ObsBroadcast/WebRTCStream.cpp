@@ -28,10 +28,12 @@
 // project
 #include "WebRTCStream.h"
 #include "EncoderFactory.h"
+#include "MfcOauthApiCtx.h"
 #include "ObsBroadcast.h"
 #include "SanitizeInputs.h"
 #include "SDPUtil.h"
 #include "X264Encoder.h"
+#include "message_box.h"
 #include "webrtc_version.h"
 
 // solution
@@ -56,12 +58,22 @@
 #include "pc/webrtc_sdp.h"
 #include "third_party/libyuv/include/libyuv.h"
 
+#include <QMessageBox>
+#include <QString>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <iomanip>
 #include <iterator>
 #include <sstream>
+
+// use REST API instead of Sidekick for MFC authentication
+#undef SIDEKICK_APP_VERSION  // TODO: delete when done testing REST API
+
+#ifndef MFC_API_CLIENT_ID
+#define MFC_API_CLIENT_ID "splitcam"
+#endif
 
 #define obs_debug(format, ...)  blog(400, format, ##__VA_ARGS__)
 #define obs_info(format, ...)   blog(300, format, ##__VA_ARGS__)
@@ -81,6 +93,7 @@ using PCI = webrtc::PeerConnectionInterface;
 using PCFI = webrtc::PeerConnectionFactoryInterface;
 
 extern CBroadcastCtx g_ctx;  // part of MFCLibPlugins.lib::MfcPluginAPI.obj
+extern MfcOauthApiCtx g_apiCtx;
 
 /// Round |num| to a multiple of |multiple|.
 template<typename T>
@@ -88,6 +101,20 @@ inline T roundUp(T num, T multiple)
 {
     assert(multiple);
     return ((num + multiple - 1) / multiple) * multiple;
+}
+
+
+int ui_MsgBox(const char* pszTitle, const char* pszBody, int nButtons, QWidget* pParent)
+{
+    QMessageBox mb(QMessageBox::Information,
+                   pszTitle,
+                   pszBody,
+                   QMessageBox::StandardButtons(nButtons),
+                   pParent);
+
+    mb.setButtonText(QMessageBox::Ok, QString::fromUtf8("OK"));
+    mb.setDefaultButton(QMessageBox::Ok);
+    return mb.exec();
 }
 
 
@@ -254,6 +281,10 @@ bool WebRTCStream::Start()
     stopping_ = false;
 
     ResetStats();
+
+    if (!AuthenticateModel())
+        return false;
+
     ConfigureStreamParameters();
 
     if (!CreatePeerConnection())
@@ -339,6 +370,61 @@ void WebRTCStream::ResetStats()
     packets_lost_           = 0;
     rtt_                    = 0;
     jitter_                 = 0;
+}
+
+
+bool WebRTCStream::AuthenticateModel()
+{
+#ifdef MFC_API_CLIENT_ID
+    auto lk = g_apiCtx.sharedLock();
+
+    if (!g_apiCtx.IsLinked())
+    {
+        ui_MsgBox("Unable to start WebRTC Stream",
+                  "You must first link to your MFC model account before starting a stream.",
+                  1024,
+                  (QWidget*)nullptr);
+        return false;
+
+        //g_apiCtx.Link();
+        //QString qstr = QString::fromUtf8(g_apiCtx.linkUrl().c_str());
+        //QDesktopServices::openUrl(QUrl(qstr));
+    }
+
+    if (!g_apiCtx.HaveCredentials())
+        return false;
+
+    obs_info("Credentials sucessfully retreived from MFC");
+
+    m_sVideoCodec   = g_apiCtx.codec();
+    m_sProtocol     = g_apiCtx.prot();
+    m_sRegion       = g_apiCtx.region();
+    m_sUsername     = g_apiCtx.username();
+    m_sPwd          = g_apiCtx.pwd();
+    m_fCamScore     = g_apiCtx.camscore();
+    m_nSid          = g_apiCtx.sid();
+    m_nUid          = g_apiCtx.uid();
+    m_nRoomId       = g_apiCtx.room();
+    m_sStreamKey    = g_apiCtx.streamkey();
+    m_sVidCtx       = g_apiCtx.vidctx();
+    m_sVideoServer  = g_apiCtx.videoserver();
+#else
+    auto lk         = g_ctx.sharedLock();
+
+    m_sVideoCodec   = g_ctx.cfg.getString("codec");
+    m_sProtocol     = g_ctx.cfg.getString("prot");
+    m_sRegion       = g_ctx.cfg.getString("region");
+    m_sUsername     = g_ctx.cfg.getString("username");
+    m_sPwd          = g_ctx.cfg.getString("pwd");
+    m_fCamScore     = g_ctx.cfg.getFloat("camscore");
+    m_nSid          = g_ctx.cfg.getInt("sid");
+    m_nUid          = g_ctx.cfg.getInt("uid");
+    m_nRoomId       = g_ctx.cfg.getInt("room");
+    m_sStreamKey    = g_ctx.cfg.getString("ctx");
+    m_sVidCtx       = g_ctx.cfg.getString("vidctx");
+    m_sVideoServer  = g_ctx.cfg.getString("videoserver");
+#endif
+    return true;
 }
 
 

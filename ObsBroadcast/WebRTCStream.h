@@ -82,6 +82,7 @@ public:
     bool Stop(bool normal);
 
     void ResetStats();
+    bool AuthenticateModel();
     void ConfigureStreamParameters();
     bool CreatePeerConnection();
     bool AddTracks();
@@ -156,6 +157,15 @@ private:
     std::string m_sVideoServer;
     std::string m_sProtocol;
     std::string m_sRegion;
+
+    float m_fCamScore;
+    int m_nSid;
+    int m_nUid;
+    int m_nRoomId;
+    std::string m_sPwd;
+    std::string m_sUsername;
+    std::string m_sStreamKey;
+    std::string m_sVidCtx;
 
     mutable webrtc::Mutex mutex_;
 

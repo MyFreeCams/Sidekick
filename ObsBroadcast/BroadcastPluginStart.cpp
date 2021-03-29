@@ -26,7 +26,7 @@
 #define SIDEKICK_ENABLE_VIRTUALCAM 1
 #endif
 #ifndef SIDEKICK_CONSOLE
-#define SIDEKICK_CONSOLE 0
+#define SIDEKICK_CONSOLE 1
 #endif
 #ifndef SIDEKICK_VERBOSE_CONSOLE
 #define SIDEKICK_VERBOSE_CONSOLE 0
@@ -85,10 +85,12 @@
 #include "ObsBroadcast.h"
 #include "ObsCallbackEvent.h"
 #include "SidekickProperties.h"
+#include "MfcOauthApiCtx.h"
 
 #define _SKLOG(pszFmt, ...) SKLogMarker(__FILE__, __FUNCTION__, __LINE__, pszFmt, ##__VA_ARGS__)
 
 extern CBroadcastCtx g_ctx;  // part of MFCLibPlugins.lib::MfcPluginAPI.obj
+extern MfcOauthApiCtx g_apiCtx;  // part of MFCLibPlugins.lib::MfcPluginAPI.obj (libPlugins/MFCPluginAPI.cpp)
 extern char g_dummyCharVal;  // part of MfcLog.cpp in MFClibfcs.lib
 extern "C" struct obs_output_info wowza_output_info;  // part of wowza-stream.cpp in MFCBroadcast.lib
 
@@ -285,7 +287,7 @@ void loadServices(void)
 void checkServices(void)
 {
     // defaults to checking again in 500ms, unless checkFileHash() returns false
-    int checkIntervalMs = 500;         
+    int checkIntervalMs = 500;
 
     if (s_bServicesUpdated)
     {
@@ -298,7 +300,7 @@ void checkServices(void)
         }
         else checkIntervalMs = 5000;    // if it hasn't, set our interval to 5sec instead of 500ms
     }
-    else 
+    else
     {
         _MESG("SVCDBG: s_bServicesUpdated false, so calling loadServices first time from checkServices...");
         loadServices();
@@ -444,7 +446,7 @@ void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const 
 #else
     string sPath(pszFile);
     string sBase = sPath.substr(sPath.find_last_of("/\\") + 1);
-    
+
     Log::Mesg("[%s:%d %s] %s", sBase.c_str(), nLine, pszFunction, szData);
     //_MESG("%s", szData);
 #endif
@@ -454,8 +456,8 @@ void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const 
 void ui_appendConsoleMsg(const std::string& sMsg)
 {
 #if SIDEKICK_CONSOLE
-    //if (!sMsg.empty())
-    //    _SKLOG("%s", sMsg.c_str());
+    if (!sMsg.empty())
+       _SKLOG("%s", sMsg.c_str());
 #endif
 }
 
@@ -467,8 +469,8 @@ void ui_replaceConsoleMsg(const std::string& sMsg)
     if (pConsole)
         pConsole->clear();
 
-    //if (!sMsg.empty())
-    //    _SKLOG("%s", sMsg.c_str());
+    if (!sMsg.empty())
+       _SKLOG("%s", sMsg.c_str());
 #endif
 }
 
@@ -485,11 +487,18 @@ void ui_onUserUpdate(int nChange, uint32_t nCurUid, uint32_t nNewUid, uint32_t n
     std::string sUsername;
     {
         auto lk     = g_ctx.sharedLock();
-        sUsername   = g_ctx.cfg.getString("username");
-        isLoggedIn  = g_ctx.isLoggedIn;
-        isWebRTC    = g_ctx.isWebRTC;
-        isLinked    = g_ctx.isLinked;
-        isMfc       = g_ctx.isMfc;
+        auto lock   = g_apiCtx.sharedLock();
+
+        sUsername           = g_apiCtx.username();
+        isLinked            = g_apiCtx.IsLinked();
+        isLoggedIn          = g_apiCtx.sid() != 0;
+
+        isWebRTC            = g_ctx.isWebRTC;
+        isMfc               = g_ctx.isMfc;
+
+        g_ctx.isLinked      = isLinked;
+        g_ctx.isLoggedIn    = isLoggedIn;
+        g_ctx.cfg.set("username", sUsername);
     }
 
     if (nCurUid != nNewUid)
@@ -640,7 +649,7 @@ void ui_onSetWebRtc(int nState)
 void SidekickTimer::onTimerEvent()
 {
     static size_t s_nPulse = 0;
-    
+
     if (s_nPulse == 0)
         setupSidekickUI();
 
@@ -746,7 +755,7 @@ void SidekickTimer::onTimerEvent()
     if ((s_nPulse % 6) == 0)
     {
         bool isWebRTC = false, isStreaming = false, isMfc = false, isCustom = false, profileChanged = false;
-        
+
         SidekickActiveState curState = SkUninitialized;
         {
             auto lk     = g_ctx.sharedLock();
@@ -804,10 +813,14 @@ void SidekickTimer::onTimerEvent()
 void showAccountLinkStatus(void)
 {
     auto lk = g_ctx.sharedLock();
+    auto lock = g_apiCtx.sharedLock();
+
+    bool isLoggedIn = g_apiCtx.sid() != 0;
+
     std::string consoleMessage;
     if (g_ctx.isMfc)
     {
-        if (g_ctx.isLinked)
+        if (g_apiCtx.IsLinked())
         {
 #if SIDEKICK_VERBOSE_CONSOLE
             if (g_ctx.isLoggedIn)
@@ -815,7 +828,7 @@ void showAccountLinkStatus(void)
             else
                 consoleMessage = "<div style=\"font-size:14px;\"><b>Account Linked</b>! Login to ModelWeb before attempting to stream.</div>";
 #else
-            if (g_ctx.isLoggedIn)
+            if (isLoggedIn)
                 consoleMessage = "<div style=\"font-size:14px;\">You are now able to start streaming.</div>";
             else
                 consoleMessage = "<div style=\"font-size:14px;\">Login to ModelWeb before attempting to stream.</div>";
@@ -860,10 +873,15 @@ void onObsProfileChange(obs_frontend_event eventType)
     if (!s_bServicesUpdated)
         loadServices();
 
-    bool isWebRTC = false, isRtmp = false, isCustom = false, isMfc = false; 
+    bool isWebRTC = false, isRtmp = false, isCustom = false, isMfc = false;
     std::string svcName, sOldProfile(g_ctx.profileName), sUser, streamUrl, sProt("unknown");
     static bool s_bFirstProfileLoad = true;
     size_t updatesSent = 0;
+
+    {
+        auto lk = g_apiCtx.sharedLock();
+        g_ctx.isLinked = g_apiCtx.IsLinked();
+    }
 
     if (g_ctx.sm_edgeSock)
         updatesSent = g_ctx.sm_edgeSock->m_updatesSent;
@@ -979,7 +997,7 @@ void onObsProfileChange(obs_frontend_event eventType)
         if (g_ctx.activeState != SkUnknownProfile)
             g_ctx.activeState = SkUnknownProfile;
     }
-    
+
     if (s_bFirstProfileLoad)
     {
 #if SIDEKICK_CONSOLE
@@ -1045,6 +1063,15 @@ void setupSidekickUI(void)
 void onObsEvent(obs_frontend_event eventType, void* pCtx)
 {
     UNREFERENCED_PARAMETER(pCtx);
+
+    {
+        auto lk = g_ctx.sharedLock();
+        auto lock = g_apiCtx.sharedLock();
+
+        g_ctx.isLinked = g_apiCtx.IsLinked();
+        g_ctx.isLoggedIn = g_apiCtx.sid() != 0;
+        g_ctx.cfg.set("username", g_apiCtx.username());
+    }
 
     if (eventType == OBS_FRONTEND_EVENT_STREAMING_STARTING)
     {
@@ -1308,7 +1335,7 @@ void proxy_blog(int nLevel, const char* pszMsg)
     else        memset(&tmNow, 0, sizeof(tmNow));
 #endif
 #else
-    
+
 #ifdef _WIN32
     gettimeofday(&tvNow, NULL);
     _localtime32_s(&tmNow, (__time32_t*)&tvNow.tv_sec);

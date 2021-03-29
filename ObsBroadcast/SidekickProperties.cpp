@@ -50,9 +50,11 @@
 
 // project
 #include "SidekickProperties.h"
+#include "MfcOauthApiCtx.h"
 #include "ObsBroadcast.h"
 
-extern CBroadcastCtx g_ctx;
+extern CBroadcastCtx g_ctx;      // part of MFCLibPlugins.lib::MfcPluginAPI.obj (libPlugins/MFCPluginAPI.cpp)
+extern MfcOauthApiCtx g_apiCtx;  // part of MFCLibPlugins.lib::MfcPluginAPI.obj (libPlugins/MFCPluginAPI.cpp)
 
 #define DLGSZ_HEIGHT            420
 #define CONSOLESZ_HEIGHT        200
@@ -252,6 +254,7 @@ void Ui_SKProps::setupUi(QDialog* pDlg)
 SidekickPropertiesUI::SidekickPropertiesUI(QWidget* parent)
     : QDialog(parent)
     , ui(std::make_unique<Ui_SKProps>())
+    , m_pCheck(std::make_unique<CheckIfLinked>(&g_apiCtx))
 {
     QFile fileDark(":/css/QtDarkOrange.stylesheet");
     fileDark.open(QFile::ReadOnly);
@@ -264,6 +267,8 @@ SidekickPropertiesUI::SidekickPropertiesUI(QWidget* parent)
 
     QFont f("Arial", 12);
     setFont(f);
+
+    QObject::connect(m_pCheck.get(), SIGNAL(finished()), this, SLOT(onLinked()));
 
     setWindowFlags((windowFlags() & ~Qt::WindowContextHelpButtonHint) | Qt::Dialog | Qt::MSWindowsFixedSizeDialogHint);
 }
@@ -287,16 +292,97 @@ void SidekickPropertiesUI::onHelp(void)
 
 void SidekickPropertiesUI::onLink(void)
 {
-    CObsUtil::ExecMFCLogin();
+    _MESG(__FUNCTION__);
+    std::string linkCode, linkUrl, clientId, queryUrlRoot;
+    int refId;
+    QString qstr;
+
+    {
+        auto lk = g_apiCtx.sharedLock();
+
+        if (!g_apiCtx.Link())
+            return;
+
+        linkCode = g_apiCtx.linkCode();
+        linkUrl = g_apiCtx.linkUrl();
+        clientId = g_apiCtx.api.clientId();
+        refId = g_apiCtx.api.refId();
+        queryUrlRoot = g_apiCtx.api.queryUrlRoot();
+    }
+
+    std::stringstream ss;
+    ss << queryUrlRoot << "?clientId=" << clientId << "&linkCode=" << linkCode << "&refId=" << refId;
+
+    std::string codeLabel =
+        "<span style=\"font-size:18px;\">Link Code:</span><br/><span style=\"font-size:54px;\">" + linkCode
+            + "</span><br/><span style=\"font-size:12px;\">Link URL: " + linkUrl
+            + "</span><br/><span style=\"font-size:12px;\">Query URL: " + ss.str() + "</span>";
+    ui->m_pConsole->moveCursor(QTextCursor::End);
+    ui->m_pConsole->setHtml(QString::fromUtf8(codeLabel.c_str()));
+
+    qstr = QString::fromUtf8(linkUrl.c_str());
+    QDesktopServices::openUrl(QUrl(qstr));
+    m_pCheck->start();
+}
+
+
+void SidekickPropertiesUI::onLinked(void)
+{
+    _MESG(__FUNCTION__);
+    std::string queryResponse;
+
+    {
+        auto lk = g_apiCtx.sharedLock();
+
+        g_apiCtx.m_bIsLinked = true;
+        bool ret = g_apiCtx.api.FetchStreamingCredentials();
+
+        g_apiCtx.m_bHaveCredentials = true;
+        g_apiCtx.m_sQueryResponse = g_apiCtx.api.queryResponse();
+
+        g_apiCtx.m_sVideoCodec  = g_apiCtx.api.codec();
+        g_apiCtx.m_sProtocol    = g_apiCtx.api.prot();
+        g_apiCtx.m_sRegion      = g_apiCtx.api.region();
+        g_apiCtx.m_sUsername    = g_apiCtx.api.username();
+        g_apiCtx.m_sPassword    = g_apiCtx.api.pwd();
+        g_apiCtx.m_fCamScore    = g_apiCtx.api.camscore();
+        g_apiCtx.m_nSid         = g_apiCtx.api.sid();
+        g_apiCtx.m_nUid         = g_apiCtx.api.uid();
+        g_apiCtx.m_nRoomId      = g_apiCtx.api.room();
+        g_apiCtx.m_sStreamKey   = g_apiCtx.api.streamkey();
+        g_apiCtx.m_sCtx         = g_apiCtx.api.ctx();
+        g_apiCtx.m_sVidCtx      = g_apiCtx.api.vidctx();
+        g_apiCtx.m_sVideoServer = g_apiCtx.api.videoserver();
+
+        queryResponse = g_apiCtx.m_sQueryResponse;
+    }
+
+    ui->m_pConsole->moveCursor(QTextCursor::End);
+    ui->m_pConsole->setHtml(QString::fromUtf8(queryResponse.c_str()));
+    //ui->m_pConsole->moveCursor(QTextCursor::End);
+
+    relabelPropertiesText();
 }
 
 
 void SidekickPropertiesUI::onUnlink(void)
 {
-    auto lk = g_ctx.sharedLock();
-    g_ctx.clear(true);
-    g_ctx.cfg.writeProfileConfig();
-    CBroadcastCtx::sendEvent(SkReadProfile, 0, 0);
+    _MESG(__FUNCTION__);
+
+    {
+        auto lk = g_apiCtx.sharedLock();
+
+        std::string url = g_apiCtx.logoutUrl();
+        const QString qstr = QString::fromUtf8(url.c_str());
+        QDesktopServices::openUrl(QUrl(qstr));
+        g_apiCtx.Unlink();
+
+        ui->m_pConsole->moveCursor(QTextCursor::End);
+        ui->m_pConsole->setHtml(QString::fromUtf8(""));
+        ui->m_pConsole->moveCursor(QTextCursor::End);
+    }
+
+    relabelPropertiesText();
 }
 
 
@@ -309,11 +395,18 @@ void SidekickPropertiesUI::relabelPropertiesText(void)
 
     {
         auto lk     = g_ctx.sharedLock();
-        sUsername   = g_ctx.cfg.getString("username");
-        isLoggedIn  = g_ctx.isLoggedIn;
+        auto lock   = g_apiCtx.sharedLock();
+
+        sUsername   = g_apiCtx.username();
+        isLinked    = g_apiCtx.IsLinked();
+        isLoggedIn  = g_apiCtx.sid() != 0;
+
         isWebRTC    = g_ctx.isWebRTC;
-        isLinked    = g_ctx.isLinked;
         isMfc       = g_ctx.isMfc;
+
+        g_ctx.isLinked = isLinked;
+        g_ctx.isLoggedIn = isLoggedIn;
+        g_ctx.cfg.set("username", sUsername);
     }
 
     string sService     = isWebRTC      ? "WebRTC"  : "RTMP";
@@ -324,12 +417,26 @@ void SidekickPropertiesUI::relabelPropertiesText(void)
     {
         if (isLinked)
         {
-            stdprintf(s_sText, "Sidekick (%s) is LINKED with %s.  ModelWeb Login: %s", sService.c_str(), sUsername.c_str(), sLoginStatus.c_str() );
-            pszText = s_sText.c_str();
+            if (isWebRTC)
+            {
+                stdprintf(s_sText, "Mode: WebRTC. Linked with %s.", sUsername.c_str() );
+                pszText = s_sText.c_str();
+            }
+            else
+            {
+                stdprintf(s_sText, "Mode: RTMP. Linked with %s.", sUsername.c_str() );
+                pszText = s_sText.c_str();
+            }
         }
-        else pszText = "Sidekick is NOT LINKED with any model account.";
+        else
+        {
+            pszText = "Not yet linked with any model account.";
+        }
     }
-    else pszText = "Sidekick DISABLED: current profile is not using a MyFreeCams service.";
+    else
+    {
+        pszText = "Disabled, this profile is not using a MyFreeCams service.";
+    }
 
     // set logged in label text
     ui->linked_label->setText( QString( pszText ) );
@@ -354,33 +461,38 @@ MFCDock::MFCDock(QWidget* parent)
 
 void MFCDock::onLink()
 {
-    CObsUtil::ExecMFCLogin();
+    relabelPropertiesText();
 }
 
 
 void MFCDock::onUnlink()
 {
-    auto lk = g_ctx.sharedLock();
-    g_ctx.clear(true);
-    g_ctx.cfg.writeProfileConfig();
-    CBroadcastCtx::sendEvent(SkReadProfile, 0, 0);
+    relabelPropertiesText();
 }
 
 
 void MFCDock::relabelPropertiesText()
 {
-    bool isWebRTC = false, isMfc = false, isLinked = false, isOnline = false, isCustom = false;
+    bool isWebRTC = false, isMfc = false, isLinked = false, isOnline = false, isCustom = false, isLoggedIn = false;
     const char* pszText = "";
     string sUsername;
 
     {
         auto lk     = g_ctx.sharedLock();
-        sUsername   = g_ctx.cfg.getString("username");
-        isOnline    = g_ctx.isLoggedIn;
+        auto lock   = g_apiCtx.sharedLock();
+
+        sUsername   = g_apiCtx.username();
+        isLinked    = g_apiCtx.IsLinked();
+        isLoggedIn  = g_apiCtx.sid() != 0;
+
+        isOnline    = isLoggedIn;
         isWebRTC    = g_ctx.isWebRTC;
         isCustom    = g_ctx.isCustom;
-        isLinked    = g_ctx.isLinked;
         isMfc       = g_ctx.isMfc;
+
+        g_ctx.isLinked = isLinked;
+        g_ctx.isLoggedIn = isLoggedIn;
+        g_ctx.cfg.set("username", sUsername);
     }
 
     string sService, sLoginLabel;
@@ -399,7 +511,7 @@ void MFCDock::relabelPropertiesText()
             mfcLogoVisible = isOnline;
         }
         else pszText = "Account not linked";
-    
+
     }
     else pszText = "Non MFC Service";
 
