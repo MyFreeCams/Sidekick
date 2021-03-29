@@ -28,18 +28,17 @@
 // project
 #include "WebRTCStream.h"
 #include "EncoderFactory.h"
+#include "MFCEdgeIngest.h"
 #include "MfcOauthApiCtx.h"
 #include "ObsBroadcast.h"
 #include "SanitizeInputs.h"
 #include "SDPUtil.h"
 #include "X264Encoder.h"
-#include "message_box.h"
 #include "webrtc_version.h"
 
 // solution
 #include <libPlugins/build_version.h>
 #include <libPlugins/ObsUtil.h>
-#include <libPlugins/MFCEdgeIngest.h>
 
 // obs
 #include <media-io/video-io.h>
@@ -93,7 +92,7 @@ using PCI = webrtc::PeerConnectionInterface;
 using PCFI = webrtc::PeerConnectionFactoryInterface;
 
 extern CBroadcastCtx g_ctx;  // part of MFCLibPlugins.lib::MfcPluginAPI.obj
-extern MfcOauthApiCtx g_apiCtx;
+MfcOauthApiCtx g_apiCtx;
 
 /// Round |num| to a multiple of |multiple|.
 template<typename T>

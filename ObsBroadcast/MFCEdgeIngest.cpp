@@ -15,9 +15,8 @@
  */
 
 #include "MFCEdgeIngest.h"
-#include "HttpRequest.h"
 
-#include <libfcs/Log.h>
+#include <libPlugins/HttpRequest.h>
 
 #include <nlohmann/json.hpp>
 
@@ -36,7 +35,7 @@ using njson = nlohmann::json;
 using std::string;
 
 
-static string ToLower(const string& s)
+string ToLower(const string& s)
 {
     string sCopy(s);
     std::transform(sCopy.begin(), sCopy.end(), sCopy.begin(),
@@ -45,14 +44,12 @@ static string ToLower(const string& s)
 }
 
 
-// static
 string MFCEdgeIngest::RtmpPublishUrl()
 {
     return string(MFC_DEFAULT_BROADCAST_URL);
 }
 
 
-// static
 string MFCEdgeIngest::RtmpPublishUrl(const string& region)
 {
     if (region.empty())
@@ -61,7 +58,6 @@ string MFCEdgeIngest::RtmpPublishUrl(const string& region)
 }
 
 
-// static
 MFCEdgeIngest::SiteIpPort MFCEdgeIngest::WebrtcTcpIpPort(const std::string& videoServer)
 {
     string ip, site;
@@ -80,7 +76,6 @@ MFCEdgeIngest::SiteIpPort MFCEdgeIngest::WebrtcTcpIpPort(const std::string& vide
 }
 
 
-// static
 MFCEdgeIngest::SiteIpPort MFCEdgeIngest::WebrtcTcpIpPort(const string& videoServer, const string& region)
 {
     string ip;
@@ -99,62 +94,46 @@ MFCEdgeIngest::SiteIpPort MFCEdgeIngest::WebrtcTcpIpPort(const string& videoServ
 }
 
 
-// static
 bool MFCEdgeIngest::WebrtcTcpIp(std::string& site, std::string& ip)
 {
-    try
-    {
-        const string url = MFC_EDGE_RTP_INFO_URL;
-        unsigned int dwLen = 0;
-        CCurlHttpRequest httpreq;
-        uint8_t* pResponse = httpreq.Get(url, &dwLen, "", nullptr);
-        if (!pResponse)
-            return false;
-
-        const auto res = njson::parse((char*)pResponse);
-        ip = res["ip"].get<string>();
-        site = ToLower(res["site"].get<string>());
-
-        free(pResponse);
-        pResponse = nullptr;
-        return true;
-    }
-    catch (const std::exception& e)
-    {
-        _MESG("Error fetching edge IP: %s", e.what());
+    const string url = MFC_EDGE_RTP_INFO_URL;
+    unsigned int dwLen = 0;
+    CCurlHttpRequest httpreq;
+    uint8_t* pResponse = httpreq.Get(url, &dwLen, "", nullptr);
+    if (!pResponse)
         return false;
-    }
+
+    const auto res = njson::parse((char*)pResponse, nullptr, false);
+    ip = res["ip"].get<string>();
+    site = ToLower(res["site"].get<string>());
+
+    free(pResponse);
+    pResponse = nullptr;
+    return true;
 }
 
 
-// static
 bool MFCEdgeIngest::WebrtcTcpIp(const string& region, std::string& ip)
 {
-    try
-    {
-        const string url = string("https://rtp-edgeingest-") + ToLower(region) + ".myfreecams.com/edge/info.json";
-        unsigned int dwLen = 0;
-        CCurlHttpRequest httpreq;
-        uint8_t* pResponse = httpreq.Get(url, &dwLen, "", nullptr);
-        if (!pResponse)
-            return false;
-
-        const auto res = njson::parse((char*)pResponse);
-        ip = res["ip"].get<string>();
-
-        free(pResponse);
-        pResponse = nullptr;
-        return true;
-    }
-    catch (const std::exception& e)
-    {
-        _MESG("Error fetching edge IP: %s", e.what());
+    const string url = string("https://rtp-edgeingest-") + ToLower(region) + ".myfreecams.com/edge/info.json";
+    unsigned int dwLen = 0;
+    CCurlHttpRequest httpreq;
+    uint8_t* pResponse = httpreq.Get(url, &dwLen, "", nullptr);
+    if (!pResponse)
         return false;
-    }
+
+    const auto res = njson::parse((char*)pResponse, nullptr, false);
+    if (!res.is_discarded())
+        return false;
+
+    ip = res["ip"].get<string>();
+
+    free(pResponse);
+    pResponse = nullptr;
+    return true;
 }
 
 
-// static
 int MFCEdgeIngest::WebrtcTcpPort(const string& videoServer)
 {
     std::smatch match;

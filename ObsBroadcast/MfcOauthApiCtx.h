@@ -34,7 +34,7 @@ class MfcOauthApiCtx
 {
 public:
     MfcOauthApiCtx();
-    virtual ~MfcOauthApiCtx() = default;
+    ~MfcOauthApiCtx() = default;
 
     MfcOauthApiCtx(const MfcOauthApiCtx& other);
     MfcOauthApiCtx& operator=(const MfcOauthApiCtx& other);
@@ -75,11 +75,11 @@ public:
     // Wrapper for |MfcOauthApi::sharedLock()| for our |api| instance,
     // or when updating any of our other member properties
     std::unique_lock<std::recursive_mutex> sharedLock() const;
-    std::unique_lock<std::recursive_mutex> eventLock();
+    //std::unique_lock<std::recursive_mutex> eventLock();
 
     MfcOauthApi api;
 
-    static std::recursive_mutex sm_eventLock;
+    //static std::recursive_mutex sm_eventLock;
 
     bool m_bIsLinked;
     bool m_bHaveCredentials;

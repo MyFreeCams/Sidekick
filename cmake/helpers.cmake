@@ -42,21 +42,23 @@ function(MFCDefines TheTarget)
 		-frtti
 		-Wno-error
 		-Wno-unused-parameter
+		# -fvisibility-inlines-hidden
+		# -fvisibility=hidden
 	)
 	set(COMPILE_OPTIONS_Win
 		$<IF:$<CONFIG:Debug>,/MTd,/MT>
 	)
 	if(APPLE)
-		target_compile_definitions(${TheTarget} PUBLIC
+		target_compile_definitions(${TheTarget} PRIVATE
 			${MFC_DEFINES}
 			${MFC_DEFINES_CEF}
 			${MFC_DEFINES_Mac}
 			${OTHER_DEFINES_Mac}
 		)
-		target_compile_options(${TheTarget} PUBLIC
+		target_compile_options(${TheTarget} PRIVATE
 			${COMPILE_OPTIONS_Mac}
 		)
-		target_link_options(${TheTarget} PUBLIC
+		target_link_options(${TheTarget} PRIVATE
 			# -Wl,-dead_strip
 			# -Wl,-dead_strip_dylibs
 		)

@@ -40,7 +40,6 @@
 #include <libfcs/MfcJson.h>
 #include <libfcs/Log.h>
 #include <ObsBroadcast/ObsBroadcast.h>
-#include <ObsBroadcast/MfcOauthApiCtx.h>
 
 #include "Portable.h"
 #include "MFCConfigConstants.h"
@@ -55,7 +54,6 @@
 using std::string;
 
 CBroadcastCtx g_ctx(true);
-MfcOauthApiCtx g_apiCtx;
 
 std::deque<SIDEKICK_UI_EV>  CBroadcastCtx::sm_eventQueue;
 std::recursive_mutex        CBroadcastCtx::sm_eventLock;

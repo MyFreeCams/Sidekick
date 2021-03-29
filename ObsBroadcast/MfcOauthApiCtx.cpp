@@ -177,8 +177,10 @@ std::unique_lock<std::recursive_mutex> MfcOauthApiCtx::sharedLock() const
 }
 
 
+#if 0
 std::unique_lock<std::recursive_mutex> MfcOauthApiCtx::eventLock()
 {
     std::unique_lock<std::recursive_mutex> lk(sm_eventLock, std::try_to_lock);
     return lk;
 }
+#endif

@@ -28,18 +28,16 @@ set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 # Dependencies
 #
 
-find_library(CORE_FOUNDATION CoreFoundation)
-
 #------------------------------------------------------------------------
 # Boost
 #
 if(NOT DEFINED Boost::headers)
 	set(Boost_USE_DEBUG_LIBS OFF)
 	set(Boost_USE_RELEASE_LIBS ON)
-	#set(Boost_USE_STATIC_LIBS ON)
+	# set(Boost_USE_STATIC_LIBS ON)
 	set(Boost_USE_MULTITHREADED ON)
 	set(Boost_USE_DEBUG_RUNTIME OFF)
-	#set(BOOST_NO_EXCEPTIONS ON)
+	# set(BOOST_NO_EXCEPTIONS ON)
 	find_package(Boost 1.75 COMPONENTS date_time thread system REQUIRED)
 	PRINT(Boost)
 endif()
@@ -138,7 +136,6 @@ if(NOT DEFINED LIBX264_LIBRARIES)
 	PRINT(Libx264)
 endif()
 
-
 #
 # Source files.
 #
@@ -154,9 +151,29 @@ configure_file(
 
 # core files (non-webrtc).
 set(MyTarget_CORE_FILES
+	# BroadcastPluginStart.cpp
+	# HttpThread.h
+	# HttpThread.cpp
+	# MFCEdgeIngest.h
+	# MFCEdgeIngest.cpp
+	# ObsBroadcast.h
+	# ObsBroadcast.cpp
+	# ObsCallbackEvent.h
+	# ObsCallbackEvent.cpp
+	# SanitizeInputs.h
+	# SDPUtil.h
+	# SidekickProperties.h
+	# SidekickProperties.cpp
+	# wowza-stream.h
+	# wowza-stream.cpp
+	# ${CMAKE_CURRENT_BINARY_DIR}/webrtc_version.h
+)
+set(MyTarget_CORE_FILES_VISIBLE
 	BroadcastPluginStart.cpp
 	HttpThread.h
 	HttpThread.cpp
+	MFCEdgeIngest.h
+	MFCEdgeIngest.cpp
 	ObsBroadcast.h
 	ObsBroadcast.cpp
 	ObsCallbackEvent.h
@@ -166,10 +183,18 @@ set(MyTarget_CORE_FILES
 	SidekickProperties.h
 	SidekickProperties.cpp
 	SidekickTypes.h
+	WebRTCStream.h
+	WebRTCStream.cpp
 	wowza-stream.h
 	wowza-stream.cpp
 	${CMAKE_CURRENT_BINARY_DIR}/webrtc_version.h
 )
+if(APPLE)
+	set_source_files_properties(${MyTarget_CORE_FILES} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden -fvisibility-inlines-hidden")
+endif()
+if(APPLE)
+	set_source_files_properties(${MyTarget_CORE_FILES_VISIBLE} PROPERTIES COMPILE_FLAGS "-fvisibility=default")
+endif()
 
 # webrtc files.
 set(MyTarget_WEBRTC_FILES
@@ -181,8 +206,8 @@ set(MyTarget_WEBRTC_FILES
 	NV12Buf.cpp
 	VideoTrackSource.h
 	VideoTrackSource.cpp
-	WebRTCStream.h
-	WebRTCStream.cpp
+	# WebRTCStream.h
+	# WebRTCStream.cpp
 	X264Encoder.h
 	X264Encoder.cpp
 )
@@ -197,12 +222,10 @@ set(MyTarget_RESTAPI_FILES
 	MfcOauthApi.cpp
 	MfcOauthApiCtx.h
 	MfcOauthApiCtx.cpp
-	message_box.h
-	message_box.cpp
 )
 source_group(RestAPI FILES ${MyTarget_RESTAPI_FILES})
 if(APPLE)
-	set_source_files_properties(${MyTarget_RESTAPI_FILES} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+	set_source_files_properties(${MyTarget_RESTAPI_FILES} PROPERTIES COMPILE_FLAGS "-fvisibility=default")
 endif()
 
 # add platform sources.
@@ -226,7 +249,6 @@ endif()
 if(APPLE)
 	set(MyTarget_PLATFORM_LIBRARIES
 		objc
-		${CORE_FOUNDATION}
 	)
 elseif(WIN32)
 	set(MyTarget_PLATFORM_LIBRARIES
@@ -250,9 +272,38 @@ elseif(WIN32)
 	endif()
 endif()
 
+#
+# compile options.
+#
+set(MyTarget_OPTIONS
+)
+set(MyTarget_OPTIONS_Win
+	/GS-
+	-D_CRT_SECURE_NO_WARNINGS
+	-D_UNICODE
+	-DUNICODE
+)
+set(MyTarget_OPTIONS_Mac
+	-Wunused-value
+	-fvisibility=hidden
+	-fvisibility-inlines-hidden
+)
+if(APPLE)
+	set(MyTarget_OPTIONS
+		${MyTarget_OPTIONS}
+		${MyTarget_OPTIONS_Mac}
+	)
+elseif(WIN32)
+	set(MyTarget_OPTIONS
+		${MyTarget_OPTIONS}
+		${MyTarget_OPTIONS_Win}
+	)
+endif()
+
 # create library target
 add_library(${MyTarget} MODULE
 	${MyTarget_CORE_FILES}
+	${MyTarget_CORE_FILES_VISIBLE}
 	${MyTarget_WEBRTC_FILES}
 	${MyTarget_DLLMAIN_FILES}
 	${MyTarget_RESOURCE_FILES}
@@ -267,9 +318,7 @@ target_include_directories(${MyTarget} PRIVATE
 
 MFCDefines(${MyTarget})
 
-if(WIN32)
-	target_compile_options(${MyTarget} PUBLIC "/GS-")
-endif()
+target_compile_options(${MyTarget} PRIVATE ${MyTarget_OPTIONS})
 
 target_link_directories(${MyTarget} PRIVATE ${MyTarget_PLATFORM_LINK_DIRS})
 

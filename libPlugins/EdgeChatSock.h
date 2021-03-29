@@ -24,17 +24,18 @@
 #pragma warning (disable: 4189)
 #endif
 
+// solution
+#include <libfcs/FcMsg.h>
+#include <libfcs/MfcTimer.h>
+#include <ObsBroadcast/SidekickTypes.h>
+#include <websocket-client/FcsWebsocket.h>
+
 #include <cstdint>
 #include <memory>
 #include <regex>
 #include <string>
 #include <vector>
 
-// solution
-#include <libfcs/FcMsg.h>
-#include <libfcs/MfcTimer.h>
-#include <ObsBroadcast/SidekickTypes.h>
-#include <websocket-client/FcsWebsocket.h>
 
 #ifndef DEFAULT_EDGECHAT_SERVER
 #define DEFAULT_EDGECHAT_SERVER     "https://video502.myfreecams.com:8080/"

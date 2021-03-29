@@ -29,6 +29,8 @@
 #include <random>
 #include <thread>
 
+#include <nlohmann/json.hpp>
+
 // obs
 #include <obs-module.h>
 #include <obs-frontend-api.h>
@@ -46,8 +48,6 @@
 // project
 #include "EdgeChatSock.h"
 #include "CollectSystemInfo.h"
-
-#include <nlohmann/json.hpp>
 
 using njson = nlohmann::json;
 using std::string;
@@ -623,45 +623,30 @@ std::string EdgeChatSock::FcsServer()
     string server = "";
     njson res;
 
-    try
-    {
-        CCurlHttpRequest httpreq;
-        uint8_t* pResponse = httpreq.Get(serverConfigUrl, &dwLen);
+    CCurlHttpRequest httpreq;
+    uint8_t* pResponse = httpreq.Get(serverConfigUrl, &dwLen);
 
-        if (pResponse && dwLen > 0)
-        {
-            string sResponse((const char*)pResponse, (size_t)dwLen);
-            free(pResponse);
-            pResponse = nullptr;
+    if (pResponse && dwLen > 0)
+    {
+        string sResponse((const char*)pResponse, (size_t)dwLen);
+        free(pResponse);
+        pResponse = nullptr;
 
-            res = njson::parse(sResponse.c_str());
-            njson wsServers = res["websocket_servers"];
-            std::vector<string> servers;
-            for (const auto& it: wsServers.items())
-                servers.push_back(it.key());
+        res = njson::parse(sResponse.c_str(), nullptr, false);
+        if (res.is_discarded())
+            return string("xchat100");
 
-            server = servers[randomInt(0, (int)servers.size() - 1)];
-        }
+        njson wsServers = res["websocket_servers"];
+        std::vector<string> servers;
+        for (const auto& it: wsServers.items())
+            servers.push_back(it.key());
+
+        server = servers[randomInt(0, (int)servers.size() - 1)];
     }
-    catch (njson::parse_error& e)
+    else
     {
-        _MESG("ParseError: %s, id: %u, position: %zu", e.what(), e.id, e.byte);
-        server = "xchat100";
-    }
-    catch (const std::exception& e)
-    {
-        _MESG("SrdException fetching chat server: %s", e.what());
-        server = "xchat100";
-    }
-    catch (const string& e)
-    {
-        _MESG("StrError fetching chat server: %s", e.c_str());
-        server = "xchat100";
-    }
-    catch (...)
-    {
-        _MESG("Unknown error fetching chat server");
-        server = "xchat100";
+        _MESG("Error fetching chat server");
+        server = string("xchat100");
     }
 
     return server;

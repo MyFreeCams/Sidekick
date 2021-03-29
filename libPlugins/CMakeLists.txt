@@ -30,8 +30,8 @@ set(SRC_OBS_COMMON
 	IPCShared.h
 	IPCShared.cpp
 	MFCConfigConstants.h
-	MFCEdgeIngest.h
-	MFCEdgeIngest.cpp
+	# MFCEdgeIngest.h
+	# MFCEdgeIngest.cpp
 	MFCPluginAPI.h
 	MFCPluginAPI.cpp
 	# ModelKey.h
@@ -54,7 +54,7 @@ set(SRC_OBS_Mac
 	SysParam_Mac.cpp
 )
 if(APPLE)
-	set_source_files_properties(${SRC_OBS_COMMON} ${SRC_OBS_Mac} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+	# set_source_files_properties(${SRC_OBS_COMMON} ${SRC_OBS_Mac} PROPERTIES COMPILE_FLAGS "-fvisibility=hidden -fvisibility-inlines-hidden")
 endif()
 
 #
@@ -69,6 +69,8 @@ set(MyTarget_OPTIONS_Win
 )
 set(MyTarget_OPTIONS_Mac
 	-Wunused-value
+	# -fvisibility=hidden
+	# -fvisibility-inlines-hidden
 )
 
 if(APPLE)
@@ -154,7 +156,7 @@ endif()
 # create library target
 add_library(${MyTarget} STATIC ${SRC_OBS})
 MFCDefines(${MyTarget})
-target_compile_options(${MyTarget} PUBLIC ${MyTarget_OPTIONS})
+target_compile_options(${MyTarget} PRIVATE ${MyTarget_OPTIONS})
 # target_compile_definitions(${MyTarget} PUBLIC BOOST_ALL_NO_LIB)
 
 target_link_libraries(${MyTarget} PUBLIC

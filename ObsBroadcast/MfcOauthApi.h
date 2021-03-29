@@ -31,7 +31,7 @@ class MfcOauthApi
 {
 public:
     MfcOauthApi();
-    virtual ~MfcOauthApi();
+    ~MfcOauthApi();
 
     MfcOauthApi(const MfcOauthApi& other);
     const MfcOauthApi& operator=(const MfcOauthApi& other);

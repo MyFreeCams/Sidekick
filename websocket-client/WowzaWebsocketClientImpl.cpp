@@ -335,6 +335,16 @@ bool WowzaWebsocketClientImpl::connect(Listener*       pListener,
         obs_error("WowzaWebsocketClientImpl::connect exception: %s", e.what());
         retVal = false;
     }
+    catch (const std::exception& e)
+    {
+        obs_error("WowzaWebsocketClientImpl::connect exception: %s", e.what());
+        retVal = false;
+    }
+    catch (...)
+    {
+        obs_error("WowzaWebsocketClientImpl::connect exception");
+        retVal = false;
+    }
 
     return retVal;
 }
