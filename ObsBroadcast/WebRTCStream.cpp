@@ -92,7 +92,7 @@ using PCI = webrtc::PeerConnectionInterface;
 using PCFI = webrtc::PeerConnectionFactoryInterface;
 
 extern CBroadcastCtx g_ctx;  // part of MFCLibPlugins.lib::MfcPluginAPI.obj
-MfcOauthApiCtx g_apiCtx;
+extern MfcOauthApiCtx g_apiCtx;
 
 /// Round |num| to a multiple of |multiple|.
 template<typename T>

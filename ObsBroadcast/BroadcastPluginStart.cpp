@@ -133,9 +133,9 @@ MODULE_EXPORT const char* obs_module_description(void)
 {
     static char s_szDescription[256];
 #ifdef _WIN32
-    _snprintf_s(s_szDescription, sizeof(s_szDescription), "MFC Sidekick v%s", SIDEKICK_VERSION_STR);
+    _snprintf_s(s_szDescription, sizeof(s_szDescription), "MFC Oauth2 API Demo App v%s", SIDEKICK_VERSION_STR);
 #else
-    snprintf(s_szDescription, sizeof(s_szDescription), "MFC Sidekick v%s", SIDEKICK_VERSION_STR);
+    snprintf(s_szDescription, sizeof(s_szDescription), "MFC Oauth2 API Demo App v%s", SIDEKICK_VERSION_STR);
 #endif
     return s_szDescription;
 }
@@ -351,10 +351,10 @@ bool obs_module_load(void)
         s_pSidekickProperties = new SidekickPropertiesUI( main_window );
         if (s_pSidekickProperties)
         {
-            QString qsTitle( QString::fromStdString( stdprintf("MFC Sidekick v%s", SIDEKICK_VERSION_STR) ) );
+            QString qsTitle( QString::fromStdString( stdprintf("MFC Oauth2 API Demo App v%s", SIDEKICK_VERSION_STR) ) );
             s_pSidekickProperties->setWindowTitle(qsTitle);
             obs_frontend_pop_ui_translation();
-            QAction* action = (QAction*)obs_frontend_add_tools_menu_qaction(obs_module_text("Sidekick Properties"));
+            QAction* action = (QAction*)obs_frontend_add_tools_menu_qaction(obs_module_text("MyFreeCams Link Status"));
             auto menu_cb = [=]()
             {
                 s_pSidekickProperties->ShowHideDialog();
@@ -584,9 +584,9 @@ void ui_onUnlinkEvent(void)
         pConsole->clear();
     std::string consoleMessage;
 #if SIDEKICK_VERBOSE_CONSOLE
-    consoleMessage = "<div style=\"font-size:14px;\"><b>Account Unlinked</b>! Link Sidekick to your account and login to ModelWeb to start streaming.</div>";
+    consoleMessage = "<div style=\"font-size:14px;\"><b>Account Unlinked</b>! Link to your MFC account and login to ModelWeb to start streaming.</div>";
 #else
-    consoleMessage = "<div style=\"font-size:14px;\">Click on the <b>Link Sidekick</b> button to authenticate with MyFreeCams.</div>";
+    consoleMessage = "<div style=\"font-size:14px;\"<b>Account Unlinked</b>! Link to your MFC account and login to ModelWeb to start streaming.</div>";
 #endif
 
     if (s_pSidekickProperties)
@@ -828,10 +828,10 @@ void showAccountLinkStatus(void)
             else
                 consoleMessage = "<div style=\"font-size:14px;\"><b>Account Linked</b>! Login to ModelWeb before attempting to stream.</div>";
 #else
-            if (isLoggedIn)
+            //if (isLoggedIn)
                 consoleMessage = "<div style=\"font-size:14px;\">You are now able to start streaming.</div>";
-            else
-                consoleMessage = "<div style=\"font-size:14px;\">Login to ModelWeb before attempting to stream.</div>";
+            //else
+            //    consoleMessage = "<div style=\"font-size:14px;\">Login to ModelWeb before attempting to stream.</div>";
 #endif
 
 #if (defined(MFC_BROWSER_LOGIN) && (MFC_BROWSER_LOGIN > 0))
@@ -844,7 +844,7 @@ void showAccountLinkStatus(void)
 #if SIDEKICK_VERBOSE_CONSOLE
             consoleMessage = "<div style=\"font-size:14px;\"><b>Account Unlinked</b>! Click on the <i>Link Sidekick</i> button to authenticate Sidekick.</div>";
 #else
-            consoleMessage = "<div style=\"font-size:14px;\">Click on the <b>Link Sidekick</b> button to authenticate with MyFreeCams.</div>";
+            consoleMessage = "<div style=\"font-size:14px;\"><b>Account not linked</b>. Link to your MyFreeCams account and login to ModelWeb to start streaming.</div>";
 #endif
         }
     }
@@ -1077,8 +1077,8 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
     {
         auto lk = g_ctx.sharedLock();
 
-        if ( g_ctx.isMfc )
-        {
+        //if ( g_ctx.isMfc )
+        //{
             if (   g_ctx.isLinked                           // model account linked?
                 && g_ctx.isLoggedIn                         // modelweb logged in?
                 && g_ctx.activeState >= SkStreamStopping)   // state is either stopping or stopped?
@@ -1092,8 +1092,8 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
                         g_ctx.isLoggedIn ? "true" : "false",
                         (unsigned int)g_ctx.activeState);
             }
-        }
-        else _MESG("OBS_FRONTEND_EVENT_STREAMING_STARTING, but g_ctx.isMfc is false, so skipped");
+        //}
+        //else _MESG("OBS_FRONTEND_EVENT_STREAMING_STARTING, but g_ctx.isMfc is false, so skipped");
     }
     else if (eventType == OBS_FRONTEND_EVENT_STREAMING_STARTED)
     {
@@ -1107,18 +1107,18 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
                 {
                     obs_frontend_streaming_stop();
                     ui_SidekickMsgBox(  g_ctx.isWebRTC ? "Unable to start WebRTC Stream" : "Unable to start RTMP Stream",
-                                        "You must first link Sidekick to your MFC model account before starting a stream.");
+                                        "You must first link this application to your MFC model account before starting a stream.");
                 });
             }
-            else if ( ! g_ctx.isLoggedIn )
-            {
-                QTimer::singleShot(500, qApp, [=]()
-                {
-                    obs_frontend_streaming_stop();
-                    ui_SidekickMsgBox(  g_ctx.isWebRTC ? "Unable to start WebRTC Stream" : "Unable to start RTMP Stream",
-                                        "You must first login to ModelWeb and set your video setting to 'External Broadcaster'.");
-                });
-            }
+            // else if ( ! g_ctx.isLoggedIn )
+            // {
+            //     QTimer::singleShot(500, qApp, [=]()
+            //     {
+            //         obs_frontend_streaming_stop();
+            //         ui_SidekickMsgBox(  g_ctx.isWebRTC ? "Unable to start WebRTC Stream" : "Unable to start RTMP Stream",
+            //                             "You must first login to ModelWeb and set your video setting to 'External Broadcaster'.");
+            //     });
+            // }
             else
             {
                 _MESG("DBG: Valid sid[%u]; marking streaming as started on profile:%s to server:%s for %s",

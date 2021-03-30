@@ -61,9 +61,9 @@ public:
 
     void retranslateUi(QDialog* pDlg)
     {
-        pDlg->setWindowTitle(QApplication::translate("SidekickProperties", "Sidekick Setup", nullptr));
-        link_sidekick->setText(QApplication::translate("SidekickProperties", "Link Sidekick to your Account", nullptr));
-        unlink_sidekick->setText(QApplication::translate("SidekickProperties", "Unlink Sidekick from your Account", nullptr));
+        pDlg->setWindowTitle(QApplication::translate("SidekickProperties", "MyFreeCams Link Status", nullptr));
+        link_sidekick->setText(QApplication::translate("SidekickProperties", "Link to your MyFreeCams Account", nullptr));
+        unlink_sidekick->setText(QApplication::translate("SidekickProperties", "Unlink from your MyFreeCams Account", nullptr));
         linked_label->setText(QApplication::translate("SidekickProperties", "", nullptr));
         //useWebRTC->setText(QApplication::translate("SidekickProperties", "Use WebRTC (default)", nullptr));
         //useNormal->setText(QApplication::translate("SidekickProperties", "Normal", nullptr));
@@ -203,6 +203,7 @@ public:
         usernameLabel->setText(QApplication::translate("MFCDock", "", nullptr));
         linkMfcButton->setText(QApplication::translate("MFCDock", "Link", nullptr));
         unlinkMfcButton->setText(QApplication::translate("MFCDock", "Unlink", nullptr));
+        loginLabel->setVisible(false);
         logo->setVisible(false);
     }
 };
