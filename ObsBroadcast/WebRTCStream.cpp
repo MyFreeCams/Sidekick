@@ -553,30 +553,8 @@ bool WebRTCStream::AddTracks()
 
 bool WebRTCStream::OpenWebsocketConnection()
 {
-    string sUsername, sPwd, sStreamName, sStreamKey, sVidCtx, sWsUrl;
-    int nSid = 0, nUid = 0, nRoomId = 0;
-    float fCamScore = 0.0f;
-    {
-        // After this block scope ends, g_ctx lock is not longer
-        // held, and directly requesting values from it should be
-        // synchronized with a shared lock, as done in next line.
-        auto lk         = g_ctx.sharedLock();
-
-        m_sVideoCodec   = g_ctx.cfg.getString("codec");
-        m_sProtocol     = g_ctx.cfg.getString("prot");
-        m_sRegion       = g_ctx.cfg.getString("region");
-        m_sVideoServer  = g_ctx.cfg.getString("videoserver");
-        sUsername       = g_ctx.cfg.getString("username");
-        sPwd            = g_ctx.cfg.getString("pwd");
-        sStreamKey      = g_ctx.cfg.getString("ctx");
-        sVidCtx         = g_ctx.cfg.getString("vidctx");
-        nSid            = g_ctx.cfg.getInt("sid");
-        nUid            = g_ctx.cfg.getInt("uid");
-        nRoomId         = g_ctx.cfg.getInt("room");
-        fCamScore       = g_ctx.cfg.getFloat("camscore");
-    }
-    sStreamName = "ext_x_" + std::to_string(nUid) + ".f4v";
-    sWsUrl      = "wss://" + m_sVideoServer + ".myfreecams.com/webrtc-session.json";
+    string sStreamName = "ext_x_" + std::to_string(m_nUid) + ".f4v";
+    string sWsUrl      = "wss://" + m_sVideoServer + ".myfreecams.com/webrtc-session.json";
     m_sProtocol.clear();
 
     obs_info("Video codec:         %s\n", m_sVideoCodec.c_str());
@@ -594,12 +572,12 @@ bool WebRTCStream::OpenWebsocketConnection()
     }
 
     obs_info("region: %s\nurl: %s", m_sRegion.c_str(), sWsUrl.c_str());
-    obs_info("username: %s, uid: %d, sid: %d", sUsername.c_str(), nUid, nSid);
-    obs_info("stream name: %s\npassword: %s", sStreamName.c_str(), sPwd.c_str());
-    obs_info("vidctx: %s\nstream key: %s", sVidCtx.c_str(), sStreamKey.c_str());
+    obs_info("username: %s, uid: %d, sid: %d", m_sUsername.c_str(), m_nUid, m_nSid);
+    obs_info("stream name: %s\npassword: %s", sStreamName.c_str(), m_sPwd.c_str());
+    obs_info("vidctx: %s\nstream key: %s", m_sVidCtx.c_str(), m_sStreamKey.c_str());
 
-    if (!m_pWsClient->connect(this, sWsUrl, sStreamName, sStreamKey, sPwd, sVidCtx, nSid,
-                              nUid, nRoomId, m_nWidth, m_nHeight, m_nFrameRate, fCamScore))
+    if (!m_pWsClient->connect(this, sWsUrl, sStreamName, m_sStreamKey, m_sPwd, m_sVidCtx, m_nSid,
+                              m_nUid, m_nRoomId, m_nWidth, m_nHeight, m_nFrameRate, m_fCamScore))
     {
         obs_error("Error connecting to server");
         Stop(false);
