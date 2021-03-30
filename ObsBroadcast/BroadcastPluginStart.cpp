@@ -584,9 +584,9 @@ void ui_onUnlinkEvent(void)
         pConsole->clear();
     std::string consoleMessage;
 #if SIDEKICK_VERBOSE_CONSOLE
-    consoleMessage = "<div style=\"font-size:14px;\"><b>Account Unlinked</b>! Link to your MFC account and login to ModelWeb to start streaming.</div>";
+    consoleMessage = "<div style=\"font-size:14px;\"><b>Account Unlinked</b>! Link to your MyFreeCams account and login to ModelWeb to start streaming.</div>";
 #else
-    consoleMessage = "<div style=\"font-size:14px;\"<b>Account Unlinked</b>! Link to your MFC account and login to ModelWeb to start streaming.</div>";
+    consoleMessage = "<div style=\"font-size:14px;\"<b>Account Unlinked</b>! Link to your MyFreeCams account and login to ModelWeb to start streaming.</div>";
 #endif
 
     if (s_pSidekickProperties)
@@ -818,8 +818,8 @@ void showAccountLinkStatus(void)
     bool isLoggedIn = g_apiCtx.sid() != 0;
 
     std::string consoleMessage;
-    if (g_ctx.isMfc)
-    {
+    //if (g_ctx.isMfc)
+    //{
         if (g_apiCtx.IsLinked())
         {
 #if SIDEKICK_VERBOSE_CONSOLE
@@ -847,14 +847,14 @@ void showAccountLinkStatus(void)
             consoleMessage = "<div style=\"font-size:14px;\"><b>Account not linked</b>. Link to your MyFreeCams account and login to ModelWeb to start streaming.</div>";
 #endif
         }
-    }
-    else
-    {
-        consoleMessage =    "<div style=\"font-size:14px;\">Select or create a <b>MyFreeCams profile</b> to activate Sidekick.</div>"                                     \
-                            "<div style=\"margin-top:20px;font-size:14px;\">Either load a saved profile configured with a MyFreeCams service, " \
-                            "or create a new profile<br/>and choose <b>MyFreeCams RTMP</b> or <b>MyFreeCams WebRTC</b> "                        \
-                            "as the streaming service.</div>";
-    }
+    // }
+    // else
+    // {
+    //     consoleMessage =    "<div style=\"font-size:14px;\">Select or create a <b>MyFreeCams profile</b> to activate Sidekick.</div>"                                     \
+    //                         "<div style=\"margin-top:20px;font-size:14px;\">Either load a saved profile configured with a MyFreeCams service, " \
+    //                         "or create a new profile<br/>and choose <b>MyFreeCams RTMP</b> or <b>MyFreeCams WebRTC</b> "                        \
+    //                         "as the streaming service.</div>";
+    // }
 
 #if SIDEKICK_VERBOSE_CONSOLE
     ui_appendConsoleMsg(consoleMessage);
@@ -876,6 +876,7 @@ void onObsProfileChange(obs_frontend_event eventType)
     bool isWebRTC = false, isRtmp = false, isCustom = false, isMfc = false;
     std::string svcName, sOldProfile(g_ctx.profileName), sUser, streamUrl, sProt("unknown");
     static bool s_bFirstProfileLoad = true;
+    char* pszProfile = nullptr;
     size_t updatesSent = 0;
 
     {
@@ -894,12 +895,26 @@ void onObsProfileChange(obs_frontend_event eventType)
         pCon->clear();
 #endif
 
-    char* pszProfile = obs_frontend_get_current_profile();
+    pszProfile = obs_frontend_get_current_profile();
     if (pszProfile != nullptr)
     {
         g_ctx.profileName = pszProfile;
         bfree(pszProfile);
     }
+
+    std::string service = "MyFreeCams WebRTC";
+    std::string server = "rtmp://publish.myfreecams.com/NxServer";
+    std::string key = "placeholder";
+    obs_data_t* settings = obs_data_create();
+    obs_data_set_string(settings, "service", service.c_str());
+    obs_data_set_string(settings, "server", server.c_str());
+    obs_data_set_string(settings, "key", key.c_str());
+    obs_data_set_bool(settings, "bwtest", false);
+    obs_service_t* newService = obs_service_create("rtmp_common", service.c_str(), settings, nullptr);
+    obs_frontend_set_streaming_service(newService);
+    obs_frontend_save_streaming_service();
+    obs_data_release(settings);
+    obs_service_release(newService);
 
     bool profileChanged = (s_bFirstProfileLoad || g_ctx.profileName != sOldProfile);
 
@@ -1079,9 +1094,7 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
 
         //if ( g_ctx.isMfc )
         //{
-            if (   g_ctx.isLinked                           // model account linked?
-                && g_ctx.isLoggedIn                         // modelweb logged in?
-                && g_ctx.activeState >= SkStreamStopping)   // state is either stopping or stopped?
+            if (g_ctx.isLinked)                             // model account linked?
             {
                 g_ctx.activeState = SkStreamStarting;       // Change state to starting
             }
@@ -1099,8 +1112,8 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
     {
         auto lk = g_ctx.sharedLock();
 
-        if ( g_ctx.isMfc )
-        {
+        //if ( g_ctx.isMfc )
+        //{
             if ( ! g_ctx.isLinked )
             {
                 QTimer::singleShot(500, qApp, [=]()
@@ -1144,14 +1157,14 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
 #endif
 #endif
             }
-        }
-        else _MESG( "OBS_FRONTEND_EVENT_STREAMING_STARTED; but not isMfc so ignoring");
+        //}
+        //else _MESG( "OBS_FRONTEND_EVENT_STREAMING_STARTED; but not isMfc so ignoring");
     }
     else if (eventType == OBS_FRONTEND_EVENT_STREAMING_STOPPED)
     {
         auto lk = g_ctx.sharedLock();
-        if ( g_ctx.isMfc )
-        {
+        //if ( g_ctx.isMfc )
+        //{
             _MESG(  "DBG: Streaming ended, marking stream as stopped for sid[%u] on profile:%s to server:%s for %s",
                     g_ctx.cfg.getInt("sid"),
                     g_ctx.profileName.c_str(),
@@ -1174,7 +1187,7 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
 #endif
 #endif
 #endif
-        }
+        //}
     }
     else if (eventType == OBS_FRONTEND_EVENT_PROFILE_CHANGED)
     {
