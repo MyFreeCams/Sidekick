@@ -20,10 +20,13 @@
 #define PANEL_UNIT_TEST 0
 #endif
 #ifndef MFC_AGENT_EDGESOCK
-#define MFC_AGENT_EDGESOCK 1
+#define MFC_AGENT_EDGESOCK 0
+#endif
+#ifndef MFC_DOCK
+#define MFC_DOCK 0
 #endif
 #ifndef SIDEKICK_ENABLE_VIRTUALCAM
-#define SIDEKICK_ENABLE_VIRTUALCAM 1
+#define SIDEKICK_ENABLE_VIRTUALCAM 0
 #endif
 #ifndef SIDEKICK_CONSOLE
 #define SIDEKICK_CONSOLE 1
@@ -364,8 +367,10 @@ bool obs_module_load(void)
         else _MESG("DBG: ** Unable to create SidekickProp - s_pSidekickProperties NULL **");
 #endif
 
+#if MFC_DOCK
         s_pMFCDock = new MFCDock(main_window);
         main_window->addDockWidget(Qt::BottomDockWidgetArea, (QDockWidget*)s_pMFCDock);
+#endif
     }
     else _MESG("DBG: ** Unable to get MainWindow ptr **");
 
