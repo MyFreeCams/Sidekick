@@ -1,8 +1,8 @@
 function(SET_VARIABLES)
 	if(DEFINED ENV{MFC_AGENT_SVC_URL})
 		set(MFC_AGENT_SVC_URL "$ENV{MFC_AGENT_SVC_URL}" CACHE STRING "URL to poll for OAuth response data")
-	else()
-		set(MFC_AGENT_SVC_URL "https://sidekick.mfc.dev/agentSvc.php" CACHE STRING "URL to poll for OAuth response data")
+	# else()
+	# 	set(MFC_AGENT_SVC_URL "https://sidekick.mfc.dev/agentSvc.php" CACHE STRING "URL to poll for OAuth response data")
 	endif()
 
 	set(MFC_LOG_LEVEL "ILog::LogLevel::MAX_LOGLEVEL" CACHE STRING "Default logging level")

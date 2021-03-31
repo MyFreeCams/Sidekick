@@ -76,8 +76,6 @@ CMFCPluginAPI::CMFCPluginAPI(PROGRESS_CALLBACK pfnProgress)
 }
 
 
-
-
 // helper function to handle errors returned from rest api
 int CMFCPluginAPI::HandleError(int nErr)
 {
@@ -103,7 +101,7 @@ int CMFCPluginAPI::SendHeartBeat(void)
     MfcJsonObj jo, js;
 
     auto lk = g_ctx.sharedLock();
-    string sURL = "https://sidekick.mfc.dev/agentSvc.php"; //MFC_AGENT_SVC_URL;
+    string sURL = MFC_AGENT_SVC_URL;
     string sPayload, tokenKey, sErr, sKey;
     time_t nNow = time(nullptr), tokenTm = 0;
 
@@ -134,31 +132,29 @@ int CMFCPluginAPI::SendHeartBeat(void)
     js.objectAdd("plugin_version",  SIDEKICK_VERSION_STR);
     js.objectAdd("plugin_state",    g_ctx.activeState);
     js.objectAdd("pid",             (int)getpid());
-    js.objectAdd("ver_obs",         obs_get_version_string() );
+    js.objectAdd("ver_obs",         obs_get_version_string());
     js.objectAdd("ver_branch",      SIDEKICK_VERSION_GITBRANCH);
     js.objectAdd("ver_commit",      SIDEKICK_VERSION_GITCOMMIT);
     js.objectAdd("ver_buildtm",     SIDEKICK_VERSION_BUILDTM);
 
     string serviceType;
     if (g_ctx.isWebRTC)
-    {
         serviceType = "mfc_webrtc";
-    }
     else if (g_ctx.isRTMP && g_ctx.isMfc)
-    {
         serviceType = "mfc_rtmp";
-    }
-    else serviceType = "custom";
-
+    else
+        serviceType = "custom";
     js.objectAdd("serviceType",  serviceType);
 
     dwLen = 0;
     js.Serialize(sPayload);
 
-    if ((pResponse = httpreq.Post(sURL, &dwLen, sPayload, m_pfnProgress)) != nullptr && dwLen > 0)
+    pResponse = httpreq.Post(sURL, &dwLen, sPayload, m_pfnProgress);
+    if (pResponse != nullptr && dwLen > 0)
     {
         if (jo.Deserialize(pResponse, dwLen))
         {
+            //blog(100, "%s", pResponse);
             jo.objectGetString("_msg", sErr);
             if (jo.objectGetInt("_err", nErr))
             {
@@ -267,6 +263,3 @@ int CMFCPluginAPI::SendHeartBeat(void)
 
     return nErr;
 }
-
-
-

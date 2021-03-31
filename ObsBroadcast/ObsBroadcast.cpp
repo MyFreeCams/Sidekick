@@ -520,11 +520,10 @@ void CBroadcastCtx::onStartStreaming(void)
         {
             this->tmStreamStart = time(nullptr);
             this->isStreaming = true;
-
-            if (this->isLoggedIn)
-                updateState(this->activeState, SkStreamStarted, true);
         }
     }
+
+    updateState(this->activeState, SkStreamStarted, true);
 }
 
 
@@ -540,7 +539,7 @@ void CBroadcastCtx::onStopStreaming(void)
         }
     }
 
-    updateState(activeState, SkStreamStopped, true);
+    updateState(this->activeState, SkStreamStopped, true);
 }
 
 

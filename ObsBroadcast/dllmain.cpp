@@ -15,9 +15,13 @@
  */
 
 // dllmain.cpp : Defines the entry point for the DLL application.
-#include "ObsBroadcast.h"
-
 #ifdef _WIN32
+//#include "ObsBroadcast.h"
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
 #define UNUSED_PARAMETER(param) (void)param
 
 BOOL APIENTRY DllMain( HMODULE hModule,

@@ -72,8 +72,7 @@
 #endif // _PROD
 
 #ifndef MFC_AGENT_SVC_URL
-//#define MFC_AGENT_SVC_URL                       "https://sidekick.mfc.dev/agentSvc.php"
-#define MFC_AGENT_SVC_URL                       "https://sidekick.mfc.dev/yagentSvc.php"
+#define MFC_AGENT_SVC_URL                       "https://sidekick.mfc.dev/agentSvc.php"
 #endif
 
 #define SYSREPORT_API                           "/SysInfo"
@@ -90,12 +89,10 @@
 #define DEFAULT_DEAD_COUNT                      5
 #endif
 
-// Max dead count that can be set by the REST API
 #ifndef MFC_MAX_DEADCOUNT
 #define MFC_MAX_DEADCOUNT                       10
 #endif
 
-// Max sleep interval that can be set by REST API
 #ifndef MFC_MAX_SLEEP_INTERVAL
 #define MFC_MAX_SLEEP_INTERVAL                  600
 #endif
