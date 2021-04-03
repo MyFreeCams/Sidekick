@@ -15,7 +15,7 @@ if "%~1"=="RelWithDebInfo" (set BUILD_TYPE=RelWithDebInfo)
 if "%~1"=="Debug" (set BUILD_TYPE=Debug)
 if "%~1"=="preserve" (set NO_RESET=1)
 
-set _OBS_TAG=26.1.2
+set _OBS_TAG=27.0.0-rc1
 set _Deps_VERSION=2019
 set _X264_VERSION=161.r3015
 set _CURL_VERSION=7.68.0

@@ -2,7 +2,7 @@
 
 set -e # exit if something fails
 
-readonly _OBS_TAG='26.1.2'
+readonly _OBS_TAG='27.0.0-rc1'
 readonly _MAC_DEPLOYMENT_TARGET='10.13'
 
 readonly _BUILD_DIR='xAuto'
