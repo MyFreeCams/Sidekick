@@ -95,7 +95,7 @@ extern "C" struct obs_output_info wowza_output_info;  // part of wowza-stream.cp
 static CHttpThread s_thread;
 static SidekickPropertiesUI* s_pSidekickProperties = nullptr;
 static MFCDock* s_pMFCDock = nullptr;
-static bool s_bFirstProfileCheck = false;
+static bool s_bFirstProfileLoad = true;
 static bool s_bServicesUpdated = false;
 
 const char* MapObsEventType(enum obs_frontend_event eventType);
@@ -308,7 +308,7 @@ void checkServices(void)
     // read the current profile and setup g_ctx accordingly if
     // the profile changed event wasnt already fired
     //
-    if ( ! s_bFirstProfileCheck )
+    if (s_bFirstProfileLoad)
         onObsProfileChange(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
 
     QTimer::singleShot(checkIntervalMs, qApp, checkServices);
@@ -860,9 +860,7 @@ void onObsProfileChange(obs_frontend_event eventType)
     if (!s_bServicesUpdated)
         loadServices();
 
-    bool isWebRTC = false, isRtmp = false, isCustom = false, isMfc = false; 
     std::string svcName, sOldProfile(g_ctx.profileName), sUser, streamUrl, sProt("unknown");
-    static bool s_bFirstProfileLoad = true;
     size_t updatesSent = 0;
 
     if (g_ctx.sm_edgeSock)
@@ -876,6 +874,42 @@ void onObsProfileChange(obs_frontend_event eventType)
         pCon->clear();
 #endif
 
+    CObsUtil::getCurrentSetting("service", svcName);
+    CObsUtil::getCurrentSetting("server", streamUrl);
+
+    if (svcName == "MyFreeCams WebRTC")
+    {
+        g_ctx.isMfc     = true;
+        g_ctx.isRTMP    = false;
+        g_ctx.isCustom  = false;
+        g_ctx.isWebRTC  = true;
+        sProt = "WebRTC";
+    }
+    else if (svcName == "MyFreeCams RTMP" || svcName == "MyFreeCams")
+    {
+        g_ctx.isMfc     = true;
+        g_ctx.isRTMP    = true;
+        g_ctx.isCustom  = false;
+        g_ctx.isWebRTC  = false;
+        sProt = "RTMP";
+    }
+    else if ((svcName == "Custom" || svcName == "") && streamUrl.find(".myfreecams.com/NxServer") != string::npos)
+    {
+        g_ctx.isMfc     = true;
+        g_ctx.isRTMP    = true;
+        g_ctx.isCustom  = true;
+        g_ctx.isWebRTC  = false;
+        sProt = "RTMP";
+    }
+    else
+    {
+        _MESG("Unknown service svcName: %s   / streamUrl: %s  ", svcName.c_str(), streamUrl.c_str());
+        g_ctx.isMfc     = false;
+        g_ctx.isRTMP    = false;
+        g_ctx.isWebRTC  = false;
+        svcName = "Unavailable";
+    }
+
     char* pszProfile = obs_frontend_get_current_profile();
     if (pszProfile != nullptr)
     {
@@ -883,95 +917,25 @@ void onObsProfileChange(obs_frontend_event eventType)
         bfree(pszProfile);
     }
 
-    bool profileChanged = (s_bFirstProfileLoad || g_ctx.profileName != sOldProfile);
-
-    CObsUtil::getCurrentSetting("service", svcName);
-    CObsUtil::getCurrentSetting("server", streamUrl);
-
-    if (svcName == "MyFreeCams WebRTC")
-    {
-        isMfc = true;
-        isRtmp = false;
-        isCustom = false;
-        isWebRTC = true;
-        sProt = "WebRTC";
-    }
-    else if (svcName == "MyFreeCams RTMP" || svcName == "MyFreeCams")
-    {
-        isMfc = true;
-        isRtmp = true;
-        isCustom = false;
-        isWebRTC = false;
-        sProt = "RTMP";
-    }
-    else if ((svcName == "Custom" || svcName == "") && streamUrl.find(".myfreecams.com/NxServer") != string::npos)
-    {
-        isMfc = true;
-        isRtmp = true;
-        isCustom = true;
-        isWebRTC = false;
-        sProt = "RTMP";
-    }
-    else
-    {
-        _MESG("Unknown service svcName: %s   / streamUrl: %s  ", svcName.c_str(), streamUrl.c_str());
-        isMfc = false;
-        isRtmp = false;
-        isWebRTC = false;
-        svcName = "Unavailable";
-    }
-
     // Read any plugin config for this profile if it has changed since last profile loaded (or first profile to load)
-    if (profileChanged)
+    if (s_bFirstProfileLoad || g_ctx.profileName != sOldProfile)
     {
-        if (!isMfc)
-        {
-            // clear sidekick config if we switched to a non-mfc profile
-            g_ctx.clear(false);
-        }
-        else g_ctx.importProfileConfig();
-    }
-
+        if ( ! g_ctx.isMfc )
+            g_ctx.clear(false); // clear sidekick config if we switched to a non-mfc profile
+        else
+            g_ctx.importProfileConfig();
 
 #if SIDEKICK_VERBOSE_CONSOLE
-    if (profileChanged)
-    {
         std::string sMsg;
-        if (isMfc)
-            stdprintf(sMsg, "%s <i><b>%s</b></i>, using <b>%s</b>", s_bFirstProfileCheck ? "Switching to" : "Loading profile", g_ctx.profileName.c_str(), sProt.c_str());
+        if (g_ctx.isMfc)
+            stdprintf(sMsg, "%s <i><b>%s</b></i>, using <b>%s</b>", s_bFirstProfileLoad ? "Loading profile" : "Switching to", g_ctx.profileName.c_str(), sProt.c_str());
         else
-            stdprintf(sMsg, "%s <i>%s</i> (<i><b>Sidekick disabled</b></i>)", s_bFirstProfileCheck ? "Switching to" : "Loading profile", g_ctx.profileName.c_str());
+            stdprintf(sMsg, "%s <i>%s</i> (<i><b>Sidekick disabled</b></i>)", s_bFirstProfileLoad ? "Loading profile" : "Switching to", g_ctx.profileName.c_str());
         ui_appendConsoleMsg(sMsg);
-    }
 #endif
+    }
 
-    s_bFirstProfileCheck = true;
     g_ctx.cfg.set("serviceType", svcName);
-
-    // read config if we are webRTC, clear config if we are not
-    if (isWebRTC)
-    {
-        g_ctx.isWebRTC  = true;
-        g_ctx.isMfc     = true;
-        g_ctx.isRTMP    = false;
-        g_ctx.isCustom  = false;
-    }
-    else if (isRtmp)
-    {
-        // we are an MFC rtmp stream if we appear to be attached to an mfc video server
-        g_ctx.isWebRTC  = false;
-        g_ctx.isRTMP    = true;
-        g_ctx.isCustom  = isCustom;
-        g_ctx.isMfc     = true;
-    }
-    else
-    {
-        g_ctx.isWebRTC  = false;
-        g_ctx.isRTMP    = false;
-        g_ctx.isMfc     = false;    // unknown service type, so dont set isMfc true even if it matches url pattern
-        _MESG("** Unknown Service detected on profile change **");
-    }
-
     sUser.clear();
 
     if ( ! g_ctx.isMfc )
@@ -982,6 +946,7 @@ void onObsProfileChange(obs_frontend_event eventType)
     
     if (s_bFirstProfileLoad)
     {
+        s_bFirstProfileLoad = false;
 #if SIDEKICK_CONSOLE
         QTimer::singleShot(500, qApp, [=]()
         {
@@ -992,7 +957,6 @@ void onObsProfileChange(obs_frontend_event eventType)
             }
         });
 #endif
-        s_bFirstProfileLoad = false;
     }
 
     // write any updated info back to plugin config for this profile if any of it changed or is new, and an mfc profile
