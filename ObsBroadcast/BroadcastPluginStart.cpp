@@ -86,6 +86,9 @@
 #include "ObsCallbackEvent.h"
 #include "SidekickProperties.h"
 
+#undef LIBOBS_API_MAJOR_VER
+#define LIBOBS_API_MAJOR_VER 27
+
 #define _SKLOG(pszFmt, ...) SKLogMarker(__FILE__, __FUNCTION__, __LINE__, pszFmt, ##__VA_ARGS__)
 
 extern CBroadcastCtx g_ctx;  // part of MFCLibPlugins.lib::MfcPluginAPI.obj

@@ -197,6 +197,13 @@ function(BUILD_INFO)
 		OUTPUT_VARIABLE SIDEKICK_GIT_COMMIT_HASH
 		OUTPUT_STRIP_TRAILING_WHITESPACE
 	)
+	# Get the build version (OBS)
+	execute_process(
+		COMMAND git describe --always --tags --abbrev=0 HEAD
+		WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+		OUTPUT_VARIABLE OBS_VERSION_TAG
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
 	# Get the current working branch (OBS)
 	execute_process(
 		COMMAND git rev-parse --abbrev-ref HEAD
@@ -231,6 +238,7 @@ function(BUILD_INFO)
 		SIDEKICK_BUILD_YEAR
 		SIDEKICK_GIT_BRANCH
 		SIDEKICK_GIT_COMMIT_HASH
+		OBS_VERSION_TAG
 		OBS_GIT_BRANCH
 		OBS_GIT_COMMIT_HASH
 	)

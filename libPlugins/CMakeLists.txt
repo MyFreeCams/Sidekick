@@ -36,6 +36,8 @@ set(SRC_OBS_COMMON
 	MFCPluginAPI.cpp
 	# ModelKey.h
 	# ModelKey.cpp
+	ObsProfileUtil.hpp
+	ObsProfileUtil.cpp
 	ObsServicesJson.h
 	ObsServicesJson.cpp
 	ObsUtil.h
@@ -153,6 +155,7 @@ endif()
 
 # create library target
 add_library(${MyTarget} STATIC ${SRC_OBS})
+add_dependencies(${MyTarget} libobs obs)
 MFCDefines(${MyTarget})
 target_compile_options(${MyTarget} PUBLIC ${MyTarget_OPTIONS})
 # target_compile_definitions(${MyTarget} PUBLIC BOOST_ALL_NO_LIB)
@@ -169,4 +172,8 @@ target_link_libraries(${MyTarget} PUBLIC
 	Qt5::Gui
 	Qt5::Svg
 	nlohmann::json
+)
+
+target_include_directories(${MyTarget} PUBLIC
+	${CMAKE_BINARY_DIR}/UI
 )
