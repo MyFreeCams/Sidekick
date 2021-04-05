@@ -50,7 +50,7 @@
 
 #include <QPointer>
 
-class QMessageBox;
+//class QMessageBox;
 class QListWidgetItem;
 class VolControl;
 class OBSBasicStats;
@@ -68,7 +68,7 @@ class OBSBasicStats;
 #define SIMPLE_ENCODER_NVENC "nvenc"
 #define SIMPLE_ENCODER_AMD "amd"
 
-
+#if 0
 class Auth : public QObject {
     Q_OBJECT
 
@@ -126,6 +126,7 @@ protected:
 private:
     Def def;
 };
+#endif
 
 
 class OBSMainWindoww : public QMainWindow {
@@ -142,6 +143,7 @@ public:
 };
 
 
+#if 0
 class OBSAppp : public QApplication
 {
     Q_OBJECT
@@ -175,14 +177,14 @@ signals:
     void StyleChanged();
 };
 
-
 inline OBSAppp* App() { return static_cast<OBSAppp *>(qApp); }
+#endif
 
 int GetConfigPath(char *path, size_t size, const char *name);
-char *GetConfigPathPtr(const char *name);
+char* GetConfigPathPtr(const char *name);
 
-int GetProgramDataPath(char *path, size_t size, const char *name);
-char *GetProgramDataPathPtr(const char *name);
+//int GetProgramDataPath(char *path, size_t size, const char *name);
+//char* GetProgramDataPathPtr(const char *name);
 
 
 class ObsProfileUtil : public OBSMainWindoww
@@ -191,7 +193,7 @@ class ObsProfileUtil : public OBSMainWindoww
     friend class Auth;
 
 public:
-    static ObsProfileUtil* Get();
+    //static ObsProfileUtil* Get();
 
     bool AddProfile(const char* title, const char* text, const char* init_text = nullptr);
 
@@ -201,14 +203,14 @@ private:
     ConfigFile basicConfig;
     //std::unique_ptr<Ui::ObsProfileUtil> ui;
 
-    void ChangeProfile();
-    void RefreshProfiles();
-    void ResetProfileData();
-    void UpdateTitleBar();
-	bool InitBasicConfigDefaults();
-	void InitBasicConfigDefaults2();
-	bool InitBasicConfig();
-    void CheckForSimpleModeX264Fallback();
+    //void ChangeProfile();
+    //void RefreshProfiles();
+    //void ResetProfileData();
+    //void UpdateTitleBar();
+	//bool InitBasicConfigDefaults();
+	//void InitBasicConfigDefaults2();
+	//bool InitBasicConfig();
+    //void CheckForSimpleModeX264Fallback();
 };
 
 #endif  // OBS_PROFILE_UTIL_H_

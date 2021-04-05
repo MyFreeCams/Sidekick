@@ -80,26 +80,18 @@
 //using namespace json11;
 using namespace std;
 
-#include "ui-config.h"
-
-struct QCef;
-struct QCefCookieManager;
-
-QCef *cef = nullptr;
-QCefCookieManager *panel_cookies = nullptr;
-
-void DestroyPanelCookieManager();
+//#include "ui-config.h"
 
 static const double scaled_vals[] = {1.0,         1.25, (1.0 / 0.75), 1.5,
 				     (1.0 / 0.6), 1.75, 2.0,          2.25,
 				     2.5,         2.75, 3.0,          0.0};
 
-extern void DestroyPanelCookieManager();
-extern void DuplicateCurrentCookieProfile(ConfigFile &config);
-extern void CheckExistingCookieId();
-extern void DeleteCookies();
+//extern void DestroyPanelCookieManager();
+//extern void DuplicateCurrentCookieProfile(ConfigFile &config);
+//extern void CheckExistingCookieId();
+//extern void DeleteCookies();
 
-
+#if 0
 template<typename T> static T GetOBSRef(QListWidgetItem *item)
 {
 	return item->data(static_cast<int>(QtDataRole::OBSRef)).value<T>();
@@ -110,7 +102,10 @@ template<typename T> static void SetOBSRef(QListWidgetItem *item, T &&val)
 	item->setData(static_cast<int>(QtDataRole::OBSRef),
 		      QVariant::fromValue(val));
 }
+#endif
 
+
+#if 0
 static void AddExtraModulePaths()
 {
     char* plugins_path = getenv("OBS_PLUGINS_PATH");
@@ -149,6 +144,7 @@ static void AddExtraModulePaths()
     obs_add_module_path((path + "/bin/32bit").c_str(), (path + "/data").c_str());
 #endif
 }
+#endif
 
 
 bool GetFileSafeName(const char* name, std::string& file)
@@ -362,7 +358,7 @@ static bool CopyProfile(const char* fromPartial, const char* to)
     return true;
 }
 
-
+#if 0
 void Auth::Save()
 {
     ObsProfileUtil* main = ObsProfileUtil::Get();
@@ -381,12 +377,15 @@ void Auth::Save()
     auth->SaveInternal();
     config_save_safe(main->Config(), "tmp", nullptr);
 }
+#endif
 
 
+#if 0
 ObsProfileUtil* ObsProfileUtil::Get()
 {
-    return reinterpret_cast<ObsProfileUtil*>(App()->GetMainWindow());
+    return reinterpret_cast<ObsProfileUtil*>(obs_frontend_get_main_window());
 }
+#endif
 
 
 bool ObsProfileUtil::AddProfile(const char* title, const char* text, const char* init_text)
@@ -435,8 +434,8 @@ bool ObsProfileUtil::AddProfile(const char* title, const char* text, const char*
     config_set_string(obs_frontend_get_global_config(), "Basic", "Profile", newName.c_str());
     config_set_string(obs_frontend_get_global_config(), "Basic", "ProfileDir", newDir.c_str());
 
-    Auth::Save();
-    auth.reset();
+    //Auth::Save();
+    //auth.reset();
     //DestroyPanelCookieManager();
 
     config_set_string(config, "General", "Name", newName.c_str());
@@ -448,16 +447,23 @@ bool ObsProfileUtil::AddProfile(const char* title, const char* text, const char*
     config.SaveSafe("tmp");
     config.Swap(basicConfig);
 
-    InitBasicConfigDefaults();
-    InitBasicConfigDefaults2();
-    RefreshProfiles();
-    ResetProfileData();
+    QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
+    QMetaObject::invokeMethod(main, "InitBasicConfigDefaults");
+    QMetaObject::invokeMethod(main, "InitBasicConfigDefaults2");
+    QMetaObject::invokeMethod(main, "RefreshProfiles");
+    QMetaObject::invokeMethod(main, "ResetProfileData");
+
+    //InitBasicConfigDefaults();
+    //InitBasicConfigDefaults2();
+    //RefreshProfiles();
+    //ResetProfileData();
 
     blog(LOG_INFO, "Created profile '%s' (%s, %s)", newName.c_str(), "clean", newDir.c_str());
     blog(LOG_INFO, "------------------------------------------------");
 
     config_save_safe(obs_frontend_get_global_config(), "tmp", nullptr);
-    UpdateTitleBar();
+    //UpdateTitleBar();
+    QMetaObject::invokeMethod(main, "UpdateTitleBar");
 
     if (api)
     {
@@ -468,6 +474,7 @@ bool ObsProfileUtil::AddProfile(const char* title, const char* text, const char*
 }
 
 
+#if 0
 void ObsProfileUtil::ChangeProfile()
 {
 	QAction* action = reinterpret_cast<QAction*>(sender());
@@ -505,21 +512,29 @@ void ObsProfileUtil::ChangeProfile()
 	config_set_string(obs_frontend_get_global_config(), "Basic", "Profile", newName);
 	config_set_string(obs_frontend_get_global_config(), "Basic", "ProfileDir", newDir);
 
-	Auth::Save();
-	auth.reset();
-	DestroyPanelCookieManager();
+	//Auth::Save();
+	//auth.reset();
+	//DestroyPanelCookieManager();
 
 	config.Swap(basicConfig);
-	InitBasicConfigDefaults();
-	InitBasicConfigDefaults2();
-	ResetProfileData();
-	RefreshProfiles();
+    QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
+    QMetaObject::invokeMethod(main, "InitBasicConfigDefaults");
+    QMetaObject::invokeMethod(main, "InitBasicConfigDefaults2");
+    QMetaObject::invokeMethod(main, "ResetProfileData");
+    QMetaObject::invokeMethod(main, "RefreshProfiles");
+
+	//InitBasicConfigDefaults();
+	//InitBasicConfigDefaults2();
+	//ResetProfileData();
+	//RefreshProfiles();
 	config_save_safe(obs_frontend_get_global_config(), "tmp", nullptr);
-	UpdateTitleBar();
+	//UpdateTitleBar();
+    QMetaObject::invokeMethod(main, "UpdateTitleBar");
 
-	Auth::Load();
+	//Auth::Load();
 
-	CheckForSimpleModeX264Fallback();
+	//CheckForSimpleModeX264Fallback();
+    QMetaObject::invokeMethod(main, "CheckForSimpleModeX264Fallback");
 
 	blog(LOG_INFO, "Switched to profile '%s' (%s)", newName, newDir);
 	blog(LOG_INFO, "------------------------------------------------");
@@ -527,14 +542,17 @@ void ObsProfileUtil::ChangeProfile()
 	if (api)
 		api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
 }
+#endif
 
 
+#if 0
 void ObsProfileUtil::RefreshProfiles()
 {
-	QList<QAction *> menuActions = ui->profileMenu->actions();
+	QList<QAction*> menuActions = ui->profileMenu->actions();
 	int count = 0;
 
-	for (int i = 0; i < menuActions.count(); i++) {
+	for (int i = 0; i < menuActions.count(); i++)
+    {
 		QVariant v = menuActions[i]->property("file_name");
 		if (v.typeName() != nullptr)
 			delete menuActions[i];
@@ -542,13 +560,13 @@ void ObsProfileUtil::RefreshProfiles()
 
 	const char* curName = config_get_string(obs_frontend_get_global_config(), "Basic", "Profile");
 
-	auto addProfile = [&](const char *name, const char *path) {
+	auto addProfile = [&](const char* name, const char* path)
+    {
 		std::string file = strrchr(path, '/') + 1;
 
 		QAction *action = new QAction(name, this);
 		action->setProperty("file_name", path);
-		connect(action, &QAction::triggered, this,
-			&ObsProfileUtil::ChangeProfile);
+		connect(action, &QAction::triggered, this, &ObsProfileUtil::ChangeProfile);
 		action->setCheckable(true);
 
 		action->setChecked(strcmp(name, curName) == 0);
@@ -562,9 +580,10 @@ void ObsProfileUtil::RefreshProfiles()
 
 	ui->actionRemoveProfile->setEnabled(count > 1);
 }
+#endif
 
 
-
+#if 0
 void ObsProfileUtil::ResetProfileData()
 {
 	ResetVideo();
@@ -587,8 +606,10 @@ void ObsProfileUtil::ResetProfileData()
 	     device_name, device_id);
 #endif
 }
+#endif
 
 
+#if 0
 void ObsProfileUtil::UpdateTitleBar()
 {
 	stringstream name;
@@ -611,8 +632,10 @@ void ObsProfileUtil::UpdateTitleBar()
 
 	setWindowTitle(QT_UTF8(name.str().c_str()));
 }
+#endif
 
 
+#if 0
 bool ObsProfileUtil::InitBasicConfigDefaults()
 {
 	QList<QScreen *> screens = QGuiApplication::screens();
@@ -869,8 +892,10 @@ void ObsProfileUtil::InitBasicConfigDefaults2()
 				  useNV ? SIMPLE_ENCODER_NVENC
 					: SIMPLE_ENCODER_X264);
 }
+#endif
 
 
+#if 0
 void ObsProfileUtil::CheckForSimpleModeX264Fallback()
 {
 	const char* curStreamEncoder = config_get_string(basicConfig, "SimpleOutput", "StreamEncoder");
@@ -933,3 +958,4 @@ void ObsProfileUtil::CheckForSimpleModeX264Fallback()
 	if (changed)
 		config_save_safe(basicConfig, "tmp", nullptr);
 }
+#endif
