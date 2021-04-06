@@ -23,7 +23,6 @@ if [ -z ${WEBRTC_ARGS+x} ]; then
 fi
 if [ ${WEBRTC_VERSION} -lt 73 ]; then WEBRTC_BRANCH=${WEBRTC_VERSION}; else WEBRTC_BRANCH=m${WEBRTC_VERSION}; fi
 if [ ${WEBRTC_VERSION} -gt 79 ]; then WEBRTC_BRANCH=${BRANCH_NUMBER}; fi
-if [ "$1" = "clean" ]; then install_depot_tools; else find_depot_tools; fi
 if [ -z ${WEBRTC_ROOT_DIR+x} ]; then
   if [ -n "${WEBRTC}" ]; then export WEBRTC_ROOT_DIR="${WEBRTC}"; else export WEBRTC_ROOT_DIR="${DEV_DIR}/webrtc"; fi
 fi
@@ -117,7 +116,7 @@ write_webrtc_version() {
 }
 
 main() {
-
+  if [ "$1" = "clean" ]; then install_depot_tools; else find_depot_tools; fi
 
   rm -rf "${WEBRTC_ROOT_DIR}"
   mkdir -p "${WEBRTC_ROOT_DIR}/lib"
