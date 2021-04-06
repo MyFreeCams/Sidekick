@@ -3,8 +3,8 @@ set -e # exit if something fails
 
 declare -i IS_DEBUG=0
 readonly _DEPOT_TOOLS_COMMIT=master
-readonly _WEBRTC_VERSION=89
-readonly _BRANCH_NUMBER=4389
+readonly _WEBRTC_VERSION=90
+readonly _BRANCH_NUMBER=4430
 readonly ARGS_RELEASE='use_rtti=true is_debug=false is_official_build=true libcxx_abi_unstable=false chrome_pgo_phase=0 rtc_use_h264=true ffmpeg_branding="Chrome" is_chrome_branded=false'
 readonly ARGS_DEBUG='use_rtti=true is_debug=true libcxx_abi_unstable=false rtc_use_h264=true ffmpeg_branding="Chrome"'
 

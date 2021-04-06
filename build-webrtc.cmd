@@ -3,8 +3,8 @@ setlocal
 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
 set _DEPOT_TOOLS_COMMIT=master
 REM set _DEPOT_TOOLS_COMMIT=d9c1c8
-set _WEBRTC_VERSION=89
-set _BRANCH_NUMBER=4389
+set _WEBRTC_VERSION=90
+set _BRANCH_NUMBER=4430
 set ARGS_RELEASE="use_rtti=true is_debug=false is_official_build=true use_custom_libcxx=false rtc_use_h264=true chrome_pgo_phase=0 ffmpeg_branding=\"Chrome\" target_cpu=\"x64\" is_chrome_branded=false"
 set ARGS_DEBUG="use_rtti=true is_debug=true use_custom_libcxx=false rtc_use_h264=true ffmpeg_branding=\"Chrome\" target_cpu=\"x64\" enable_iterator_debugging=true"
 set IS_DEBUG=0
