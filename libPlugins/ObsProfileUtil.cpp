@@ -73,6 +73,8 @@
 #include <util/profiler.hpp>
 #include <util/dstr.hpp>
 
+//#include <UI/window-basic-main.hpp>
+
 //#include "ui_OBSBasic.h"
 
 //#include <json11.hpp>
@@ -83,24 +85,26 @@ using namespace std;
 //#include "ui-config.h"
 
 static const double scaled_vals[] = {1.0,         1.25, (1.0 / 0.75), 1.5,
-				     (1.0 / 0.6), 1.75, 2.0,          2.25,
-				     2.5,         2.75, 3.0,          0.0};
+                     (1.0 / 0.6), 1.75, 2.0,          2.25,
+                     2.5,         2.75, 3.0,          0.0};
 
 //extern void DestroyPanelCookieManager();
 //extern void DuplicateCurrentCookieProfile(ConfigFile &config);
 //extern void CheckExistingCookieId();
 //extern void DeleteCookies();
 
+//extern OBSBasic basicConfig;
+
 #if 0
 template<typename T> static T GetOBSRef(QListWidgetItem *item)
 {
-	return item->data(static_cast<int>(QtDataRole::OBSRef)).value<T>();
+    return item->data(static_cast<int>(QtDataRole::OBSRef)).value<T>();
 }
 
 template<typename T> static void SetOBSRef(QListWidgetItem *item, T &&val)
 {
-	item->setData(static_cast<int>(QtDataRole::OBSRef),
-		      QVariant::fromValue(val));
+    item->setData(static_cast<int>(QtDataRole::OBSRef),
+              QVariant::fromValue(val));
 }
 #endif
 
@@ -277,8 +281,7 @@ static bool ProfileExists(const char* findName)
 }
 
 
-static bool GetProfileName(QWidget* parent, std::string& name, std::string& file, const char* title,
-                           const char* text, const bool showWizard, bool& wizardChecked, const char* oldName = nullptr)
+static bool GetProfileName(const std::string& name, std::string& file)
 {
     char path[512];
     int ret;
@@ -315,7 +318,7 @@ static bool GetProfileName(QWidget* parent, std::string& name, std::string& file
 }
 
 
-static bool CopyProfile(const char* fromPartial, const char* to)
+bool ObsProfileUtil::CopyProfile(const char* fromPartial, const char* to)
 {
     os_glob_t* glob;
     char path[514];
@@ -388,16 +391,15 @@ ObsProfileUtil* ObsProfileUtil::Get()
 #endif
 
 
-bool ObsProfileUtil::AddProfile(const char* title, const char* text, const char* init_text)
+bool ObsProfileUtil::AddProfile(const std::string& newName)
 {
-    std::string newName;
     std::string newDir;
     std::string newPath;
-    ConfigFile config;
+    //ConfigFile config;
 
     bool showWizardChecked = false;
 
-    if (!GetProfileName(this, newName, newDir, title, text, false, showWizardChecked, init_text))
+    if (!GetProfileName(newName, newDir))
         return false;
 
     config_set_bool(obs_frontend_get_global_config(), "Basic", "ConfigOnNewProfile", false);
@@ -417,17 +419,16 @@ bool ObsProfileUtil::AddProfile(const char* title, const char* text, const char*
 
     if (os_mkdir(newPath.c_str()) < 0)
     {
-        blog(LOG_WARNING, "Failed to create profile directory '%s'",
-             newDir.c_str());
+        blog(LOG_WARNING, "Failed to create profile directory '%s'", newDir.c_str());
         return false;
     }
 
     newPath += "/basic.ini";
 
-    if (config.Open(newPath.c_str(), CONFIG_OPEN_ALWAYS) != 0)
+    config_t* config;
+    if (config_open(&config, newPath.c_str(), CONFIG_OPEN_ALWAYS) != 0)
     {
-        blog(LOG_ERROR, "Failed to open new config file '%s'",
-             newDir.c_str());
+        blog(LOG_ERROR, "Failed to open new config file '%s'", newDir.c_str());
         return false;
     }
 
@@ -439,19 +440,24 @@ bool ObsProfileUtil::AddProfile(const char* title, const char* text, const char*
     //DestroyPanelCookieManager();
 
     config_set_string(config, "General", "Name", newName.c_str());
+    config_save_safe(config, "tmp", nullptr);
 
-    //auto config = obs_frontend_get_profile_config();
-    //config_save_safe(config, "tmp", nullptr);
+    config_t* basicConfig = obs_frontend_get_profile_config();
+    config_save_safe(basicConfig, "tmp", nullptr);
 
-    basicConfig.SaveSafe("tmp");
-    config.SaveSafe("tmp");
-    config.Swap(basicConfig);
+    // Swap config & basicConfig
+	config_t* newConfig = basicConfig;
+	basicConfig = config;
+	config = newConfig;
 
     QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
-    QMetaObject::invokeMethod(main, "InitBasicConfigDefaults");
-    QMetaObject::invokeMethod(main, "InitBasicConfigDefaults2");
-    QMetaObject::invokeMethod(main, "RefreshProfiles");
-    QMetaObject::invokeMethod(main, "ResetProfileData");
+
+    QMetaObject::invokeMethod(main, "on_actionRefreshProfiles_triggered");
+
+    //QMetaObject::invokeMethod(main, "InitBasicConfigDefaults");
+    //QMetaObject::invokeMethod(main, "InitBasicConfigDefaults2");
+    //QMetaObject::invokeMethod(main, "RefreshProfiles");
+    //QMetaObject::invokeMethod(main, "ResetProfileData");
 
     //InitBasicConfigDefaults();
     //InitBasicConfigDefaults2();
@@ -463,13 +469,13 @@ bool ObsProfileUtil::AddProfile(const char* title, const char* text, const char*
 
     config_save_safe(obs_frontend_get_global_config(), "tmp", nullptr);
     //UpdateTitleBar();
-    QMetaObject::invokeMethod(main, "UpdateTitleBar");
+    //QMetaObject::invokeMethod(main, "UpdateTitleBar");
 
-    if (api)
-    {
-        api->on_event(OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED);
-        api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
-    }
+    //if (api)
+    //{
+    //    api->on_event(OBS_FRONTEND_EVENT_PROFILE_LIST_CHANGED);
+    //    api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+    //}
     return true;
 }
 
@@ -477,70 +483,70 @@ bool ObsProfileUtil::AddProfile(const char* title, const char* text, const char*
 #if 0
 void ObsProfileUtil::ChangeProfile()
 {
-	QAction* action = reinterpret_cast<QAction*>(sender());
-	ConfigFile config;
-	std::string path;
+    QAction* action = reinterpret_cast<QAction*>(sender());
+    ConfigFile config;
+    std::string path;
 
-	if (!action)
-		return;
+    if (!action)
+        return;
 
-	path = QT_TO_UTF8(action->property("file_name").value<QString>());
-	if (path.empty())
-		return;
+    path = QT_TO_UTF8(action->property("file_name").value<QString>());
+    if (path.empty())
+        return;
 
-	const char* oldName = config_get_string(obs_frontend_get_global_config(), "Basic", "Profile");
-	if (action->text().compare(QT_UTF8(oldName)) == 0)
+    const char* oldName = config_get_string(obs_frontend_get_global_config(), "Basic", "Profile");
+    if (action->text().compare(QT_UTF8(oldName)) == 0)
     {
-		action->setChecked(true);
-		return;
-	}
+        action->setChecked(true);
+        return;
+    }
 
-	size_t path_len = path.size();
-	path += "/basic.ini";
+    size_t path_len = path.size();
+    path += "/basic.ini";
 
-	if (config.Open(path.c_str(), CONFIG_OPEN_ALWAYS) != 0)
+    if (config.Open(path.c_str(), CONFIG_OPEN_ALWAYS) != 0)
     {
-		blog(LOG_ERROR, "ChangeProfile: Failed to load file '%s'", path.c_str());
-		return;
-	}
+        blog(LOG_ERROR, "ChangeProfile: Failed to load file '%s'", path.c_str());
+        return;
+    }
 
-	path.resize(path_len);
+    path.resize(path_len);
 
-	const char* newName = config_get_string(config, "General", "Name");
-	const char* newDir = strrchr(path.c_str(), '/') + 1;
+    const char* newName = config_get_string(config, "General", "Name");
+    const char* newDir = strrchr(path.c_str(), '/') + 1;
 
-	config_set_string(obs_frontend_get_global_config(), "Basic", "Profile", newName);
-	config_set_string(obs_frontend_get_global_config(), "Basic", "ProfileDir", newDir);
+    config_set_string(obs_frontend_get_global_config(), "Basic", "Profile", newName);
+    config_set_string(obs_frontend_get_global_config(), "Basic", "ProfileDir", newDir);
 
-	//Auth::Save();
-	//auth.reset();
-	//DestroyPanelCookieManager();
+    //Auth::Save();
+    //auth.reset();
+    //DestroyPanelCookieManager();
 
-	config.Swap(basicConfig);
+    config.Swap(basicConfig);
     QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
     QMetaObject::invokeMethod(main, "InitBasicConfigDefaults");
     QMetaObject::invokeMethod(main, "InitBasicConfigDefaults2");
     QMetaObject::invokeMethod(main, "ResetProfileData");
     QMetaObject::invokeMethod(main, "RefreshProfiles");
 
-	//InitBasicConfigDefaults();
-	//InitBasicConfigDefaults2();
-	//ResetProfileData();
-	//RefreshProfiles();
-	config_save_safe(obs_frontend_get_global_config(), "tmp", nullptr);
-	//UpdateTitleBar();
+    //InitBasicConfigDefaults();
+    //InitBasicConfigDefaults2();
+    //ResetProfileData();
+    //RefreshProfiles();
+    config_save_safe(obs_frontend_get_global_config(), "tmp", nullptr);
+    //UpdateTitleBar();
     QMetaObject::invokeMethod(main, "UpdateTitleBar");
 
-	//Auth::Load();
+    //Auth::Load();
 
-	//CheckForSimpleModeX264Fallback();
+    //CheckForSimpleModeX264Fallback();
     QMetaObject::invokeMethod(main, "CheckForSimpleModeX264Fallback");
 
-	blog(LOG_INFO, "Switched to profile '%s' (%s)", newName, newDir);
-	blog(LOG_INFO, "------------------------------------------------");
+    blog(LOG_INFO, "Switched to profile '%s' (%s)", newName, newDir);
+    blog(LOG_INFO, "------------------------------------------------");
 
-	if (api)
-		api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
+    if (api)
+        api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
 }
 #endif
 
@@ -548,37 +554,37 @@ void ObsProfileUtil::ChangeProfile()
 #if 0
 void ObsProfileUtil::RefreshProfiles()
 {
-	QList<QAction*> menuActions = ui->profileMenu->actions();
-	int count = 0;
+    QList<QAction*> menuActions = ui->profileMenu->actions();
+    int count = 0;
 
-	for (int i = 0; i < menuActions.count(); i++)
+    for (int i = 0; i < menuActions.count(); i++)
     {
-		QVariant v = menuActions[i]->property("file_name");
-		if (v.typeName() != nullptr)
-			delete menuActions[i];
-	}
+        QVariant v = menuActions[i]->property("file_name");
+        if (v.typeName() != nullptr)
+            delete menuActions[i];
+    }
 
-	const char* curName = config_get_string(obs_frontend_get_global_config(), "Basic", "Profile");
+    const char* curName = config_get_string(obs_frontend_get_global_config(), "Basic", "Profile");
 
-	auto addProfile = [&](const char* name, const char* path)
+    auto addProfile = [&](const char* name, const char* path)
     {
-		std::string file = strrchr(path, '/') + 1;
+        std::string file = strrchr(path, '/') + 1;
 
-		QAction *action = new QAction(name, this);
-		action->setProperty("file_name", path);
-		connect(action, &QAction::triggered, this, &ObsProfileUtil::ChangeProfile);
-		action->setCheckable(true);
+        QAction *action = new QAction(name, this);
+        action->setProperty("file_name", path);
+        connect(action, &QAction::triggered, this, &ObsProfileUtil::ChangeProfile);
+        action->setCheckable(true);
 
-		action->setChecked(strcmp(name, curName) == 0);
+        action->setChecked(strcmp(name, curName) == 0);
 
-		ui->profileMenu->addAction(action);
-		count++;
-		return true;
-	};
+        ui->profileMenu->addAction(action);
+        count++;
+        return true;
+    };
 
-	EnumProfiles(addProfile);
+    EnumProfiles(addProfile);
 
-	ui->actionRemoveProfile->setEnabled(count > 1);
+    ui->actionRemoveProfile->setEnabled(count > 1);
 }
 #endif
 
@@ -586,24 +592,24 @@ void ObsProfileUtil::RefreshProfiles()
 #if 0
 void ObsProfileUtil::ResetProfileData()
 {
-	ResetVideo();
-	service = nullptr;
-	InitService();
-	ResetOutputs();
-	ClearHotkeys();
-	CreateHotkeys();
+    ResetVideo();
+    service = nullptr;
+    InitService();
+    ResetOutputs();
+    ClearHotkeys();
+    CreateHotkeys();
 
-	/* load audio monitoring */
+    /* load audio monitoring */
 #if defined(_WIN32) || defined(__APPLE__) || HAVE_PULSEAUDIO
-	const char *device_name =
-		config_get_string(basicConfig, "Audio", "MonitoringDeviceName");
-	const char *device_id =
-		config_get_string(basicConfig, "Audio", "MonitoringDeviceId");
+    const char *device_name =
+        config_get_string(basicConfig, "Audio", "MonitoringDeviceName");
+    const char *device_id =
+        config_get_string(basicConfig, "Audio", "MonitoringDeviceId");
 
-	obs_set_audio_monitoring_device(device_name, device_id);
+    obs_set_audio_monitoring_device(device_name, device_id);
 
-	blog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s",
-	     device_name, device_id);
+    blog(LOG_INFO, "Audio monitoring device:\n\tname: %s\n\tid: %s",
+         device_name, device_id);
 #endif
 }
 #endif
@@ -612,25 +618,25 @@ void ObsProfileUtil::ResetProfileData()
 #if 0
 void ObsProfileUtil::UpdateTitleBar()
 {
-	stringstream name;
+    stringstream name;
 
-	const char *profile =
-		config_get_string(obs_frontend_get_global_config(), "Basic", "Profile");
-	const char *sceneCollection = config_get_string(
-		obs_frontend_get_global_config(), "Basic", "SceneCollection");
+    const char *profile =
+        config_get_string(obs_frontend_get_global_config(), "Basic", "Profile");
+    const char *sceneCollection = config_get_string(
+        obs_frontend_get_global_config(), "Basic", "SceneCollection");
 
-	name << "OBS ";
-	if (previewProgramMode)
-		name << "Studio ";
+    name << "OBS ";
+    if (previewProgramMode)
+        name << "Studio ";
 
-	name << App()->GetVersionString();
-	if (App()->IsPortableMode())
-		name << " - Portable Mode";
+    name << App()->GetVersionString();
+    if (App()->IsPortableMode())
+        name << " - Portable Mode";
 
-	name << " - " << Str("TitleBar.Profile") << ": " << profile;
-	name << " - " << Str("TitleBar.Scenes") << ": " << sceneCollection;
+    name << " - " << Str("TitleBar.Profile") << ": " << profile;
+    name << " - " << Str("TitleBar.Scenes") << ": " << sceneCollection;
 
-	setWindowTitle(QT_UTF8(name.str().c_str()));
+    setWindowTitle(QT_UTF8(name.str().c_str()));
 }
 #endif
 
@@ -638,259 +644,259 @@ void ObsProfileUtil::UpdateTitleBar()
 #if 0
 bool ObsProfileUtil::InitBasicConfigDefaults()
 {
-	QList<QScreen *> screens = QGuiApplication::screens();
+    QList<QScreen *> screens = QGuiApplication::screens();
 
-	if (!screens.size())
+    if (!screens.size())
     {
-		blog(LOG_ERROR,
+        blog(LOG_ERROR,
              "There appears to be no monitors.  Er, this "
              "technically shouldn't be possible.");
-		return false;
-	}
+        return false;
+    }
 
-	QScreen *primaryScreen = QGuiApplication::primaryScreen();
+    QScreen *primaryScreen = QGuiApplication::primaryScreen();
 
-	uint32_t cx = primaryScreen->size().width();
-	uint32_t cy = primaryScreen->size().height();
+    uint32_t cx = primaryScreen->size().width();
+    uint32_t cy = primaryScreen->size().height();
 
 #ifdef SUPPORTS_FRACTIONAL_SCALING
-	cx *= devicePixelRatioF();
-	cy *= devicePixelRatioF();
+    cx *= devicePixelRatioF();
+    cy *= devicePixelRatioF();
 #else
-	cx *= devicePixelRatio();
-	cy *= devicePixelRatio();
+    cx *= devicePixelRatio();
+    cy *= devicePixelRatio();
 #endif
 
-	bool oldResolutionDefaults = config_get_bool(
-		obs_frontend_get_global_config(), "General", "Pre19Defaults");
+    bool oldResolutionDefaults = config_get_bool(
+        obs_frontend_get_global_config(), "General", "Pre19Defaults");
 
-	/* use 1920x1080 for new default base res if main monitor is above
-	 * 1920x1080, but don't apply for people from older builds -- only to
-	 * new users */
-	if (!oldResolutionDefaults && (cx * cy) > (1920 * 1080)) {
-		cx = 1920;
-		cy = 1080;
-	}
+    /* use 1920x1080 for new default base res if main monitor is above
+     * 1920x1080, but don't apply for people from older builds -- only to
+     * new users */
+    if (!oldResolutionDefaults && (cx * cy) > (1920 * 1080)) {
+        cx = 1920;
+        cy = 1080;
+    }
 
-	bool changed = false;
+    bool changed = false;
 
-	/* ----------------------------------------------------- */
-	/* move over old FFmpeg track settings                   */
-	if (config_has_user_value(basicConfig, "AdvOut", "FFAudioTrack") &&
-	    !config_has_user_value(basicConfig, "AdvOut", "Pre22.1Settings")) {
+    /* ----------------------------------------------------- */
+    /* move over old FFmpeg track settings                   */
+    if (config_has_user_value(basicConfig, "AdvOut", "FFAudioTrack") &&
+        !config_has_user_value(basicConfig, "AdvOut", "Pre22.1Settings")) {
 
-		int track = (int)config_get_int(basicConfig, "AdvOut",
-						"FFAudioTrack");
-		config_set_int(basicConfig, "AdvOut", "FFAudioMixes",
-			       1LL << (track - 1));
-		config_set_bool(basicConfig, "AdvOut", "Pre22.1Settings", true);
-		changed = true;
-	}
+        int track = (int)config_get_int(basicConfig, "AdvOut",
+                        "FFAudioTrack");
+        config_set_int(basicConfig, "AdvOut", "FFAudioMixes",
+                   1LL << (track - 1));
+        config_set_bool(basicConfig, "AdvOut", "Pre22.1Settings", true);
+        changed = true;
+    }
 
-	/* ----------------------------------------------------- */
-	/* move over mixer values in advanced if older config */
-	if (config_has_user_value(basicConfig, "AdvOut", "RecTrackIndex") &&
-	    !config_has_user_value(basicConfig, "AdvOut", "RecTracks")) {
+    /* ----------------------------------------------------- */
+    /* move over mixer values in advanced if older config */
+    if (config_has_user_value(basicConfig, "AdvOut", "RecTrackIndex") &&
+        !config_has_user_value(basicConfig, "AdvOut", "RecTracks")) {
 
-		uint64_t track =
-			config_get_uint(basicConfig, "AdvOut", "RecTrackIndex");
-		track = 1ULL << (track - 1);
-		config_set_uint(basicConfig, "AdvOut", "RecTracks", track);
-		config_remove_value(basicConfig, "AdvOut", "RecTrackIndex");
-		changed = true;
-	}
+        uint64_t track =
+            config_get_uint(basicConfig, "AdvOut", "RecTrackIndex");
+        track = 1ULL << (track - 1);
+        config_set_uint(basicConfig, "AdvOut", "RecTracks", track);
+        config_remove_value(basicConfig, "AdvOut", "RecTrackIndex");
+        changed = true;
+    }
 
-	/* ----------------------------------------------------- */
-	/* set twitch chat extensions to "both" if prev version  */
-	/* is under 24.1                                         */
-	if (config_get_bool(GetGlobalConfig(), "General", "Pre24.1Defaults") &&
-	    !config_has_user_value(basicConfig, "Twitch", "AddonChoice")) {
-		config_set_int(basicConfig, "Twitch", "AddonChoice", 3);
-		changed = true;
-	}
+    /* ----------------------------------------------------- */
+    /* set twitch chat extensions to "both" if prev version  */
+    /* is under 24.1                                         */
+    if (config_get_bool(GetGlobalConfig(), "General", "Pre24.1Defaults") &&
+        !config_has_user_value(basicConfig, "Twitch", "AddonChoice")) {
+        config_set_int(basicConfig, "Twitch", "AddonChoice", 3);
+        changed = true;
+    }
 
-	/* ----------------------------------------------------- */
-	/* move bitrate enforcement setting to new value         */
-	if (config_has_user_value(basicConfig, "SimpleOutput",
-				  "EnforceBitrate") &&
-	    !config_has_user_value(basicConfig, "Stream1",
-				   "IgnoreRecommended") &&
-	    !config_has_user_value(basicConfig, "Stream1", "MovedOldEnforce")) {
-		bool enforce = config_get_bool(basicConfig, "SimpleOutput",
-					       "EnforceBitrate");
-		config_set_bool(basicConfig, "Stream1", "IgnoreRecommended",
-				!enforce);
-		config_set_bool(basicConfig, "Stream1", "MovedOldEnforce",
-				true);
-		changed = true;
-	}
+    /* ----------------------------------------------------- */
+    /* move bitrate enforcement setting to new value         */
+    if (config_has_user_value(basicConfig, "SimpleOutput",
+                  "EnforceBitrate") &&
+        !config_has_user_value(basicConfig, "Stream1",
+                   "IgnoreRecommended") &&
+        !config_has_user_value(basicConfig, "Stream1", "MovedOldEnforce")) {
+        bool enforce = config_get_bool(basicConfig, "SimpleOutput",
+                           "EnforceBitrate");
+        config_set_bool(basicConfig, "Stream1", "IgnoreRecommended",
+                !enforce);
+        config_set_bool(basicConfig, "Stream1", "MovedOldEnforce",
+                true);
+        changed = true;
+    }
 
-	/* ----------------------------------------------------- */
+    /* ----------------------------------------------------- */
 
-	if (changed)
-		config_save_safe(basicConfig, "tmp", nullptr);
+    if (changed)
+        config_save_safe(basicConfig, "tmp", nullptr);
 
-	/* ----------------------------------------------------- */
+    /* ----------------------------------------------------- */
 
-	config_set_default_string(basicConfig, "Output", "Mode", "Simple");
+    config_set_default_string(basicConfig, "Output", "Mode", "Simple");
 
-	config_set_default_bool(basicConfig, "Stream1", "IgnoreRecommended",
-				false);
+    config_set_default_bool(basicConfig, "Stream1", "IgnoreRecommended",
+                false);
 
-	config_set_default_string(basicConfig, "SimpleOutput", "FilePath",
-				  GetDefaultVideoSavePath().c_str());
-	config_set_default_string(basicConfig, "SimpleOutput", "RecFormat",
-				  "mkv");
-	config_set_default_uint(basicConfig, "SimpleOutput", "VBitrate", 2500);
-	config_set_default_uint(basicConfig, "SimpleOutput", "ABitrate", 160);
-	config_set_default_bool(basicConfig, "SimpleOutput", "UseAdvanced",
-				false);
-	config_set_default_string(basicConfig, "SimpleOutput", "Preset",
-				  "veryfast");
-	config_set_default_string(basicConfig, "SimpleOutput", "NVENCPreset",
-				  "hq");
-	config_set_default_string(basicConfig, "SimpleOutput", "RecQuality",
-				  "Stream");
-	config_set_default_bool(basicConfig, "SimpleOutput", "RecRB", false);
-	config_set_default_int(basicConfig, "SimpleOutput", "RecRBTime", 20);
-	config_set_default_int(basicConfig, "SimpleOutput", "RecRBSize", 512);
-	config_set_default_string(basicConfig, "SimpleOutput", "RecRBPrefix",
-				  "Replay");
+    config_set_default_string(basicConfig, "SimpleOutput", "FilePath",
+                  GetDefaultVideoSavePath().c_str());
+    config_set_default_string(basicConfig, "SimpleOutput", "RecFormat",
+                  "mkv");
+    config_set_default_uint(basicConfig, "SimpleOutput", "VBitrate", 2500);
+    config_set_default_uint(basicConfig, "SimpleOutput", "ABitrate", 160);
+    config_set_default_bool(basicConfig, "SimpleOutput", "UseAdvanced",
+                false);
+    config_set_default_string(basicConfig, "SimpleOutput", "Preset",
+                  "veryfast");
+    config_set_default_string(basicConfig, "SimpleOutput", "NVENCPreset",
+                  "hq");
+    config_set_default_string(basicConfig, "SimpleOutput", "RecQuality",
+                  "Stream");
+    config_set_default_bool(basicConfig, "SimpleOutput", "RecRB", false);
+    config_set_default_int(basicConfig, "SimpleOutput", "RecRBTime", 20);
+    config_set_default_int(basicConfig, "SimpleOutput", "RecRBSize", 512);
+    config_set_default_string(basicConfig, "SimpleOutput", "RecRBPrefix",
+                  "Replay");
 
-	config_set_default_bool(basicConfig, "AdvOut", "ApplyServiceSettings",
-				true);
-	config_set_default_bool(basicConfig, "AdvOut", "UseRescale", false);
-	config_set_default_uint(basicConfig, "AdvOut", "TrackIndex", 1);
-	config_set_default_uint(basicConfig, "AdvOut", "VodTrackIndex", 2);
-	config_set_default_string(basicConfig, "AdvOut", "Encoder", "obs_x264");
+    config_set_default_bool(basicConfig, "AdvOut", "ApplyServiceSettings",
+                true);
+    config_set_default_bool(basicConfig, "AdvOut", "UseRescale", false);
+    config_set_default_uint(basicConfig, "AdvOut", "TrackIndex", 1);
+    config_set_default_uint(basicConfig, "AdvOut", "VodTrackIndex", 2);
+    config_set_default_string(basicConfig, "AdvOut", "Encoder", "obs_x264");
 
-	config_set_default_string(basicConfig, "AdvOut", "RecType", "Standard");
+    config_set_default_string(basicConfig, "AdvOut", "RecType", "Standard");
 
-	config_set_default_string(basicConfig, "AdvOut", "RecFilePath",
-				  GetDefaultVideoSavePath().c_str());
-	config_set_default_string(basicConfig, "AdvOut", "RecFormat", "mkv");
-	config_set_default_bool(basicConfig, "AdvOut", "RecUseRescale", false);
-	config_set_default_uint(basicConfig, "AdvOut", "RecTracks", (1 << 0));
-	config_set_default_string(basicConfig, "AdvOut", "RecEncoder", "none");
-	config_set_default_uint(basicConfig, "AdvOut", "FLVTrack", 1);
+    config_set_default_string(basicConfig, "AdvOut", "RecFilePath",
+                  GetDefaultVideoSavePath().c_str());
+    config_set_default_string(basicConfig, "AdvOut", "RecFormat", "mkv");
+    config_set_default_bool(basicConfig, "AdvOut", "RecUseRescale", false);
+    config_set_default_uint(basicConfig, "AdvOut", "RecTracks", (1 << 0));
+    config_set_default_string(basicConfig, "AdvOut", "RecEncoder", "none");
+    config_set_default_uint(basicConfig, "AdvOut", "FLVTrack", 1);
 
-	config_set_default_bool(basicConfig, "AdvOut", "FFOutputToFile", true);
-	config_set_default_string(basicConfig, "AdvOut", "FFFilePath",
-				  GetDefaultVideoSavePath().c_str());
-	config_set_default_string(basicConfig, "AdvOut", "FFExtension", "mp4");
-	config_set_default_uint(basicConfig, "AdvOut", "FFVBitrate", 2500);
-	config_set_default_uint(basicConfig, "AdvOut", "FFVGOPSize", 250);
-	config_set_default_bool(basicConfig, "AdvOut", "FFUseRescale", false);
-	config_set_default_bool(basicConfig, "AdvOut", "FFIgnoreCompat", false);
-	config_set_default_uint(basicConfig, "AdvOut", "FFABitrate", 160);
-	config_set_default_uint(basicConfig, "AdvOut", "FFAudioMixes", 1);
+    config_set_default_bool(basicConfig, "AdvOut", "FFOutputToFile", true);
+    config_set_default_string(basicConfig, "AdvOut", "FFFilePath",
+                  GetDefaultVideoSavePath().c_str());
+    config_set_default_string(basicConfig, "AdvOut", "FFExtension", "mp4");
+    config_set_default_uint(basicConfig, "AdvOut", "FFVBitrate", 2500);
+    config_set_default_uint(basicConfig, "AdvOut", "FFVGOPSize", 250);
+    config_set_default_bool(basicConfig, "AdvOut", "FFUseRescale", false);
+    config_set_default_bool(basicConfig, "AdvOut", "FFIgnoreCompat", false);
+    config_set_default_uint(basicConfig, "AdvOut", "FFABitrate", 160);
+    config_set_default_uint(basicConfig, "AdvOut", "FFAudioMixes", 1);
 
-	config_set_default_uint(basicConfig, "AdvOut", "Track1Bitrate", 160);
-	config_set_default_uint(basicConfig, "AdvOut", "Track2Bitrate", 160);
-	config_set_default_uint(basicConfig, "AdvOut", "Track3Bitrate", 160);
-	config_set_default_uint(basicConfig, "AdvOut", "Track4Bitrate", 160);
-	config_set_default_uint(basicConfig, "AdvOut", "Track5Bitrate", 160);
-	config_set_default_uint(basicConfig, "AdvOut", "Track6Bitrate", 160);
+    config_set_default_uint(basicConfig, "AdvOut", "Track1Bitrate", 160);
+    config_set_default_uint(basicConfig, "AdvOut", "Track2Bitrate", 160);
+    config_set_default_uint(basicConfig, "AdvOut", "Track3Bitrate", 160);
+    config_set_default_uint(basicConfig, "AdvOut", "Track4Bitrate", 160);
+    config_set_default_uint(basicConfig, "AdvOut", "Track5Bitrate", 160);
+    config_set_default_uint(basicConfig, "AdvOut", "Track6Bitrate", 160);
 
-	config_set_default_bool(basicConfig, "AdvOut", "RecRB", false);
-	config_set_default_uint(basicConfig, "AdvOut", "RecRBTime", 20);
-	config_set_default_int(basicConfig, "AdvOut", "RecRBSize", 512);
+    config_set_default_bool(basicConfig, "AdvOut", "RecRB", false);
+    config_set_default_uint(basicConfig, "AdvOut", "RecRBTime", 20);
+    config_set_default_int(basicConfig, "AdvOut", "RecRBSize", 512);
 
-	config_set_default_uint(basicConfig, "Video", "BaseCX", cx);
-	config_set_default_uint(basicConfig, "Video", "BaseCY", cy);
+    config_set_default_uint(basicConfig, "Video", "BaseCX", cx);
+    config_set_default_uint(basicConfig, "Video", "BaseCY", cy);
 
-	/* don't allow BaseCX/BaseCY to be susceptible to defaults changing */
-	if (!config_has_user_value(basicConfig, "Video", "BaseCX") ||
-	    !config_has_user_value(basicConfig, "Video", "BaseCY")) {
-		config_set_uint(basicConfig, "Video", "BaseCX", cx);
-		config_set_uint(basicConfig, "Video", "BaseCY", cy);
-		config_save_safe(basicConfig, "tmp", nullptr);
-	}
+    /* don't allow BaseCX/BaseCY to be susceptible to defaults changing */
+    if (!config_has_user_value(basicConfig, "Video", "BaseCX") ||
+        !config_has_user_value(basicConfig, "Video", "BaseCY")) {
+        config_set_uint(basicConfig, "Video", "BaseCX", cx);
+        config_set_uint(basicConfig, "Video", "BaseCY", cy);
+        config_save_safe(basicConfig, "tmp", nullptr);
+    }
 
-	config_set_default_string(basicConfig, "Output", "FilenameFormatting",
-				  "%CCYY-%MM-%DD %hh-%mm-%ss");
+    config_set_default_string(basicConfig, "Output", "FilenameFormatting",
+                  "%CCYY-%MM-%DD %hh-%mm-%ss");
 
-	config_set_default_bool(basicConfig, "Output", "DelayEnable", false);
-	config_set_default_uint(basicConfig, "Output", "DelaySec", 20);
-	config_set_default_bool(basicConfig, "Output", "DelayPreserve", true);
+    config_set_default_bool(basicConfig, "Output", "DelayEnable", false);
+    config_set_default_uint(basicConfig, "Output", "DelaySec", 20);
+    config_set_default_bool(basicConfig, "Output", "DelayPreserve", true);
 
-	config_set_default_bool(basicConfig, "Output", "Reconnect", true);
-	config_set_default_uint(basicConfig, "Output", "RetryDelay", 10);
-	config_set_default_uint(basicConfig, "Output", "MaxRetries", 20);
+    config_set_default_bool(basicConfig, "Output", "Reconnect", true);
+    config_set_default_uint(basicConfig, "Output", "RetryDelay", 10);
+    config_set_default_uint(basicConfig, "Output", "MaxRetries", 20);
 
-	config_set_default_string(basicConfig, "Output", "BindIP", "default");
-	config_set_default_bool(basicConfig, "Output", "NewSocketLoopEnable",
-				false);
-	config_set_default_bool(basicConfig, "Output", "LowLatencyEnable",
-				false);
+    config_set_default_string(basicConfig, "Output", "BindIP", "default");
+    config_set_default_bool(basicConfig, "Output", "NewSocketLoopEnable",
+                false);
+    config_set_default_bool(basicConfig, "Output", "LowLatencyEnable",
+                false);
 
-	int i = 0;
-	uint32_t scale_cx = cx;
-	uint32_t scale_cy = cy;
+    int i = 0;
+    uint32_t scale_cx = cx;
+    uint32_t scale_cy = cy;
 
-	/* use a default scaled resolution that has a pixel count no higher
-	 * than 1280x720 */
-	while (((scale_cx * scale_cy) > (1280 * 720)) && scaled_vals[i] > 0.0) {
-		double scale = scaled_vals[i++];
-		scale_cx = uint32_t(double(cx) / scale);
-		scale_cy = uint32_t(double(cy) / scale);
-	}
+    /* use a default scaled resolution that has a pixel count no higher
+     * than 1280x720 */
+    while (((scale_cx * scale_cy) > (1280 * 720)) && scaled_vals[i] > 0.0) {
+        double scale = scaled_vals[i++];
+        scale_cx = uint32_t(double(cx) / scale);
+        scale_cy = uint32_t(double(cy) / scale);
+    }
 
-	config_set_default_uint(basicConfig, "Video", "OutputCX", scale_cx);
-	config_set_default_uint(basicConfig, "Video", "OutputCY", scale_cy);
+    config_set_default_uint(basicConfig, "Video", "OutputCX", scale_cx);
+    config_set_default_uint(basicConfig, "Video", "OutputCY", scale_cy);
 
-	/* don't allow OutputCX/OutputCY to be susceptible to defaults
-	 * changing */
-	if (!config_has_user_value(basicConfig, "Video", "OutputCX") ||
-	    !config_has_user_value(basicConfig, "Video", "OutputCY")) {
-		config_set_uint(basicConfig, "Video", "OutputCX", scale_cx);
-		config_set_uint(basicConfig, "Video", "OutputCY", scale_cy);
-		config_save_safe(basicConfig, "tmp", nullptr);
-	}
+    /* don't allow OutputCX/OutputCY to be susceptible to defaults
+     * changing */
+    if (!config_has_user_value(basicConfig, "Video", "OutputCX") ||
+        !config_has_user_value(basicConfig, "Video", "OutputCY")) {
+        config_set_uint(basicConfig, "Video", "OutputCX", scale_cx);
+        config_set_uint(basicConfig, "Video", "OutputCY", scale_cy);
+        config_save_safe(basicConfig, "tmp", nullptr);
+    }
 
-	config_set_default_uint(basicConfig, "Video", "FPSType", 0);
-	config_set_default_string(basicConfig, "Video", "FPSCommon", "30");
-	config_set_default_uint(basicConfig, "Video", "FPSInt", 30);
-	config_set_default_uint(basicConfig, "Video", "FPSNum", 30);
-	config_set_default_uint(basicConfig, "Video", "FPSDen", 1);
-	config_set_default_string(basicConfig, "Video", "ScaleType", "bicubic");
-	config_set_default_string(basicConfig, "Video", "ColorFormat", "NV12");
-	config_set_default_string(basicConfig, "Video", "ColorSpace", "709");
-	config_set_default_string(basicConfig, "Video", "ColorRange",
-				  "Partial");
+    config_set_default_uint(basicConfig, "Video", "FPSType", 0);
+    config_set_default_string(basicConfig, "Video", "FPSCommon", "30");
+    config_set_default_uint(basicConfig, "Video", "FPSInt", 30);
+    config_set_default_uint(basicConfig, "Video", "FPSNum", 30);
+    config_set_default_uint(basicConfig, "Video", "FPSDen", 1);
+    config_set_default_string(basicConfig, "Video", "ScaleType", "bicubic");
+    config_set_default_string(basicConfig, "Video", "ColorFormat", "NV12");
+    config_set_default_string(basicConfig, "Video", "ColorSpace", "709");
+    config_set_default_string(basicConfig, "Video", "ColorRange",
+                  "Partial");
 
-	config_set_default_string(basicConfig, "Audio", "MonitoringDeviceId",
-				  "default");
-	config_set_default_string(
-		basicConfig, "Audio", "MonitoringDeviceName",
-		Str("Basic.Settings.Advanced.Audio.MonitoringDevice"
-		    ".Default"));
-	config_set_default_uint(basicConfig, "Audio", "SampleRate", 48000);
-	config_set_default_string(basicConfig, "Audio", "ChannelSetup",
-				  "Stereo");
-	config_set_default_double(basicConfig, "Audio", "MeterDecayRate",
-				  VOLUME_METER_DECAY_FAST);
-	config_set_default_uint(basicConfig, "Audio", "PeakMeterType", 0);
+    config_set_default_string(basicConfig, "Audio", "MonitoringDeviceId",
+                  "default");
+    config_set_default_string(
+        basicConfig, "Audio", "MonitoringDeviceName",
+        Str("Basic.Settings.Advanced.Audio.MonitoringDevice"
+            ".Default"));
+    config_set_default_uint(basicConfig, "Audio", "SampleRate", 48000);
+    config_set_default_string(basicConfig, "Audio", "ChannelSetup",
+                  "Stereo");
+    config_set_default_double(basicConfig, "Audio", "MeterDecayRate",
+                  VOLUME_METER_DECAY_FAST);
+    config_set_default_uint(basicConfig, "Audio", "PeakMeterType", 0);
 
-	CheckExistingCookieId();
+    CheckExistingCookieId();
 
-	return true;
+    return true;
 }
 
 extern bool EncoderAvailable(const char *encoder);
 
 void ObsProfileUtil::InitBasicConfigDefaults2()
 {
-	bool oldEncDefaults = config_get_bool(obs_frontend_get_global_config(), "General",
-					      "Pre23Defaults");
-	bool useNV = EncoderAvailable("ffmpeg_nvenc") && !oldEncDefaults;
+    bool oldEncDefaults = config_get_bool(obs_frontend_get_global_config(), "General",
+                          "Pre23Defaults");
+    bool useNV = EncoderAvailable("ffmpeg_nvenc") && !oldEncDefaults;
 
-	config_set_default_string(basicConfig, "SimpleOutput", "StreamEncoder",
-				  useNV ? SIMPLE_ENCODER_NVENC
-					: SIMPLE_ENCODER_X264);
-	config_set_default_string(basicConfig, "SimpleOutput", "RecEncoder",
-				  useNV ? SIMPLE_ENCODER_NVENC
-					: SIMPLE_ENCODER_X264);
+    config_set_default_string(basicConfig, "SimpleOutput", "StreamEncoder",
+                  useNV ? SIMPLE_ENCODER_NVENC
+                    : SIMPLE_ENCODER_X264);
+    config_set_default_string(basicConfig, "SimpleOutput", "RecEncoder",
+                  useNV ? SIMPLE_ENCODER_NVENC
+                    : SIMPLE_ENCODER_X264);
 }
 #endif
 
@@ -898,64 +904,64 @@ void ObsProfileUtil::InitBasicConfigDefaults2()
 #if 0
 void ObsProfileUtil::CheckForSimpleModeX264Fallback()
 {
-	const char* curStreamEncoder = config_get_string(basicConfig, "SimpleOutput", "StreamEncoder");
-	const char* curRecEncoder = config_get_string(basicConfig, "SimpleOutput", "RecEncoder");
+    const char* curStreamEncoder = config_get_string(basicConfig, "SimpleOutput", "StreamEncoder");
+    const char* curRecEncoder = config_get_string(basicConfig, "SimpleOutput", "RecEncoder");
 
-	bool qsv_supported = false;
-	bool amd_supported = false;
-	bool nve_supported = false;
-	bool changed = false;
-	size_t idx = 0;
-	const char* id;
+    bool qsv_supported = false;
+    bool amd_supported = false;
+    bool nve_supported = false;
+    bool changed = false;
+    size_t idx = 0;
+    const char* id;
 
-	while (obs_enum_encoder_types(idx++, &id))
+    while (obs_enum_encoder_types(idx++, &id))
     {
-		if (strcmp(id, "amd_amf_h264") == 0)
-			amd_supported = true;
-		else if (strcmp(id, "obs_qsv11") == 0)
-			qsv_supported = true;
-		else if (strcmp(id, "ffmpeg_nvenc") == 0)
-			nve_supported = true;
-	}
+        if (strcmp(id, "amd_amf_h264") == 0)
+            amd_supported = true;
+        else if (strcmp(id, "obs_qsv11") == 0)
+            qsv_supported = true;
+        else if (strcmp(id, "ffmpeg_nvenc") == 0)
+            nve_supported = true;
+    }
 
-	auto CheckEncoder = [&](const char*& name)
+    auto CheckEncoder = [&](const char*& name)
     {
-		if (strcmp(name, SIMPLE_ENCODER_QSV) == 0)
+        if (strcmp(name, SIMPLE_ENCODER_QSV) == 0)
         {
-			if (!qsv_supported)
+            if (!qsv_supported)
             {
-				changed = true;
-				name = SIMPLE_ENCODER_X264;
-				return false;
-			}
-		}
+                changed = true;
+                name = SIMPLE_ENCODER_X264;
+                return false;
+            }
+        }
         else if (strcmp(name, SIMPLE_ENCODER_NVENC) == 0)
         {
-			if (!nve_supported)
+            if (!nve_supported)
             {
-				changed = true;
-				name = SIMPLE_ENCODER_X264;
-				return false;
-			}
-		}
+                changed = true;
+                name = SIMPLE_ENCODER_X264;
+                return false;
+            }
+        }
         else if (strcmp(name, SIMPLE_ENCODER_AMD) == 0)
         {
-			if (!amd_supported)
+            if (!amd_supported)
             {
-				changed = true;
-				name = SIMPLE_ENCODER_X264;
-				return false;
-			}
-		}
+                changed = true;
+                name = SIMPLE_ENCODER_X264;
+                return false;
+            }
+        }
 
-		return true;
-	};
+        return true;
+    };
 
-	if (!CheckEncoder(curStreamEncoder))
-		config_set_string(basicConfig, "SimpleOutput", "StreamEncoder", curStreamEncoder);
-	if (!CheckEncoder(curRecEncoder))
-		config_set_string(basicConfig, "SimpleOutput", "RecEncoder", curRecEncoder);
-	if (changed)
-		config_save_safe(basicConfig, "tmp", nullptr);
+    if (!CheckEncoder(curStreamEncoder))
+        config_set_string(basicConfig, "SimpleOutput", "StreamEncoder", curStreamEncoder);
+    if (!CheckEncoder(curRecEncoder))
+        config_set_string(basicConfig, "SimpleOutput", "RecEncoder", curRecEncoder);
+    if (changed)
+        config_save_safe(basicConfig, "tmp", nullptr);
 }
 #endif

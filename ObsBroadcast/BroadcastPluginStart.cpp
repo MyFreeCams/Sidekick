@@ -76,6 +76,7 @@
 #include <libPlugins/EdgeChatSock.h>
 #include <libPlugins/IPCShared.h>
 #include <libPlugins/MFCConfigConstants.h>
+#include <libPlugins/ObsProfileUtil.hpp>
 #include <libPlugins/ObsUtil.h>
 #include <libPlugins/Portable.h>
 
@@ -347,7 +348,6 @@ bool obs_module_load(void)
     if (main_window)
     {
         obs_frontend_push_ui_translation(obs_module_get_string);
-
 #if SIDEKICK_CONSOLE
         s_pSidekickProperties = new SidekickPropertiesUI( main_window );
         if (s_pSidekickProperties)
@@ -364,12 +364,10 @@ bool obs_module_load(void)
         }
         else _MESG("DBG: ** Unable to create SidekickProp - s_pSidekickProperties NULL **");
 #endif
-
         s_pMFCDock = new MFCDock(main_window);
         main_window->addDockWidget(Qt::BottomDockWidgetArea, (QDockWidget*)s_pMFCDock);
     }
     else _MESG("DBG: ** Unable to get MainWindow ptr **");
-
 
     QTimer::singleShot(1000, qApp, [=]()
     {
@@ -457,8 +455,8 @@ void SKLogMarker(const char* pszFile, const char* pszFunction, int nLine, const 
 void ui_appendConsoleMsg(const std::string& sMsg)
 {
 #if SIDEKICK_CONSOLE
-    //if (!sMsg.empty())
-    //    _SKLOG("%s", sMsg.c_str());
+    if (!sMsg.empty())
+       _SKLOG("%s", sMsg.c_str());
 #endif
 }
 
@@ -470,8 +468,8 @@ void ui_replaceConsoleMsg(const std::string& sMsg)
     if (pConsole)
         pConsole->clear();
 
-    //if (!sMsg.empty())
-    //    _SKLOG("%s", sMsg.c_str());
+    if (!sMsg.empty())
+       _SKLOG("%s", sMsg.c_str());
 #endif
 }
 
@@ -950,6 +948,12 @@ void onObsProfileChange(obs_frontend_event eventType)
     if (s_bFirstProfileLoad)
     {
         s_bFirstProfileLoad = false;
+        const char* curProfile = obs_frontend_get_current_profile();
+        QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
+        QTimer::singleShot(500, main, [=]()
+        {
+            ObsProfileUtil::AddProfile("SEC");
+        });
 #if SIDEKICK_CONSOLE
         QTimer::singleShot(500, qApp, [=]()
         {
@@ -1072,16 +1076,17 @@ void onObsEvent(obs_frontend_event eventType, void* pCtx)
                 s_thread.setCmd(THREADCMD_STREAMSTART);
 
 #if SIDEKICK_ENABLE_VIRTUALCAM
+                QTimer::singleShot(500, qApp, [=]()
+                {
 #if (LIBOBS_API_MAJOR_VER > 26)
-                obs_frontend_start_virtualcam();
+                    obs_frontend_start_virtualcam();
 #else
-                QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
-                QMetaObject::invokeMethod(main, "StartVirtualCam");
-#if MFC_AGENT_EDGESOCK
-                if (g_ctx.sm_edgeSock)
-                    g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+                    QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
+                    QMetaObject::invokeMethod(main, "StartVirtualCam");
 #endif
-#endif
+                    if (g_ctx.sm_edgeSock)
+                        g_ctx.sm_edgeSock->sendVirtualCameraState(true);
+                });
 #endif
             }
         }
@@ -1287,12 +1292,9 @@ void proxy_blog(int nLevel, const char* pszMsg)
 #endif
 #endif
 
-    stdprintf(sLog,
-              "[%s%02d-%02d %02d:%02d:%02d.%04d] %s",
-              s_szModuleName,
-              tmNow.tm_mon + 1, tmNow.tm_mday,
-              tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec,
-              tvNow.tv_usec / 1000,
+    stdprintf(sLog, "[%s%02d-%02d %02d:%02d:%02d.%04d] %s",
+              s_szModuleName, tmNow.tm_mon + 1, tmNow.tm_mday,
+              tmNow.tm_hour, tmNow.tm_min, tmNow.tm_sec, tvNow.tv_usec / 1000,
               pszMsg);
 
     blog(nLevel, "%s", sLog.c_str());

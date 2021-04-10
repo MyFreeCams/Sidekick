@@ -187,20 +187,22 @@ char* GetConfigPathPtr(const char *name);
 //char* GetProgramDataPathPtr(const char *name);
 
 
-class ObsProfileUtil : public OBSMainWindoww
+//class ObsProfileUtil : public OBSMainWindoww
+class ObsProfileUtil
 {
-    Q_OBJECT
-    friend class Auth;
+    //Q_OBJECT
+    //friend class Auth;
 
 public:
     //static ObsProfileUtil* Get();
 
-    bool AddProfile(const char* title, const char* text, const char* init_text = nullptr);
+    static bool AddProfile(const std::string& newName);
+    static bool CopyProfile(const char* fromPartial, const char* to);
 
 private:
-    obs_frontend_callbacks* api = nullptr;
-    std::shared_ptr<Auth> auth;
-    ConfigFile basicConfig;
+    //obs_frontend_callbacks* api = nullptr;
+    //std::shared_ptr<Auth> auth;
+    //ConfigFile basicConfig;
     //std::unique_ptr<Ui::ObsProfileUtil> ui;
 
     //void ChangeProfile();
