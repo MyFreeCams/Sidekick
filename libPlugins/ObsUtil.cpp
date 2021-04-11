@@ -55,7 +55,10 @@ static const char* module_bin[] = { "../../obs-plugins/" BIT_STRING };  // from 
 static const char* module_bin[] = { "../obs-plugins", OBS_INSTALL_PREFIX "obs-plugins" };  // from obs-cocoa.m
 #endif
 
+using std::map;
+using std::pair;
 using std::string;
+using std::vector;
 
 //---------------------------------------------------------------------------
 // isValidConfig
@@ -231,6 +234,31 @@ int CObsUtil::getConfigOrDefault(const char* pSection, const char* pVariable, in
 //---------------------------------------------------------------------------
 // GetConfigOrDefault
 //
+// Get a value from the obs profile.  If obs is not valid or value doesn't
+// exist return the default value.
+bool CObsUtil::getConfigOrDefault(const char* pSection, const char* pVariable, bool bDefault)
+{
+    bool bRv = bDefault;
+    try
+    {
+        config_t* pConfigProfile = obs_frontend_get_profile_config();
+        if (pConfigProfile)
+        {
+            bRv = config_get_bool(pConfigProfile, pSection, pVariable);
+            bfree(pConfigProfile);
+        }
+    }
+    catch (...)
+    {
+        _TRACE("Unknown Exception Caught");
+    }
+    return bRv;
+}
+
+
+//---------------------------------------------------------------------------
+// GetConfigOrDefault
+//
 // Get a time_t value from the obs profile.  If obs is not valid or value doesn't
 // exist return the default value.
 time_t CObsUtil::getConfigOrDefault(const char* pSection, const char* pVariable, time_t nDefault)
@@ -259,7 +287,7 @@ time_t CObsUtil::getConfigOrDefault(const char* pSection, const char* pVariable,
 // HACK: this uses obs internals from config-file.c, and should probably be rewritten to use whatever the correct
 // format is for enumerating key value pairs in a config block!!
 //
-size_t CObsUtil::getConfigItems(const string& sBlock, std::vector< std::pair<string,string> > &vItems)
+size_t CObsUtil::getConfigItems(const string& sBlock, vector< pair<string,string> >& vItems)
 {
     typedef struct
     {
@@ -303,7 +331,7 @@ size_t CObsUtil::getConfigItems(const string& sBlock, std::vector< std::pair<str
                     {
                         if (pItem->name)
                         {
-                            std::pair<string,string> keyVal( pItem->name, (pItem->value ? pItem->value : "") );
+                            pair<string,string> keyVal( pItem->name, (pItem->value ? pItem->value : "") );
                             vItems.push_back( keyVal );
                         }
                         else _TRACE("skipping config item %zu for block %s with null name", j, sBlock.c_str());
@@ -337,31 +365,6 @@ bool CObsUtil::removeConfig(const string& sBlock, const string& sVar)
         _TRACE("Unknown Exception Caught");
     }
     return removed;
-}
-
-
-//---------------------------------------------------------------------------
-// GetConfigOrDefault
-//
-// Get a value from the obs profile.  If obs is not valid or value doesn't
-// exist return the default value.
-bool CObsUtil::getConfigOrDefault(const char* pSection, const char* pVariable, bool bDefault)
-{
-    bool bRv = bDefault;
-    try
-    {
-        config_t* pConfigProfile = obs_frontend_get_profile_config();
-        if (pConfigProfile)
-        {
-            bRv = config_get_bool(pConfigProfile, pSection, pVariable);
-            bfree(pConfigProfile);
-        }
-    }
-    catch (...)
-    {
-        _TRACE("Unknown Exception Caught");
-    }
-    return bRv;
 }
 
 
@@ -834,15 +837,15 @@ bool CObsUtil::TerminateMFCLogin()
 
 string CObsUtil::expandTokens(const string& s)
 {
-    std::map<string, string> map;
+    map<string, string> map;
     map[string("MFC_OBS_INSTALL_PATH")] = getInstallPath();  // MFC_OBS_PLUGIN_BIN_PATH
     map[string("MFC_PLATFORM")] = string(MFC_PLATFORM);
 
     string sRv = s;
     std::regex e("\\$\\{([A-z_][A-z0-9_ ]*)\\}");
 
-    std::sregex_iterator tokens_begin = std::sregex_iterator(sRv.begin(), sRv.end(), e);
-    std::sregex_iterator tokens_end = std::sregex_iterator();
+    auto tokens_begin = std::sregex_iterator(sRv.begin(), sRv.end(), e);
+    auto tokens_end = std::sregex_iterator();
     for (std::sregex_iterator itr = tokens_begin; itr != tokens_end; itr++)
     {
         std::smatch match = *itr;

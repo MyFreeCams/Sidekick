@@ -954,9 +954,12 @@ void onObsProfileChange(obs_frontend_event eventType)
         QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
         QTimer::singleShot(500, main, [=]()
         {
-            ObsProfileUtil::CopyProfile(curProfile, mfcRTMP);
-            ObsProfileUtil::CopyProfile(curProfile, mfcWebRTC);
-            ObsProfileUtil::AddProfile("SEC");
+            //ObsProfileUtil::CopyProfile(curProfile, mfcRTMP);
+            //ObsProfileUtil::CopyProfile(curProfile, mfcWebRTC);
+            ObsProfileUtil::AddProfile(mfcRTMP);
+            ObsProfileUtil::CreateStreamingService("MyFreeCams RTMP", "rtmp://profiles.myfreecams.com/NxServer", g_ctx.cfg.getString("ctx"));
+            ObsProfileUtil::AddProfile(mfcWebRTC);
+            ObsProfileUtil::CreateStreamingService("MyFreeCams WebRTC", g_ctx.serverName, g_ctx.cfg.getString("ctx"));
         });
 #if SIDEKICK_CONSOLE
         QTimer::singleShot(500, qApp, [=]()

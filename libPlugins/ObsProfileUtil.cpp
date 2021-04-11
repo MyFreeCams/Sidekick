@@ -33,6 +33,17 @@
 #include <unistd.h>
 #endif
 
+
+#include <shellapi.h>
+#include <shlobj.h>
+#include <Dwmapi.h>
+#include <mmdeviceapi.h>
+#include <audiopolicy.h>
+
+#include <util/windows/WinHandle.hpp>
+#include <util/windows/HRError.hpp>
+#include <util/windows/ComPtr.hpp>
+
 // obs
 //#include <obs.hpp>
 #include <obs-module.h>
@@ -66,6 +77,7 @@
 #include <QSizePolicy>
 #include <QScrollBar>
 #include <QTextStream>
+#include <QtGui>
 
 #include <util/dstr.h>
 #include <util/util.hpp>
@@ -73,11 +85,20 @@
 #include <util/profiler.hpp>
 #include <util/dstr.hpp>
 
+#include <UI/display-helpers.hpp>
+#include <UI/qt-wrappers.hpp>
+#include <UI/obs-app.hpp>
+//#include <ShlObj_core.h>
+//#include <UI/window-basic-settings.hpp>
 //#include <UI/window-basic-main.hpp>
 
 //#include "ui_OBSBasic.h"
 
 //#include <json11.hpp>
+
+#define VOLUME_METER_DECAY_FAST 23.53
+#define VOLUME_METER_DECAY_MEDIUM 11.76
+#define VOLUME_METER_DECAY_SLOW 8.57
 
 //using namespace json11;
 using namespace std;
@@ -314,6 +335,30 @@ static bool GetProfileName(const std::string& name, std::string& file)
 }
 
 
+int ObsProfileUtil::GetProfilePath(char* path, size_t size, const char* file) const
+{
+	char profiles_path[512];
+	const char* profile = config_get_string(obs_frontend_get_global_config(), "Basic", "ProfileDir");
+	int ret;
+
+	if (!profile)
+		return -1;
+	if (!path)
+		return -1;
+	if (!file)
+		file = "";
+
+    ret = os_get_config_path(profiles_path, 512, "obs-studio/basic/profiles");
+	if (ret <= 0)
+		return ret;
+
+	if (!*file)
+		return snprintf(path, size, "%s/%s", profiles_path, profile);
+
+	return snprintf(path, size, "%s/%s/%s", profiles_path, profile, file);
+}
+
+
 bool ObsProfileUtil::CopyProfile(const char* fromPartial, const char* to)
 {
     char dir[512];
@@ -387,7 +432,13 @@ ObsProfileUtil* ObsProfileUtil::Get()
 #endif
 
 
-bool ObsProfileUtil::AddProfile(const std::string& newName)
+config_t* ObsProfileUtil::Config() const
+{
+    return obs_frontend_get_profile_config();
+}
+
+
+bool ObsProfileUtil::AddProfile(const std::string& newName, bool copyProfile)
 {
     std::string newDir;
     std::string newPath;
@@ -421,6 +472,9 @@ bool ObsProfileUtil::AddProfile(const std::string& newName)
         return false;
     }
 
+	if (copyProfile)
+		CopyProfile(curDir.c_str(), newPath.c_str());
+
     newPath += "/basic.ini";
 
     config_t* config;
@@ -448,9 +502,8 @@ bool ObsProfileUtil::AddProfile(const std::string& newName)
 	basicConfig = config;
 	config = newConfig;
 
-    QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
-
-    QMetaObject::invokeMethod(main, "on_actionRefreshProfiles_triggered");
+    //QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
+    //QMetaObject::invokeMethod(main, "on_actionRefreshProfiles_triggered");
 
     //QMetaObject::invokeMethod(main, "InitBasicConfigDefaults");
     //QMetaObject::invokeMethod(main, "InitBasicConfigDefaults2");
@@ -475,6 +528,21 @@ bool ObsProfileUtil::AddProfile(const std::string& newName)
     //    api->on_event(OBS_FRONTEND_EVENT_PROFILE_CHANGED);
     //}
     return true;
+}
+
+
+void ObsProfileUtil::CreateStreamingService(const string& serviceName, const string& server, const string& key)
+{
+    obs_data_t* settings = obs_data_create();
+    obs_data_set_string(settings, "service", serviceName.c_str());
+    obs_data_set_string(settings, "server", server.c_str());
+    obs_data_set_string(settings, "key", key.c_str());
+    obs_data_set_bool(settings, "bwtest", false);
+    obs_service_t* newService = obs_service_create("rtmp_common", serviceName.c_str(), settings, nullptr);
+    obs_frontend_set_streaming_service(newService);
+    obs_frontend_save_streaming_service();
+    obs_data_release(settings);
+    obs_service_release(newService);
 }
 
 
@@ -639,10 +707,23 @@ void ObsProfileUtil::UpdateTitleBar()
 #endif
 
 
-#if 0
+
+string GetDefaultVideoSavePath()
+{
+	wchar_t path_utf16[MAX_PATH];
+	char path_utf8[MAX_PATH] = {};
+
+	SHGetFolderPathW(NULL, CSIDL_MYVIDEO, NULL, SHGFP_TYPE_CURRENT,
+			 path_utf16);
+
+	os_wcs_to_utf8(path_utf16, wcslen(path_utf16), path_utf8, MAX_PATH);
+	return string(path_utf8);
+}
+
+
 bool ObsProfileUtil::InitBasicConfigDefaults()
 {
-    QList<QScreen *> screens = QGuiApplication::screens();
+    QList<QScreen*> screens = QGuiApplication::screens();
 
     if (!screens.size())
     {
@@ -652,7 +733,7 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
         return false;
     }
 
-    QScreen *primaryScreen = QGuiApplication::primaryScreen();
+    QScreen* primaryScreen = QGuiApplication::primaryScreen();
 
     uint32_t cx = primaryScreen->size().width();
     uint32_t cy = primaryScreen->size().height();
@@ -668,26 +749,23 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
     /* use 1920x1080 for new default base res if main monitor is above
      * 1920x1080, but don't apply for people from older builds -- only to
      * new users */
-    if ((cx * cy) > (1920 * 1080)) {
+    //if ((cx * cy) > (1920 * 1080)) {
         cx = 1920;
         cy = 1080;
-    }
+    //}
 
     bool changed = false;
+    config_t* basicConfig = obs_frontend_get_profile_config();
 
     /* ----------------------------------------------------- */
     /* move bitrate enforcement setting to new value         */
-    if (config_has_user_value(basicConfig, "SimpleOutput",
-                  "EnforceBitrate") &&
-        !config_has_user_value(basicConfig, "Stream1",
-                   "IgnoreRecommended") &&
-        !config_has_user_value(basicConfig, "Stream1", "MovedOldEnforce")) {
-        bool enforce = config_get_bool(basicConfig, "SimpleOutput",
-                           "EnforceBitrate");
-        config_set_bool(basicConfig, "Stream1", "IgnoreRecommended",
-                !enforce);
-        config_set_bool(basicConfig, "Stream1", "MovedOldEnforce",
-                true);
+    if (config_has_user_value(basicConfig, "SimpleOutput", "EnforceBitrate") &&
+        !config_has_user_value(basicConfig, "Stream1", "IgnoreRecommended") &&
+        !config_has_user_value(basicConfig, "Stream1", "MovedOldEnforce"))
+    {
+        bool enforce = config_get_bool(basicConfig, "SimpleOutput", "EnforceBitrate");
+        config_set_bool(basicConfig, "Stream1", "IgnoreRecommended", !enforce);
+        config_set_bool(basicConfig, "Stream1", "MovedOldEnforce", true);
         changed = true;
     }
 
@@ -756,7 +834,8 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
 
     /* don't allow BaseCX/BaseCY to be susceptible to defaults changing */
     if (!config_has_user_value(basicConfig, "Video", "BaseCX") ||
-        !config_has_user_value(basicConfig, "Video", "BaseCY")) {
+        !config_has_user_value(basicConfig, "Video", "BaseCY"))
+    {
         config_set_uint(basicConfig, "Video", "BaseCX", cx);
         config_set_uint(basicConfig, "Video", "BaseCY", cy);
         config_save_safe(basicConfig, "tmp", nullptr);
@@ -783,7 +862,8 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
 
     /* use a default scaled resolution that has a pixel count no higher
      * than 1280x720 */
-    while (((scale_cx * scale_cy) > (1280 * 720)) && scaled_vals[i] > 0.0) {
+    while (((scale_cx * scale_cy) > (1280 * 720)) && scaled_vals[i] > 0.0)
+    {
         double scale = scaled_vals[i++];
         scale_cx = uint32_t(double(cx) / scale);
         scale_cy = uint32_t(double(cy) / scale);
@@ -795,7 +875,8 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
     /* don't allow OutputCX/OutputCY to be susceptible to defaults
      * changing */
     if (!config_has_user_value(basicConfig, "Video", "OutputCX") ||
-        !config_has_user_value(basicConfig, "Video", "OutputCY")) {
+        !config_has_user_value(basicConfig, "Video", "OutputCY"))
+    {
         config_set_uint(basicConfig, "Video", "OutputCX", scale_cx);
         config_set_uint(basicConfig, "Video", "OutputCY", scale_cy);
         config_save_safe(basicConfig, "tmp", nullptr);
@@ -825,7 +906,7 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
 
     return true;
 }
-#endif
+
 
 #if 0
 extern bool EncoderAvailable(const char *encoder);

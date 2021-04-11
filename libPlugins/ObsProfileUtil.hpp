@@ -187,8 +187,8 @@ char* GetConfigPathPtr(const char *name);
 //char* GetProgramDataPathPtr(const char *name);
 
 
-//class ObsProfileUtil : public OBSMainWindoww
-class ObsProfileUtil
+class ObsProfileUtil : public OBSMainWindoww
+//class ObsProfileUtil
 {
     //Q_OBJECT
     //friend class Auth;
@@ -196,8 +196,13 @@ class ObsProfileUtil
 public:
     //static ObsProfileUtil* Get();
 
-    static bool AddProfile(const std::string& newName);
+    void OBSInit() override {}
+    config_t *Config() const override;
+    int GetProfilePath(char* path, size_t size, const char* file) const override;
+
+    static bool AddProfile(const std::string& newName, bool copyProfile = false);
     static bool CopyProfile(const char* fromPartial, const char* to);
+    static void CreateStreamingService(const std::string& serviceName, const std::string& server, const std::string& key);
 
 private:
     //obs_frontend_callbacks* api = nullptr;
@@ -209,7 +214,7 @@ private:
     //void RefreshProfiles();
     //void ResetProfileData();
     //void UpdateTitleBar();
-	//bool InitBasicConfigDefaults();
+	bool InitBasicConfigDefaults();
 	//void InitBasicConfigDefaults2();
 	//bool InitBasicConfig();
     //void CheckForSimpleModeX264Fallback();
