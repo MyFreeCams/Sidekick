@@ -198,7 +198,6 @@ bool GetClosestUnusedFileName(std::string& path, const char* extension)
         return true;
 
     int index = 1;
-
     do
     {
         path.resize(len);
@@ -283,21 +282,19 @@ static bool ProfileExists(const char* findName)
 
 static bool GetProfileName(const std::string& name, std::string& file)
 {
-    char path[512];
-    int ret;
-
     if (ProfileExists(name.c_str()))
     {
         blog(LOG_WARNING, "Profile '%s' exists", name.c_str());
         return false;
     }
-
     if (!GetFileSafeName(name.c_str(), file))
     {
         blog(LOG_WARNING, "Failed to create safe file name for '%s'", name.c_str());
         return false;
     }
 
+    char path[512];
+    int ret;
     ret = os_get_config_path(path, sizeof(path), "obs-studio/basic/profiles/");
     if (ret <= 0)
     {
@@ -306,7 +303,6 @@ static bool GetProfileName(const std::string& name, std::string& file)
     }
 
     file.insert(0, path);
-
     if (!GetClosestUnusedFileName(file, nullptr))
     {
         blog(LOG_WARNING, "Failed to get closest file name for %s", file.c_str());
@@ -320,8 +316,6 @@ static bool GetProfileName(const std::string& name, std::string& file)
 
 bool ObsProfileUtil::CopyProfile(const char* fromPartial, const char* to)
 {
-    os_glob_t* glob;
-    char path[514];
     char dir[512];
     int ret;
 
@@ -332,8 +326,10 @@ bool ObsProfileUtil::CopyProfile(const char* fromPartial, const char* to)
         return false;
     }
 
+    char path[514];
     snprintf(path, sizeof(path), "%s%s/*", dir, fromPartial);
 
+    os_glob_t* glob;
     if (os_glob(path, 0, &glob) != 0)
     {
         blog(LOG_WARNING, "Failed to glob profile '%s'", fromPartial);
@@ -395,16 +391,18 @@ bool ObsProfileUtil::AddProfile(const std::string& newName)
 {
     std::string newDir;
     std::string newPath;
-    //ConfigFile config;
-
-    bool showWizardChecked = false;
 
     if (!GetProfileName(newName, newDir))
         return false;
 
+    auto globalConfig = obs_frontend_get_global_config();
+
     config_set_bool(obs_frontend_get_global_config(), "Basic", "ConfigOnNewProfile", false);
 
     std::string curDir = config_get_string(obs_frontend_get_global_config(), "Basic", "ProfileDir");
+    blog(LOG_INFO, "current profile directory: %s", curDir.c_str());
+    std::string profilePath = CObsUtil::getProfilePath();
+    blog(LOG_INFO, "current profile path: %s", profilePath.c_str());
 
     char baseDir[512];
     int ret = os_get_config_path(baseDir, sizeof(baseDir), "obs-studio/basic/profiles/");
@@ -414,8 +412,8 @@ bool ObsProfileUtil::AddProfile(const std::string& newName)
         return false;
     }
 
-    newPath = baseDir;
-    newPath += newDir;
+    newPath = baseDir + newDir;
+    blog(LOG_INFO, "new profile directory: %s", newPath.c_str());
 
     if (os_mkdir(newPath.c_str()) < 0)
     {
@@ -667,53 +665,15 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
     cy *= devicePixelRatio();
 #endif
 
-    bool oldResolutionDefaults = config_get_bool(
-        obs_frontend_get_global_config(), "General", "Pre19Defaults");
-
     /* use 1920x1080 for new default base res if main monitor is above
      * 1920x1080, but don't apply for people from older builds -- only to
      * new users */
-    if (!oldResolutionDefaults && (cx * cy) > (1920 * 1080)) {
+    if ((cx * cy) > (1920 * 1080)) {
         cx = 1920;
         cy = 1080;
     }
 
     bool changed = false;
-
-    /* ----------------------------------------------------- */
-    /* move over old FFmpeg track settings                   */
-    if (config_has_user_value(basicConfig, "AdvOut", "FFAudioTrack") &&
-        !config_has_user_value(basicConfig, "AdvOut", "Pre22.1Settings")) {
-
-        int track = (int)config_get_int(basicConfig, "AdvOut",
-                        "FFAudioTrack");
-        config_set_int(basicConfig, "AdvOut", "FFAudioMixes",
-                   1LL << (track - 1));
-        config_set_bool(basicConfig, "AdvOut", "Pre22.1Settings", true);
-        changed = true;
-    }
-
-    /* ----------------------------------------------------- */
-    /* move over mixer values in advanced if older config */
-    if (config_has_user_value(basicConfig, "AdvOut", "RecTrackIndex") &&
-        !config_has_user_value(basicConfig, "AdvOut", "RecTracks")) {
-
-        uint64_t track =
-            config_get_uint(basicConfig, "AdvOut", "RecTrackIndex");
-        track = 1ULL << (track - 1);
-        config_set_uint(basicConfig, "AdvOut", "RecTracks", track);
-        config_remove_value(basicConfig, "AdvOut", "RecTrackIndex");
-        changed = true;
-    }
-
-    /* ----------------------------------------------------- */
-    /* set twitch chat extensions to "both" if prev version  */
-    /* is under 24.1                                         */
-    if (config_get_bool(GetGlobalConfig(), "General", "Pre24.1Defaults") &&
-        !config_has_user_value(basicConfig, "Twitch", "AddonChoice")) {
-        config_set_int(basicConfig, "Twitch", "AddonChoice", 3);
-        changed = true;
-    }
 
     /* ----------------------------------------------------- */
     /* move bitrate enforcement setting to new value         */
@@ -740,31 +700,22 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
 
     config_set_default_string(basicConfig, "Output", "Mode", "Simple");
 
-    config_set_default_bool(basicConfig, "Stream1", "IgnoreRecommended",
-                false);
+    config_set_default_bool(basicConfig, "Stream1", "IgnoreRecommended", false);
 
-    config_set_default_string(basicConfig, "SimpleOutput", "FilePath",
-                  GetDefaultVideoSavePath().c_str());
-    config_set_default_string(basicConfig, "SimpleOutput", "RecFormat",
-                  "mkv");
+    config_set_default_string(basicConfig, "SimpleOutput", "FilePath", GetDefaultVideoSavePath().c_str());
+    config_set_default_string(basicConfig, "SimpleOutput", "RecFormat", "mkv");
     config_set_default_uint(basicConfig, "SimpleOutput", "VBitrate", 2500);
     config_set_default_uint(basicConfig, "SimpleOutput", "ABitrate", 160);
-    config_set_default_bool(basicConfig, "SimpleOutput", "UseAdvanced",
-                false);
-    config_set_default_string(basicConfig, "SimpleOutput", "Preset",
-                  "veryfast");
-    config_set_default_string(basicConfig, "SimpleOutput", "NVENCPreset",
-                  "hq");
-    config_set_default_string(basicConfig, "SimpleOutput", "RecQuality",
-                  "Stream");
+    config_set_default_bool(basicConfig, "SimpleOutput", "UseAdvanced", false);
+    config_set_default_string(basicConfig, "SimpleOutput", "Preset", "veryfast");
+    config_set_default_string(basicConfig, "SimpleOutput", "NVENCPreset", "hq");
+    config_set_default_string(basicConfig, "SimpleOutput", "RecQuality", "Stream");
     config_set_default_bool(basicConfig, "SimpleOutput", "RecRB", false);
     config_set_default_int(basicConfig, "SimpleOutput", "RecRBTime", 20);
     config_set_default_int(basicConfig, "SimpleOutput", "RecRBSize", 512);
-    config_set_default_string(basicConfig, "SimpleOutput", "RecRBPrefix",
-                  "Replay");
+    config_set_default_string(basicConfig, "SimpleOutput", "RecRBPrefix", "Replay");
 
-    config_set_default_bool(basicConfig, "AdvOut", "ApplyServiceSettings",
-                true);
+    config_set_default_bool(basicConfig, "AdvOut", "ApplyServiceSettings",  true);
     config_set_default_bool(basicConfig, "AdvOut", "UseRescale", false);
     config_set_default_uint(basicConfig, "AdvOut", "TrackIndex", 1);
     config_set_default_uint(basicConfig, "AdvOut", "VodTrackIndex", 2);
@@ -772,8 +723,7 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
 
     config_set_default_string(basicConfig, "AdvOut", "RecType", "Standard");
 
-    config_set_default_string(basicConfig, "AdvOut", "RecFilePath",
-                  GetDefaultVideoSavePath().c_str());
+    config_set_default_string(basicConfig, "AdvOut", "RecFilePath", GetDefaultVideoSavePath().c_str());
     config_set_default_string(basicConfig, "AdvOut", "RecFormat", "mkv");
     config_set_default_bool(basicConfig, "AdvOut", "RecUseRescale", false);
     config_set_default_uint(basicConfig, "AdvOut", "RecTracks", (1 << 0));
@@ -781,8 +731,7 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
     config_set_default_uint(basicConfig, "AdvOut", "FLVTrack", 1);
 
     config_set_default_bool(basicConfig, "AdvOut", "FFOutputToFile", true);
-    config_set_default_string(basicConfig, "AdvOut", "FFFilePath",
-                  GetDefaultVideoSavePath().c_str());
+    config_set_default_string(basicConfig, "AdvOut", "FFFilePath", GetDefaultVideoSavePath().c_str());
     config_set_default_string(basicConfig, "AdvOut", "FFExtension", "mp4");
     config_set_default_uint(basicConfig, "AdvOut", "FFVBitrate", 2500);
     config_set_default_uint(basicConfig, "AdvOut", "FFVGOPSize", 250);
@@ -825,10 +774,8 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
     config_set_default_uint(basicConfig, "Output", "MaxRetries", 20);
 
     config_set_default_string(basicConfig, "Output", "BindIP", "default");
-    config_set_default_bool(basicConfig, "Output", "NewSocketLoopEnable",
-                false);
-    config_set_default_bool(basicConfig, "Output", "LowLatencyEnable",
-                false);
+    config_set_default_bool(basicConfig, "Output", "NewSocketLoopEnable", false);
+    config_set_default_bool(basicConfig, "Output", "LowLatencyEnable", false);
 
     int i = 0;
     uint32_t scale_cx = cx;
@@ -862,29 +809,29 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
     config_set_default_string(basicConfig, "Video", "ScaleType", "bicubic");
     config_set_default_string(basicConfig, "Video", "ColorFormat", "NV12");
     config_set_default_string(basicConfig, "Video", "ColorSpace", "709");
-    config_set_default_string(basicConfig, "Video", "ColorRange",
-                  "Partial");
+    config_set_default_string(basicConfig, "Video", "ColorRange", "Partial");
 
-    config_set_default_string(basicConfig, "Audio", "MonitoringDeviceId",
-                  "default");
+    config_set_default_string(basicConfig, "Audio", "MonitoringDeviceId", "default");
     config_set_default_string(
         basicConfig, "Audio", "MonitoringDeviceName",
         Str("Basic.Settings.Advanced.Audio.MonitoringDevice"
             ".Default"));
     config_set_default_uint(basicConfig, "Audio", "SampleRate", 48000);
-    config_set_default_string(basicConfig, "Audio", "ChannelSetup",
-                  "Stereo");
-    config_set_default_double(basicConfig, "Audio", "MeterDecayRate",
-                  VOLUME_METER_DECAY_FAST);
+    config_set_default_string(basicConfig, "Audio", "ChannelSetup", "Stereo");
+    config_set_default_double(basicConfig, "Audio", "MeterDecayRate", VOLUME_METER_DECAY_FAST);
     config_set_default_uint(basicConfig, "Audio", "PeakMeterType", 0);
 
-    CheckExistingCookieId();
+    //CheckExistingCookieId();
 
     return true;
 }
+#endif
 
+#if 0
 extern bool EncoderAvailable(const char *encoder);
+#endif
 
+#if 0
 void ObsProfileUtil::InitBasicConfigDefaults2()
 {
     bool oldEncDefaults = config_get_bool(obs_frontend_get_global_config(), "General",

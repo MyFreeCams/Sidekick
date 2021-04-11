@@ -19,6 +19,7 @@
 #ifndef __OBS_UTIL_H__
 #define __OBS_UTIL_H__
 
+#include <ctime>
 #include <string>
 #include <utility>
 #include <vector>
@@ -32,6 +33,7 @@ public:
     static int getConfigOrDefault(const char* pSection, const char* pVariable, int nDefault);
     static bool getConfigOrDefault(const char* pSection, const char* pVariable, bool bDefault);
     static time_t getConfigOrDefault(const char* pSection, const char* pVariable, time_t nDefault);
+
     static size_t getConfigItems(const std::string& sBlock, std::vector<std::pair<std::string,std::string>>& vItems);
 
     // helper to remove a value from obs profile section

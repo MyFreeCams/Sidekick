@@ -949,9 +949,13 @@ void onObsProfileChange(obs_frontend_event eventType)
     {
         s_bFirstProfileLoad = false;
         const char* curProfile = obs_frontend_get_current_profile();
+        const char* mfcRTMP = "MyFreeCams RTMP";
+        const char* mfcWebRTC = "MyFreeCams WebRTC";
         QMainWindow* main = (QMainWindow*)obs_frontend_get_main_window();
         QTimer::singleShot(500, main, [=]()
         {
+            ObsProfileUtil::CopyProfile(curProfile, mfcRTMP);
+            ObsProfileUtil::CopyProfile(curProfile, mfcWebRTC);
             ObsProfileUtil::AddProfile("SEC");
         });
 #if SIDEKICK_CONSOLE
