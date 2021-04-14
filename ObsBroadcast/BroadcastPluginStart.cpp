@@ -956,9 +956,11 @@ void onObsProfileChange(obs_frontend_event eventType)
         {
             //ObsProfileUtil::CopyProfile(curProfile, mfcRTMP);
             //ObsProfileUtil::CopyProfile(curProfile, mfcWebRTC);
-            ObsProfileUtil::AddProfile(mfcRTMP);
+            //ObsProfileUtil::AddProfile(mfcRTMP);
+            obs_frontend_create_profile(mfcRTMP);
             ObsProfileUtil::CreateStreamingService("MyFreeCams RTMP", "rtmp://profiles.myfreecams.com/NxServer", g_ctx.cfg.getString("ctx"));
-            ObsProfileUtil::AddProfile(mfcWebRTC);
+            //ObsProfileUtil::AddProfile(mfcWebRTC);
+            obs_frontend_create_profile(mfcWebRTC);
             ObsProfileUtil::CreateStreamingService("MyFreeCams WebRTC", g_ctx.serverName, g_ctx.cfg.getString("ctx"));
         });
 #if SIDEKICK_CONSOLE
