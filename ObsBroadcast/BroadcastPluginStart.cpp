@@ -904,7 +904,7 @@ void onObsProfileChange(obs_frontend_event eventType)
     }
     else
     {
-        _MESG("Unknown service svcName: %s   / streamUrl: %s  ", svcName.c_str(), streamUrl.c_str());
+        _MESG("Unknown service - svcName: %s / streamUrl: %s", svcName.c_str(), streamUrl.c_str());
         g_ctx.isMfc     = false;
         g_ctx.isRTMP    = false;
         g_ctx.isWebRTC  = false;

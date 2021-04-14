@@ -24,6 +24,14 @@
 #define WIN32_LEAN_AND_MEAN  // Exclude rarely-used stuff from Windows headers
 #include <windows.h>
 #include <tlhelp32.h>
+#include <shellapi.h>
+#include <shlobj.h>
+#include <Dwmapi.h>
+#include <mmdeviceapi.h>
+#include <audiopolicy.h>
+#include <util/windows/WinHandle.hpp>
+#include <util/windows/HRError.hpp>
+#include <util/windows/ComPtr.hpp>
 #else
 #include <climits>
 #include <cstdio>
@@ -32,17 +40,6 @@
 #include <spawn.h>
 #include <unistd.h>
 #endif
-
-
-#include <shellapi.h>
-#include <shlobj.h>
-#include <Dwmapi.h>
-#include <mmdeviceapi.h>
-#include <audiopolicy.h>
-
-#include <util/windows/WinHandle.hpp>
-#include <util/windows/HRError.hpp>
-#include <util/windows/ComPtr.hpp>
 
 // obs
 //#include <obs.hpp>
@@ -707,7 +704,7 @@ void ObsProfileUtil::UpdateTitleBar()
 #endif
 
 
-
+#if 0
 string GetDefaultVideoSavePath()
 {
 	wchar_t path_utf16[MAX_PATH];
@@ -719,8 +716,10 @@ string GetDefaultVideoSavePath()
 	os_wcs_to_utf8(path_utf16, wcslen(path_utf16), path_utf8, MAX_PATH);
 	return string(path_utf8);
 }
+#endif
 
 
+#if 0
 bool ObsProfileUtil::InitBasicConfigDefaults()
 {
     QList<QScreen*> screens = QGuiApplication::screens();
@@ -906,6 +905,7 @@ bool ObsProfileUtil::InitBasicConfigDefaults()
 
     return true;
 }
+#endif
 
 
 #if 0
