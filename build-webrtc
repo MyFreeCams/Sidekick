@@ -116,6 +116,8 @@ write_webrtc_version() {
 }
 
 main() {
+  init
+
   if [ "$1" = "clean" ]; then install_depot_tools; else find_depot_tools; fi
 
   rm -rf "${WEBRTC_ROOT_DIR}"
