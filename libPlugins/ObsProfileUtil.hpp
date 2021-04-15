@@ -62,11 +62,13 @@ class OBSBasicStats;
 #define QT_UTF8(str) QString::fromUtf8(str, -1)
 #define QT_TO_UTF8(str) str.toUtf8().constData()
 
+#if 0
 #define SIMPLE_ENCODER_X264 "x264"
 #define SIMPLE_ENCODER_X264_LOWCPU "x264_lowcpu"
 #define SIMPLE_ENCODER_QSV "qsv"
 #define SIMPLE_ENCODER_NVENC "nvenc"
 #define SIMPLE_ENCODER_AMD "amd"
+#endif
 
 #if 0
 class Auth : public QObject {
@@ -128,7 +130,7 @@ private:
 };
 #endif
 
-
+#if 0
 class OBSMainWindoww : public QMainWindow {
     Q_OBJECT
 
@@ -141,7 +143,7 @@ public:
     virtual int GetProfilePath(char *path, size_t size,
                    const char *file) const = 0;
 };
-
+#endif
 
 #if 0
 class OBSAppp : public QApplication
@@ -187,8 +189,8 @@ char* GetConfigPathPtr(const char *name);
 //char* GetProgramDataPathPtr(const char *name);
 
 
-class ObsProfileUtil : public OBSMainWindoww
-//class ObsProfileUtil
+// class ObsProfileUtil : public OBSMainWindoww
+class ObsProfileUtil
 {
     //Q_OBJECT
     //friend class Auth;
@@ -196,12 +198,12 @@ class ObsProfileUtil : public OBSMainWindoww
 public:
     //static ObsProfileUtil* Get();
 
-    void OBSInit() override {}
-    config_t *Config() const override;
-    int GetProfilePath(char* path, size_t size, const char* file) const override;
+    // void OBSInit() override {}
+    // config_t *Config() const override;
+    // int GetProfilePath(char* path, size_t size, const char* file) const override;
 
-    static bool AddProfile(const std::string& newName, bool copyProfile = false);
-    static bool CopyProfile(const char* fromPartial, const char* to);
+    // static bool AddProfile(const std::string& newName, bool copyProfile = false);
+    // static bool CopyProfile(const char* fromPartial, const char* to);
     static void CreateStreamingService(const std::string& serviceName, const std::string& server, const std::string& key);
 
 private:
@@ -214,7 +216,7 @@ private:
     //void RefreshProfiles();
     //void ResetProfileData();
     //void UpdateTitleBar();
-	bool InitBasicConfigDefaults();
+	// bool InitBasicConfigDefaults();
 	//void InitBasicConfigDefaults2();
 	//bool InitBasicConfig();
     //void CheckForSimpleModeX264Fallback();

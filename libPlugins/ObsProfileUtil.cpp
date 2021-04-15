@@ -64,6 +64,7 @@
 #include <obs-data.h>
 #include <obs.h>
 #include <obs.hpp>
+#if 0
 #include <QGuiApplication>
 #include <QMessageBox>
 #include <QShowEvent>
@@ -75,6 +76,7 @@
 #include <QScrollBar>
 #include <QTextStream>
 #include <QtGui>
+#endif
 
 #include <util/dstr.h>
 #include <util/util.hpp>
@@ -82,9 +84,10 @@
 #include <util/profiler.hpp>
 #include <util/dstr.hpp>
 
-#include <UI/display-helpers.hpp>
-#include <UI/qt-wrappers.hpp>
-#include <UI/obs-app.hpp>
+// #include <UI/display-helpers.hpp>
+// #include <UI/qt-wrappers.hpp>
+// #include <UI/obs-app.hpp>
+
 //#include <ShlObj_core.h>
 //#include <UI/window-basic-settings.hpp>
 //#include <UI/window-basic-main.hpp>
@@ -93,18 +96,22 @@
 
 //#include <json11.hpp>
 
+#if 0
 #define VOLUME_METER_DECAY_FAST 23.53
 #define VOLUME_METER_DECAY_MEDIUM 11.76
 #define VOLUME_METER_DECAY_SLOW 8.57
+#endif
 
 //using namespace json11;
 using namespace std;
 
 //#include "ui-config.h"
 
+#if 0
 static const double scaled_vals[] = {1.0,         1.25, (1.0 / 0.75), 1.5,
                      (1.0 / 0.6), 1.75, 2.0,          2.25,
                      2.5,         2.75, 3.0,          0.0};
+#endif
 
 //extern void DestroyPanelCookieManager();
 //extern void DuplicateCurrentCookieProfile(ConfigFile &config);
@@ -112,6 +119,21 @@ static const double scaled_vals[] = {1.0,         1.25, (1.0 / 0.75), 1.5,
 //extern void DeleteCookies();
 
 //extern OBSBasic basicConfig;
+
+void ObsProfileUtil::CreateStreamingService(const string& serviceName, const string& server, const string& key)
+{
+    obs_data_t* settings = obs_data_create();
+    obs_data_set_string(settings, "service", serviceName.c_str());
+    obs_data_set_string(settings, "server", server.c_str());
+    obs_data_set_string(settings, "key", key.c_str());
+    obs_data_set_bool(settings, "bwtest", false);
+    obs_service_t* newService = obs_service_create("rtmp_common", serviceName.c_str(), settings, nullptr);
+    obs_frontend_set_streaming_service(newService);
+    obs_frontend_save_streaming_service();
+    obs_data_release(settings);
+    obs_service_release(newService);
+}
+
 
 #if 0
 template<typename T> static T GetOBSRef(QListWidgetItem *item)
@@ -168,7 +190,7 @@ static void AddExtraModulePaths()
 }
 #endif
 
-
+#if 0
 bool GetFileSafeName(const char* name, std::string& file)
 {
     size_t base_len = strlen(name);
@@ -201,8 +223,9 @@ bool GetFileSafeName(const char* name, std::string& file)
     os_wcs_to_utf8(wfile.c_str(), wfile.size(), &file[0], len + 1);
     return true;
 }
+#endif
 
-
+#if 0
 bool GetClosestUnusedFileName(std::string& path, const char* extension)
 {
     size_t len = path.size();
@@ -229,8 +252,9 @@ bool GetClosestUnusedFileName(std::string& path, const char* extension)
 
     return true;
 }
+#endif
 
-
+#if 0
 void EnumProfiles(std::function<bool(const char*, const char*)>&& cb)
 {
     char path[512];
@@ -278,8 +302,9 @@ void EnumProfiles(std::function<bool(const char*, const char*)>&& cb)
 
     os_globfree(glob);
 }
+#endif
 
-
+#if 0
 static bool ProfileExists(const char* findName)
 {
     bool found = false;
@@ -296,8 +321,9 @@ static bool ProfileExists(const char* findName)
     EnumProfiles(func);
     return found;
 }
+#endif
 
-
+#if 0
 static bool GetProfileName(const std::string& name, std::string& file)
 {
     if (ProfileExists(name.c_str()))
@@ -330,8 +356,9 @@ static bool GetProfileName(const std::string& name, std::string& file)
     file.erase(0, ret);
     return true;
 }
+#endif
 
-
+#if 0
 int ObsProfileUtil::GetProfilePath(char* path, size_t size, const char* file) const
 {
 	char profiles_path[512];
@@ -354,8 +381,9 @@ int ObsProfileUtil::GetProfilePath(char* path, size_t size, const char* file) co
 
 	return snprintf(path, size, "%s/%s/%s", profiles_path, profile, file);
 }
+#endif
 
-
+#if 0
 bool ObsProfileUtil::CopyProfile(const char* fromPartial, const char* to)
 {
     char dir[512];
@@ -398,6 +426,7 @@ bool ObsProfileUtil::CopyProfile(const char* fromPartial, const char* to)
     os_globfree(glob);
     return true;
 }
+#endif
 
 #if 0
 void Auth::Save()
@@ -428,13 +457,14 @@ ObsProfileUtil* ObsProfileUtil::Get()
 }
 #endif
 
-
+#if 0
 config_t* ObsProfileUtil::Config() const
 {
     return obs_frontend_get_profile_config();
 }
+#endif
 
-
+#if 0
 bool ObsProfileUtil::AddProfile(const std::string& newName, bool copyProfile)
 {
     std::string newDir;
@@ -526,22 +556,7 @@ bool ObsProfileUtil::AddProfile(const std::string& newName, bool copyProfile)
     //}
     return true;
 }
-
-
-void ObsProfileUtil::CreateStreamingService(const string& serviceName, const string& server, const string& key)
-{
-    obs_data_t* settings = obs_data_create();
-    obs_data_set_string(settings, "service", serviceName.c_str());
-    obs_data_set_string(settings, "server", server.c_str());
-    obs_data_set_string(settings, "key", key.c_str());
-    obs_data_set_bool(settings, "bwtest", false);
-    obs_service_t* newService = obs_service_create("rtmp_common", serviceName.c_str(), settings, nullptr);
-    obs_frontend_set_streaming_service(newService);
-    obs_frontend_save_streaming_service();
-    obs_data_release(settings);
-    obs_service_release(newService);
-}
-
+#endif
 
 #if 0
 void ObsProfileUtil::ChangeProfile()
