@@ -45,8 +45,8 @@
                 "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include"
             ],
             "defines": [
-                "MFC_AGENT_SVC_URL=\"https://sidekick.mfc.dev/agentSvc.php\"",
-                "MFC_CEF_LOGIN_URL=\"https://sidekick.mfc.dev/?_x=login&_t=q&_cv=plugin\"",
+                "MFC_AGENT_SVC_URL=\"https://sidekick.myfreecams.com/agentSvc.php\"",
+                "MFC_CEF_LOGIN_URL=\"https://sidekick.myfreecams.com/?_x=login&_t=q&_cv=plugin\"",
                 "MFC_DEFAULT_BROADCAST_URL=\"rtmp://publish.myfreecams.com/NxServer\"",
                 "MFC_OBS_CEF_PLUGIN_ROOT_PATH=\"/Library/Application Support/obs-studio\"",
                 "MFC_OBS_INSTALL_PATH=\"/Library/Application Support/obs-studio/MFCBroadcast/bin\"",
@@ -131,8 +131,8 @@
                 "${workspaceFolder}/mfc-browser/panel"
             ],
             "defines": [
-                "MFC_AGENT_SVC_URL=\"https://sidekick.mfc.dev/agentSvc.php\"",
-                "MFC_CEF_LOGIN_URL=\"https://sidekick.mfc.dev/?_x=login&_t=q&_cv=plugin\"",
+                "MFC_AGENT_SVC_URL=\"https://sidekick.myfreecams.com/agentSvc.php\"",
+                "MFC_CEF_LOGIN_URL=\"https://sidekick.myfreecams.com/?_x=login&_t=q&_cv=plugin\"",
                 "MFC_DEFAULT_BROADCAST_URL=\"rtmp://publish.myfreecams.com/NxServer\"",
                 "MFC_OBS_INSTALL_PATH=\"C:\\Users\\Public\\Sidekick\\bin\"",
                 "MFC_CEF_APP_EXE_NAME=\"MFCCefLogin.exe\"",

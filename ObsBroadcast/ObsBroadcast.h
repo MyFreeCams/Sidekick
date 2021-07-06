@@ -108,7 +108,7 @@ public:
     time_t tmStreamStart;       // time streaming began, even if it has since stopped.
     time_t tmStreamStop;        // if not currently streaming, time streaming was stopped, otherwise 0
 
-    bool agentPolling;          // flag if agent polling to sidekick.mfc.dev/agentSvc.php is active
+    bool agentPolling;          // flag if agent polling to sidekick.myfreecams.com/agentSvc.php is active
 
     atomic<SidekickActiveState> activeState;
 

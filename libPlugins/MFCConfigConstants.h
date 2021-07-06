@@ -72,7 +72,7 @@
 #endif // _PROD
 
 #ifndef MFC_AGENT_SVC_URL
-#define MFC_AGENT_SVC_URL                       "https://sidekick.mfc.dev/agentSvc.php"
+#define MFC_AGENT_SVC_URL                       "https://sidekick.myfreecams.com/agentSvc.php"
 #endif
 
 #define SYSREPORT_API                           "/SysInfo"
