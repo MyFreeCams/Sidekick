@@ -139,7 +139,7 @@ exit /b
 :::::::: END OF SCRIPT ::::::::
 
 :set_deps_hash
-  set Deps_SHA1=d9412dd21d22f599a6e88d105cc3260a38cf8d74
+  set Deps_SHA1=3ce2bc7d6736810e985d09281c5965da6e675b35
   set X264_SHA1=0a1afc492ba4949eb7dbb0af8aabbf36424d6e32
   set CURL_SHA256=5e49e97ea3e3dd707f1f56985113b908b9a95e81c3212290c7fefbe4d79fb093
   set VLC_SHA1=218603f05ab5f30de0cc87b0ccceb57bb1efcfa4
